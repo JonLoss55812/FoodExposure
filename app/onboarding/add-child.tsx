@@ -45,7 +45,7 @@ export default function AddChildOnboardingScreen() {
 
     selectChild(childId);
     setOnboarded(true);
-    router.replace('/(tabs)/');
+    router.replace('/(tabs)' as any);
   };
 
   return (

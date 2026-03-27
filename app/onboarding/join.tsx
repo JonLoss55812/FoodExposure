@@ -50,7 +50,7 @@ export default function JoinFamilyScreen() {
         displayName,
       });
 
-      router.replace('/(tabs)/');
+      router.replace('/(tabs)' as any);
     } catch (err) {
       Alert.alert('Error', 'Failed to join family. Please try again.');
     } finally {

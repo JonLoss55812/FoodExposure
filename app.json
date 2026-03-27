@@ -41,7 +41,8 @@
           "organization": "tongue-tutor",
           "project": "tongue-tutor-rn"
         }
-      ]
+      ],
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true

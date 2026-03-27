@@ -73,7 +73,7 @@ export default function LogExposureScreen() {
       setSelectedStage('tolerate');
       Alert.alert('Logged!', 'Food exposure saved successfully.', [
         { text: 'Log Another', style: 'default' },
-        { text: 'Go Home', onPress: () => router.push('/(tabs)/') },
+        { text: 'Go Home', onPress: () => router.push('/(tabs)' as any) },
       ]);
     } catch (err) {
       Alert.alert('Error', 'Failed to save exposure. Please try again.');
