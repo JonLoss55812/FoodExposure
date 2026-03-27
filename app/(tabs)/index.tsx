@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
 import { eq, desc, and, sql } from 'drizzle-orm';
@@ -20,10 +21,12 @@ export default function DashboardScreen() {
   const [todayCount, setTodayCount] = useState(0);
   const [stageCounts, setStageCounts] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
     if (!familyId) return;
 
+    setLoading(true);
     try {
       // Load children
       const kids = await db.select().from(schema.children)
@@ -88,6 +91,8 @@ export default function DashboardScreen() {
       setStageCounts(counts);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
+    } finally {
+      setLoading(false);
     }
   }, [familyId, selectedChildId]);
 
@@ -107,9 +112,18 @@ export default function DashboardScreen() {
 
   if (!isAuthenticated || !isOnboarded) return null;
 
+  if (loading && childrenList.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ActivityIndicator size="large" color="#F97316" style={{ flex: 1 }} />
+      </SafeAreaView>
+    );
+  }
+
   const totalFoodsTracked = Object.values(stageCounts).reduce((a, b) => a + b, 0);
 
   return (
+    <SafeAreaView style={styles.container}>
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
@@ -202,6 +216,7 @@ export default function DashboardScreen() {
         </>
       )}
     </ScrollView>
+    </SafeAreaView>
   );
 }
 

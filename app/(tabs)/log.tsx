@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TextInput, Pressable, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
@@ -83,7 +84,8 @@ export default function LogExposureScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <SafeAreaView style={styles.container}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
         <Text style={styles.title}>Log Exposure</Text>
         <Text style={styles.subtitle}>Record a food interaction</Text>
@@ -231,6 +233,7 @@ export default function LogExposureScreen() {
                   placeholderTextColor="#94A3B8"
                   multiline
                   numberOfLines={3}
+                  maxLength={500}
                 />
               )}
             />
@@ -250,6 +253,7 @@ export default function LogExposureScreen() {
         />
       </View>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 

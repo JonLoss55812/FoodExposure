@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, Pressable } from 'react-native';
+import { View, Text, TextInput, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
@@ -24,41 +25,50 @@ export default function FoodsScreen() {
   const [foods, setFoods] = useState<FoodWithStats[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<FoodCategory | 'all'>('all');
+  const [loading, setLoading] = useState(true);
 
   const loadFoods = useCallback(async () => {
     if (!familyId) return;
 
-    const allFoods = await db.select().from(schema.foods)
-      .where(eq(schema.foods.familyId, familyId));
+    setLoading(true);
+    try {
+      const allFoods = await db.select().from(schema.foods)
+        .where(eq(schema.foods.familyId, familyId));
 
-    // Get exposure stats per food for selected child
-    const foodsWithStats: FoodWithStats[] = await Promise.all(
-      allFoods.map(async (food) => {
-        if (!selectedChildId) return { ...food, exposureCount: 0 };
+      // Get exposure stats per food for selected child
+      const foodsWithStats: FoodWithStats[] = await Promise.all(
+        allFoods.map(async (food) => {
+          if (!selectedChildId) return { ...food, exposureCount: 0 };
 
-        const foodExposures = await db.select().from(schema.exposures)
-          .where(and(
-            eq(schema.exposures.foodId, food.id),
-            eq(schema.exposures.childId, selectedChildId)
-          ));
+          const foodExposures = await db.select().from(schema.exposures)
+            .where(and(
+              eq(schema.exposures.foodId, food.id),
+              eq(schema.exposures.childId, selectedChildId)
+            ));
 
-        let highestStage: ExposureStage | undefined;
-        for (const exp of foodExposures) {
-          const stage = exp.stage as ExposureStage;
-          if (!highestStage || STAGE_ORDER.indexOf(stage) > STAGE_ORDER.indexOf(highestStage)) {
-            highestStage = stage;
+          let highestStage: ExposureStage | undefined;
+          for (const exp of foodExposures) {
+            const stage = exp.stage as ExposureStage;
+            if (!highestStage || STAGE_ORDER.indexOf(stage) > STAGE_ORDER.indexOf(highestStage)) {
+              highestStage = stage;
+            }
           }
-        }
 
-        return {
-          ...food,
-          exposureCount: foodExposures.length,
-          highestStage,
-        };
-      })
-    );
+          return {
+            ...food,
+            exposureCount: foodExposures.length,
+            highestStage,
+          };
+        })
+      );
 
-    setFoods(foodsWithStats);
+      setFoods(foodsWithStats);
+    } catch (err) {
+      console.error('Failed to load foods:', err);
+      Alert.alert('Error', 'Failed to load foods. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }, [familyId, selectedChildId]);
 
   useEffect(() => {
@@ -71,8 +81,16 @@ export default function FoodsScreen() {
     return matchesSearch && matchesCategory;
   });
 
+  if (loading && foods.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ActivityIndicator size="large" color="#F97316" style={{ flex: 1 }} />
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Foods</Text>
         <Pressable style={styles.addButton} onPress={() => router.push('/food/add')}>
@@ -141,7 +159,7 @@ export default function FoodsScreen() {
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 

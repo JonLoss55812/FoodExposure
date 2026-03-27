@@ -74,6 +74,7 @@ export default function JoinFamilyScreen() {
               placeholder="Enter your name"
               placeholderTextColor="#94A3B8"
               autoCapitalize="words"
+              maxLength={50}
             />
           </View>
 

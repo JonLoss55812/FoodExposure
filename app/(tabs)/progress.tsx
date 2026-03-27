@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
 import { eq, and } from 'drizzle-orm';
 import { db } from '@/src/db/client';
@@ -23,10 +24,13 @@ export default function ProgressScreen() {
     avgRating: 0,
     foodsNearTarget: 0,
   });
+  const [loading, setLoading] = useState(true);
 
   const loadStats = useCallback(async () => {
     if (!familyId || !selectedChildId) return;
 
+    setLoading(true);
+    try {
     const allFoods = await db.select().from(schema.foods)
       .where(eq(schema.foods.familyId, familyId));
 
@@ -87,11 +91,24 @@ export default function ProgressScreen() {
       avgRating: ratingCount > 0 ? totalRating / ratingCount : 0,
       foodsNearTarget,
     });
+    } catch (err) {
+      console.error('Failed to load progress stats:', err);
+    } finally {
+      setLoading(false);
+    }
   }, [familyId, selectedChildId]);
 
   useEffect(() => {
     loadStats();
   }, [loadStats]);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ActivityIndicator size="large" color="#F97316" style={{ flex: 1 }} />
+      </SafeAreaView>
+    );
+  }
 
   if (!selectedChildId) {
     return (
@@ -104,7 +121,8 @@ export default function ProgressScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <SafeAreaView style={styles.container}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <Text style={styles.title}>Progress</Text>
         <Text style={styles.subtitle}>Track your journey</Text>
@@ -202,6 +220,7 @@ export default function ProgressScreen() {
         </Text>
       </View>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 

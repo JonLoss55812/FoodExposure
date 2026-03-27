@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { View, Text, TextInput, ScrollView, Pressable, Alert } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
@@ -15,6 +16,8 @@ export default function AddFoodScreen() {
   const router = useRouter();
   const { familyId } = useAuthStore();
 
+  const [saving, setSaving] = useState(false);
+
   const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm<FoodFormData>({
     resolver: zodResolver(foodSchema) as any,
     defaultValues: {
@@ -28,26 +31,33 @@ export default function AddFoodScreen() {
   const isSafeFood = watch('isSafeFood');
 
   const onSubmit = async (data: FoodFormData) => {
-    if (!familyId) return;
+    if (!familyId || saving) return;
 
-    await db.insert(schema.foods).values({
-      id: generateId(),
-      familyId,
-      name: data.name,
-      category: data.category,
-      defaultPreparation: data.defaultPreparation ?? null,
-      isSafeFood: data.isSafeFood,
-      createdAt: new Date(),
-    });
+    setSaving(true);
+    try {
+      await db.insert(schema.foods).values({
+        id: generateId(),
+        familyId,
+        name: data.name,
+        category: data.category,
+        defaultPreparation: data.defaultPreparation ?? null,
+        isSafeFood: data.isSafeFood,
+        createdAt: new Date(),
+      });
 
-    Alert.alert('Added!', `${data.name} has been added to your food library.`, [
-      { text: 'Add Another', style: 'default' },
-      { text: 'Done', onPress: () => router.back() },
-    ]);
+      Alert.alert('Added!', `${data.name} has been added to your food library.`, [
+        { text: 'Add Another', style: 'default' },
+        { text: 'Done', onPress: () => router.back() },
+      ]);
+    } catch (err) {
+      Alert.alert('Error', 'Failed to add food. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}>
           <Text style={styles.back}>Cancel</Text>
@@ -69,6 +79,7 @@ export default function AddFoodScreen() {
               placeholder="e.g., Broccoli, Chicken Nuggets"
               placeholderTextColor="#94A3B8"
               autoCapitalize="words"
+              maxLength={80}
             />
           )}
         />
@@ -134,7 +145,7 @@ export default function AddFoodScreen() {
       </Pressable>
 
       <View style={styles.footer}>
-        <Button label="Add Food" onPress={handleSubmit(onSubmit as any)} size="lg" fullWidth icon="🍽️" />
+        <Button label="Add Food" onPress={handleSubmit(onSubmit as any)} size="lg" fullWidth icon="🍽️" loading={saving} />
       </View>
     </ScrollView>
   );

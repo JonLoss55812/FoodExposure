@@ -1,4 +1,5 @@
-import { View, Text, TextInput, Pressable, ScrollView } from 'react-native';
+import { useState } from 'react';
+import { View, Text, TextInput, Pressable, ScrollView, Alert } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
@@ -19,6 +20,8 @@ export default function AddChildOnboardingScreen() {
   const { selectChild } = useChildStore();
   const { setOnboarded } = useAuthStore();
 
+  const [saving, setSaving] = useState(false);
+
   const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm<ChildFormData>({
     resolver: zodResolver(childSchema) as any,
     defaultValues: {
@@ -30,26 +33,33 @@ export default function AddChildOnboardingScreen() {
   const selectedEmoji = watch('avatarEmoji');
 
   const onSubmit = async (data: ChildFormData) => {
-    if (!familyId) return;
+    if (!familyId || saving) return;
 
-    const childId = generateId();
-    await db.insert(schema.children).values({
-      id: childId,
-      familyId,
-      name: data.name,
-      dateOfBirth: data.dateOfBirth ?? null,
-      avatarEmoji: data.avatarEmoji,
-      notes: data.notes ?? null,
-      createdAt: new Date(),
-    });
+    setSaving(true);
+    try {
+      const childId = generateId();
+      await db.insert(schema.children).values({
+        id: childId,
+        familyId,
+        name: data.name,
+        dateOfBirth: data.dateOfBirth ?? null,
+        avatarEmoji: data.avatarEmoji,
+        notes: data.notes ?? null,
+        createdAt: new Date(),
+      });
 
-    selectChild(childId);
-    setOnboarded(true);
-    router.replace('/(tabs)' as any);
+      selectChild(childId);
+      setOnboarded(true);
+      router.replace('/(tabs)' as any);
+    } catch (err) {
+      Alert.alert('Error', 'Failed to add child. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
         <Text style={styles.step}>Step 1 of 1</Text>
         <Text style={styles.title}>Add Your Child</Text>
@@ -86,6 +96,7 @@ export default function AddChildOnboardingScreen() {
               placeholder="Enter name"
               placeholderTextColor="#94A3B8"
               autoCapitalize="words"
+              maxLength={50}
             />
           )}
         />
@@ -125,6 +136,7 @@ export default function AddChildOnboardingScreen() {
               placeholderTextColor="#94A3B8"
               multiline
               numberOfLines={3}
+              maxLength={500}
             />
           )}
         />
@@ -137,6 +149,8 @@ export default function AddChildOnboardingScreen() {
           size="lg"
           fullWidth
           icon="🚀"
+          loading={saving}
+          disabled={saving}
         />
       </View>
     </ScrollView>

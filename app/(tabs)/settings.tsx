@@ -1,4 +1,5 @@
 import { View, Text, ScrollView, Pressable, Alert, Switch } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/src/stores/auth-store';
@@ -17,7 +18,8 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <SafeAreaView style={styles.container}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <Text style={styles.title}>Settings</Text>
       </View>
@@ -119,6 +121,7 @@ export default function SettingsScreen() {
       {/* Tagline */}
       <Text style={styles.tagline}>So Your Tongue Can Learn</Text>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { View, Text, TextInput, ScrollView, Pressable, Alert } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
@@ -18,6 +19,8 @@ export default function AddChildScreen() {
   const { familyId } = useAuthStore();
   const { selectChild } = useChildStore();
 
+  const [saving, setSaving] = useState(false);
+
   const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm<ChildFormData>({
     resolver: zodResolver(childSchema) as any,
     defaultValues: {
@@ -29,27 +32,34 @@ export default function AddChildScreen() {
   const selectedEmoji = watch('avatarEmoji');
 
   const onSubmit = async (data: ChildFormData) => {
-    if (!familyId) return;
+    if (!familyId || saving) return;
 
-    const childId = generateId();
-    await db.insert(schema.children).values({
-      id: childId,
-      familyId,
-      name: data.name,
-      dateOfBirth: data.dateOfBirth ?? null,
-      avatarEmoji: data.avatarEmoji,
-      notes: data.notes ?? null,
-      createdAt: new Date(),
-    });
+    setSaving(true);
+    try {
+      const childId = generateId();
+      await db.insert(schema.children).values({
+        id: childId,
+        familyId,
+        name: data.name,
+        dateOfBirth: data.dateOfBirth ?? null,
+        avatarEmoji: data.avatarEmoji,
+        notes: data.notes ?? null,
+        createdAt: new Date(),
+      });
 
-    selectChild(childId);
-    Alert.alert('Added!', `${data.name} has been added.`, [
-      { text: 'OK', onPress: () => router.back() },
-    ]);
+      selectChild(childId);
+      Alert.alert('Added!', `${data.name} has been added.`, [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
+    } catch (err) {
+      Alert.alert('Error', 'Failed to add child. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}>
           <Text style={styles.back}>Cancel</Text>
@@ -85,6 +95,7 @@ export default function AddChildScreen() {
               placeholder="Child's name"
               placeholderTextColor="#94A3B8"
               autoCapitalize="words"
+              maxLength={50}
             />
           )}
         />
@@ -121,13 +132,14 @@ export default function AddChildScreen() {
               placeholder="Allergies, sensitivities..."
               placeholderTextColor="#94A3B8"
               multiline
+              maxLength={500}
             />
           )}
         />
       </View>
 
       <View style={styles.footer}>
-        <Button label="Add Child" onPress={handleSubmit(onSubmit as any)} size="lg" fullWidth />
+        <Button label="Add Child" onPress={handleSubmit(onSubmit as any)} size="lg" fullWidth loading={saving} disabled={saving} />
       </View>
     </ScrollView>
   );
