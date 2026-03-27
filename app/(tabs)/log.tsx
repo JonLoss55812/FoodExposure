@@ -1,0 +1,384 @@
+import { useState, useEffect, useCallback } from 'react';
+import { View, Text, ScrollView, TextInput, Pressable, Alert } from 'react-native';
+import { StyleSheet } from 'react-native-unistyles';
+import { useRouter } from 'expo-router';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { eq } from 'drizzle-orm';
+import { db } from '@/src/db/client';
+import * as schema from '@/src/db/schema';
+import { ChildSelector, StageIndicator, RatingPicker, Button } from '@/src/components';
+import { useChildStore } from '@/src/stores/child-store';
+import { useAuthStore } from '@/src/stores/auth-store';
+import { exposureSchema, type ExposureFormData } from '@/src/lib/validation';
+import { generateId } from '@/src/lib/utils';
+import { STAGE_ORDER, STAGE_CONFIG, MEAL_TYPES, TEMPERATURES, TEXTURES } from '@/src/lib/constants';
+import type { ExposureStage } from '@/src/lib/constants';
+
+export default function LogExposureScreen() {
+  const router = useRouter();
+  const { familyId, userId } = useAuthStore();
+  const { selectedChildId, selectChild } = useChildStore();
+  const [childrenList, setChildrenList] = useState<(typeof schema.children.$inferSelect)[]>([]);
+  const [foodsList, setFoodsList] = useState<(typeof schema.foods.$inferSelect)[]>([]);
+  const [selectedFoodId, setSelectedFoodId] = useState<string | null>(null);
+  const [selectedStage, setSelectedStage] = useState<ExposureStage>('tolerate');
+  const [showDetails, setShowDetails] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const { control, handleSubmit, setValue, reset, formState: { errors } } = useForm<ExposureFormData>({
+    resolver: zodResolver(exposureSchema) as any,
+    defaultValues: {
+      childId: selectedChildId || '',
+      stage: 'tolerate',
+    },
+  });
+
+  useEffect(() => {
+    if (!familyId) return;
+    loadData();
+  }, [familyId]);
+
+  const loadData = async () => {
+    if (!familyId) return;
+    const kids = await db.select().from(schema.children).where(eq(schema.children.familyId, familyId));
+    setChildrenList(kids);
+    const allFoods = await db.select().from(schema.foods).where(eq(schema.foods.familyId, familyId));
+    setFoodsList(allFoods);
+  };
+
+  const onSubmit = async (data: ExposureFormData) => {
+    setSaving(true);
+    try {
+      const id = generateId();
+      await db.insert(schema.exposures).values({
+        id,
+        childId: data.childId,
+        foodId: data.foodId,
+        stage: data.stage,
+        rating: data.rating ?? null,
+        preparation: data.preparation ?? null,
+        temperature: data.temperature ?? null,
+        texture: data.texture ?? null,
+        mealType: data.mealType ?? null,
+        setting: data.setting ?? null,
+        notes: data.notes ?? null,
+        loggedBy: userId,
+        occurredAt: new Date(),
+        createdAt: new Date(),
+      });
+
+      reset();
+      setSelectedFoodId(null);
+      setSelectedStage('tolerate');
+      Alert.alert('Logged!', 'Food exposure saved successfully.', [
+        { text: 'Log Another', style: 'default' },
+        { text: 'Go Home', onPress: () => router.push('/(tabs)/') },
+      ]);
+    } catch (err) {
+      Alert.alert('Error', 'Failed to save exposure. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Log Exposure</Text>
+        <Text style={styles.subtitle}>Record a food interaction</Text>
+      </View>
+
+      {/* Step 1: Select Child */}
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>Child</Text>
+        <ChildSelector
+          children={childrenList.map((c) => ({ id: c.id, name: c.name, avatarEmoji: c.avatarEmoji }))}
+          selectedId={selectedChildId}
+          onSelect={(id) => {
+            selectChild(id);
+            setValue('childId', id);
+          }}
+        />
+      </View>
+
+      {/* Step 2: Select Food */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionLabel}>Food</Text>
+          <Pressable onPress={() => router.push('/food/add')}>
+            <Text style={styles.addLink}>+ Add New</Text>
+          </Pressable>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.foodGrid}>
+          {foodsList.map((food) => (
+            <Pressable
+              key={food.id}
+              style={[styles.foodChip, selectedFoodId === food.id && styles.foodChipSelected]}
+              onPress={() => {
+                setSelectedFoodId(food.id);
+                setValue('foodId', food.id);
+              }}
+            >
+              <Text style={styles.foodChipText}>{food.name}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+        {foodsList.length === 0 && (
+          <Text style={styles.hint}>Add some foods first to start logging exposures.</Text>
+        )}
+      </View>
+
+      {/* Step 3: Select Stage */}
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>Stage Reached</Text>
+        <StageIndicator
+          currentStage={selectedStage}
+          onStageSelect={(stage) => {
+            setSelectedStage(stage);
+            setValue('stage', stage);
+          }}
+          size="lg"
+          interactive
+        />
+        <Text style={styles.stageDescription}>
+          {STAGE_CONFIG[selectedStage].description}
+        </Text>
+      </View>
+
+      {/* Step 4: Rating */}
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>Acceptance Rating</Text>
+        <Controller
+          control={control}
+          name="rating"
+          render={({ field: { onChange, value } }) => (
+            <RatingPicker value={value} onChange={onChange} />
+          )}
+        />
+      </View>
+
+      {/* Toggle Details */}
+      <Pressable style={styles.detailsToggle} onPress={() => setShowDetails(!showDetails)}>
+        <Text style={styles.detailsToggleText}>
+          {showDetails ? 'Hide Details' : 'Add More Details (optional)'}
+        </Text>
+      </Pressable>
+
+      {/* Optional Details */}
+      {showDetails && (
+        <View style={styles.detailsSection}>
+          {/* Meal Type */}
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Meal</Text>
+            <Controller
+              control={control}
+              name="mealType"
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.chipRow}>
+                  {MEAL_TYPES.map((meal) => (
+                    <Pressable
+                      key={meal}
+                      style={[styles.chip, value === meal && styles.chipSelected]}
+                      onPress={() => onChange(meal)}
+                    >
+                      <Text style={[styles.chipText, value === meal && styles.chipTextSelected]}>
+                        {meal.charAt(0).toUpperCase() + meal.slice(1)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            />
+          </View>
+
+          {/* Temperature */}
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Temperature</Text>
+            <Controller
+              control={control}
+              name="temperature"
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.chipRow}>
+                  {TEMPERATURES.map((temp) => (
+                    <Pressable
+                      key={temp}
+                      style={[styles.chip, value === temp && styles.chipSelected]}
+                      onPress={() => onChange(temp)}
+                    >
+                      <Text style={[styles.chipText, value === temp && styles.chipTextSelected]}>
+                        {temp.charAt(0).toUpperCase() + temp.slice(1)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            />
+          </View>
+
+          {/* Notes */}
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Notes</Text>
+            <Controller
+              control={control}
+              name="notes"
+              render={({ field: { onChange, value } }) => (
+                <TextInput
+                  style={styles.textInput}
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="How did it go? Any observations..."
+                  placeholderTextColor="#94A3B8"
+                  multiline
+                  numberOfLines={3}
+                />
+              )}
+            />
+          </View>
+        </View>
+      )}
+
+      {/* Submit */}
+      <View style={styles.submitSection}>
+        <Button
+          label="Save Exposure"
+          onPress={handleSubmit(onSubmit as any)}
+          loading={saving}
+          fullWidth
+          size="lg"
+          icon="✅"
+        />
+      </View>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create((theme) => ({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  content: {
+    paddingBottom: theme.spacing.xxl * 2,
+  },
+  header: {
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: 60,
+    paddingBottom: theme.spacing.sm,
+  },
+  title: {
+    fontSize: theme.fontSize.xxl,
+    fontWeight: '800',
+    color: theme.colors.text,
+  },
+  subtitle: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    marginTop: 4,
+  },
+  section: {
+    paddingHorizontal: theme.spacing.md,
+    marginTop: theme.spacing.lg,
+    gap: theme.spacing.sm,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sectionLabel: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  addLink: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.primary,
+  },
+  foodGrid: {
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+  },
+  foodChip: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.full,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  foodChipSelected: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryLight,
+  },
+  foodChipText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text,
+    fontWeight: '500',
+  },
+  stageDescription: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  detailsToggle: {
+    alignItems: 'center',
+    marginTop: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+  },
+  detailsToggleText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.primary,
+  },
+  detailsSection: {
+    gap: theme.spacing.sm,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+  },
+  chip: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.full,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  chipSelected: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryLight,
+  },
+  chipText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+  },
+  chipTextSelected: {
+    color: theme.colors.primary,
+    fontWeight: '600',
+  },
+  hint: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textTertiary,
+    fontStyle: 'italic',
+  },
+  textInput: {
+    backgroundColor: theme.colors.inputBackground,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    fontSize: theme.fontSize.md,
+    color: theme.colors.text,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  submitSection: {
+    paddingHorizontal: theme.spacing.md,
+    marginTop: theme.spacing.xl,
+  },
+}));
