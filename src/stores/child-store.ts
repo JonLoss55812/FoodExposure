@@ -27,3 +27,5 @@ export const useChildStore = create<ChildState>()(
     }
   )
 );
+
+export const useSelectedChildId = () => useChildStore((s) => s.selectedChildId);

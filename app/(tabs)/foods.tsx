@@ -32,35 +32,43 @@ export default function FoodsScreen() {
 
     setLoading(true);
     try {
+      // Load all foods
       const allFoods = await db.select().from(schema.foods)
         .where(eq(schema.foods.familyId, familyId));
 
-      // Get exposure stats per food for selected child
-      const foodsWithStats: FoodWithStats[] = await Promise.all(
-        allFoods.map(async (food) => {
-          if (!selectedChildId) return { ...food, exposureCount: 0 };
+      // Load ALL exposures for selected child in one query
+      let allExposures: (typeof schema.exposures.$inferSelect)[] = [];
+      if (selectedChildId) {
+        allExposures = await db.select().from(schema.exposures)
+          .where(eq(schema.exposures.childId, selectedChildId));
+      }
 
-          const foodExposures = await db.select().from(schema.exposures)
-            .where(and(
-              eq(schema.exposures.foodId, food.id),
-              eq(schema.exposures.childId, selectedChildId)
-            ));
+      // Group exposures by foodId in memory
+      const exposuresByFood = new Map<string, typeof allExposures>();
+      for (const exp of allExposures) {
+        const existing = exposuresByFood.get(exp.foodId) || [];
+        existing.push(exp);
+        exposuresByFood.set(exp.foodId, existing);
+      }
 
-          let highestStage: ExposureStage | undefined;
-          for (const exp of foodExposures) {
-            const stage = exp.stage as ExposureStage;
-            if (!highestStage || STAGE_ORDER.indexOf(stage) > STAGE_ORDER.indexOf(highestStage)) {
-              highestStage = stage;
-            }
+      // Build stats from grouped data
+      const foodsWithStats: FoodWithStats[] = allFoods.map((food) => {
+        const foodExposures = exposuresByFood.get(food.id) || [];
+
+        let highestStage: ExposureStage | undefined;
+        for (const exp of foodExposures) {
+          const stage = exp.stage as ExposureStage;
+          if (!highestStage || STAGE_ORDER.indexOf(stage) > STAGE_ORDER.indexOf(highestStage)) {
+            highestStage = stage;
           }
+        }
 
-          return {
-            ...food,
-            exposureCount: foodExposures.length,
-            highestStage,
-          };
-        })
-      );
+        return {
+          ...food,
+          exposureCount: foodExposures.length,
+          highestStage,
+        };
+      });
 
       setFoods(foodsWithStats);
     } catch (err) {
@@ -80,6 +88,19 @@ export default function FoodsScreen() {
     const matchesCategory = selectedCategory === 'all' || food.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  const renderFoodItem = useCallback(({ item }: { item: FoodWithStats }) => (
+    <View style={styles.cardWrapper}>
+      <FoodCard
+        name={item.name}
+        category={item.category as FoodCategory}
+        currentStage={item.highestStage}
+        exposureCount={item.exposureCount}
+        isSafeFood={!!item.isSafeFood}
+        onPress={() => router.push(`/food/${item.id}`)}
+      />
+    </View>
+  ), [router]);
 
   if (loading && foods.length === 0) {
     return (
@@ -143,18 +164,7 @@ export default function FoodsScreen() {
       ) : (
         <FlashList
           data={filteredFoods}
-          renderItem={({ item }) => (
-            <View style={styles.cardWrapper}>
-              <FoodCard
-                name={item.name}
-                category={item.category as FoodCategory}
-                currentStage={item.highestStage}
-                exposureCount={item.exposureCount}
-                isSafeFood={!!item.isSafeFood}
-                onPress={() => router.push(`/food/${item.id}`)}
-              />
-            </View>
-          )}
+          renderItem={renderFoodItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}
         />

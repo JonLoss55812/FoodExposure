@@ -43,3 +43,9 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+// Typed selectors for performance — prevents unnecessary re-renders
+export const useAuthFamilyId = () => useAuthStore((s) => s.familyId);
+export const useAuthUserId = () => useAuthStore((s) => s.userId);
+export const useIsAuthenticated = () => useAuthStore((s) => s.isAuthenticated);
+export const useIsOnboarded = () => useAuthStore((s) => s.isOnboarded);
