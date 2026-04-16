@@ -35,13 +35,62 @@ yarn-error.*
 
 # local env files
 .env
-.env*.local
+.env.*
+!.env.example
+*.env
+secrets.json
+secrets/
+*.secret
+*.secrets
+
+# Credentials / keys / tokens
+*.cert
+*.cer
+*.crt
+*.der
+*.keystore
+id_rsa
+id_rsa.*
+*_rsa
+*_dsa
+*_ecdsa
+*_ed25519
+credentials.json
+service-account*.json
+gha-creds-*.json
+google-services.json
+GoogleService-Info.plist
+AuthKey_*.p8
 
 # Convex
 convex/_generated/
+.convex/
 
 # Sentry
 .sentry/
+.sentryclirc
+
+# EAS / Expo secrets
+.easignore.local
+eas.json.local
+.expo-shared/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+.claude/settings.local.json
+
+# Logs
+*.log
+logs/
+
+# Local databases / dumps
+*.sqlite
+*.sqlite3
+*.db
+*.dump
 
 # typescript
 *.tsbuildinfo
