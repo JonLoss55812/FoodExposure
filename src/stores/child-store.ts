@@ -13,13 +13,23 @@ const mmkvStorage = {
 interface ChildState {
   selectedChildId: string | null;
   selectChild: (id: string) => void;
+  ensureSelection: (children: ReadonlyArray<{ id: string }>) => void;
 }
 
 export const useChildStore = create<ChildState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       selectedChildId: null,
       selectChild: (id) => set({ selectedChildId: id }),
+      ensureSelection: (children) => {
+        const current = get().selectedChildId;
+        if (children.length === 0) {
+          if (current !== null) set({ selectedChildId: null });
+          return;
+        }
+        const isValid = current !== null && children.some((c) => c.id === current);
+        if (!isValid) set({ selectedChildId: children[0].id });
+      },
     }),
     {
       name: 'child-store',

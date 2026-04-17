@@ -20,3 +20,33 @@ describe('useChildStore', () => {
     expect(useChildStore.getState().selectedChildId).toBe('child-2');
   });
 });
+
+describe('ensureSelection', () => {
+  it('picks the first child when selectedChildId is null', () => {
+    useChildStore.getState().ensureSelection([{ id: 'a' }, { id: 'b' }]);
+    expect(useChildStore.getState().selectedChildId).toBe('a');
+  });
+
+  it('re-selects the first child when current id is missing from list', () => {
+    useChildStore.setState({ selectedChildId: 'deleted-child' });
+    useChildStore.getState().ensureSelection([{ id: 'a' }, { id: 'b' }]);
+    expect(useChildStore.getState().selectedChildId).toBe('a');
+  });
+
+  it('no-ops when the current id is still in the list', () => {
+    useChildStore.setState({ selectedChildId: 'b' });
+    useChildStore.getState().ensureSelection([{ id: 'a' }, { id: 'b' }]);
+    expect(useChildStore.getState().selectedChildId).toBe('b');
+  });
+
+  it('clears selection to null when the children list is empty', () => {
+    useChildStore.setState({ selectedChildId: 'a' });
+    useChildStore.getState().ensureSelection([]);
+    expect(useChildStore.getState().selectedChildId).toBeNull();
+  });
+
+  it('leaves selection as null when the children list is empty and nothing was selected', () => {
+    useChildStore.getState().ensureSelection([]);
+    expect(useChildStore.getState().selectedChildId).toBeNull();
+  });
+});
