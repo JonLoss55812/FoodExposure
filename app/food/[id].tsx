@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, ScrollView, Pressable, Alert } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { eq, and, desc } from 'drizzle-orm';
@@ -7,16 +7,21 @@ import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
 import { StageIndicator, ProgressBar, ExposureCard, EmptyState, Button } from '@/src/components';
 import { useChildStore } from '@/src/stores/child-store';
+import { useAuthStore } from '@/src/stores/auth-store';
 import { CATEGORY_CONFIG, STAGE_ORDER, STAGE_CONFIG, TARGET_EXPOSURES } from '@/src/lib/constants';
 import type { FoodCategory, ExposureStage } from '@/src/lib/constants';
+import { getNextStage, canBumpStage } from '@/src/lib/stage';
+import { generateId } from '@/src/lib/utils';
 
 export default function FoodDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { selectedChildId } = useChildStore();
+  const { userId } = useAuthStore();
   const [food, setFood] = useState<typeof schema.foods.$inferSelect | null>(null);
   const [exposuresList, setExposuresList] = useState<any[]>([]);
   const [highestStage, setHighestStage] = useState<ExposureStage | null>(null);
+  const [bumping, setBumping] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!id) return;
@@ -56,6 +61,37 @@ export default function FoodDetailScreen() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const handleBumpStage = async () => {
+    if (!id || !selectedChildId || bumping) return;
+    const next = getNextStage(highestStage);
+    if (!next) return;
+
+    setBumping(true);
+    try {
+      await db.insert(schema.exposures).values({
+        id: generateId(),
+        childId: selectedChildId,
+        foodId: id,
+        stage: next,
+        rating: null,
+        preparation: null,
+        temperature: null,
+        texture: null,
+        mealType: null,
+        setting: null,
+        notes: null,
+        loggedBy: userId,
+        occurredAt: new Date(),
+        createdAt: new Date(),
+      });
+      await loadData();
+    } catch (err) {
+      Alert.alert('Error', 'Failed to bump stage. Please try again.');
+    } finally {
+      setBumping(false);
+    }
+  };
 
   if (!food) return null;
 
@@ -102,10 +138,20 @@ export default function FoodDetailScreen() {
 
       {/* Quick Log */}
       <View style={styles.section}>
+        {canBumpStage(highestStage) && (
+          <Button
+            label={`Bump to ${STAGE_CONFIG[getNextStage(highestStage)!].label}`}
+            onPress={handleBumpStage}
+            loading={bumping}
+            fullWidth
+            icon="⬆️"
+          />
+        )}
         <Button
-          label="Log Exposure for This Food"
+          label="Log Detailed Exposure"
           onPress={() => router.push('/(tabs)/log')}
           fullWidth
+          variant={canBumpStage(highestStage) ? 'secondary' : 'primary'}
           icon="➕"
         />
       </View>

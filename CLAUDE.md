@@ -214,8 +214,9 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.1.1
+v0.2.0
 
 ## Changelog
+- v0.2.0 — Exposure hierarchy UX: "Bump to {next stage}" one-tap primary action on food detail page; writes new `exposures` row (no mutation). Confirmed log form already surfaces all 6 stages at lg size with `tolerate` default. Added `src/lib/stage.ts` helpers (`getNextStage`, `canBumpStage`).
 - v0.1.1 — Null-child safety pass: `ensureSelection` on child-store, auto-repair of stale/null child id in tab layout, onboarding redirect when no children, progress-screen loading-forever fix.
 - v0.1.0 — Initial versioning rules added to CLAUDE.md

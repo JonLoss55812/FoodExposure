@@ -24,4 +24,18 @@ describe('StageIndicator', () => {
     const { container } = render(<StageIndicator />);
     expect(container).toBeTruthy();
   });
+
+  it('exposes all 6 stages as selectable segments when interactive at lg size (log form context)', () => {
+    const onSelect = jest.fn();
+    render(<StageIndicator interactive onStageSelect={onSelect} size="lg" />);
+
+    for (const label of ['Tolerate', 'Interact', 'Smell', 'Touch', 'Taste', 'Eat']) {
+      expect(screen.getByText(label)).toBeTruthy();
+    }
+
+    fireEvent.click(screen.getByText('Tolerate'));
+    fireEvent.click(screen.getByText('Eat'));
+    expect(onSelect).toHaveBeenNthCalledWith(1, 'tolerate');
+    expect(onSelect).toHaveBeenNthCalledWith(2, 'eat');
+  });
 });
