@@ -15,7 +15,7 @@ import { formatRelativeDate } from '@/src/lib/utils';
 export default function DashboardScreen() {
   const router = useRouter();
   const { familyId, isAuthenticated, isOnboarded } = useAuthStore();
-  const { selectedChildId, selectChild } = useChildStore();
+  const { selectedChildId, selectChild, ensureSelection } = useChildStore();
   const [childrenList, setChildrenList] = useState<(typeof schema.children.$inferSelect)[]>([]);
   const [recentExposures, setRecentExposures] = useState<any[]>([]);
   const [todayCount, setTodayCount] = useState(0);
@@ -33,11 +33,8 @@ export default function DashboardScreen() {
         .where(eq(schema.children.familyId, familyId));
       setChildrenList(kids);
 
-      if (kids.length > 0 && !selectedChildId) {
-        selectChild(kids[0].id);
-      }
-
-      const childId = selectedChildId || kids[0]?.id;
+      ensureSelection(kids);
+      const childId = useChildStore.getState().selectedChildId;
       if (!childId) return;
 
       // Load today's exposure count

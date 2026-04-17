@@ -1,6 +1,12 @@
-import { Tabs } from 'expo-router';
+import { useEffect } from 'react';
+import { Tabs, useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
 import { useUnistyles } from 'react-native-unistyles';
+import { eq } from 'drizzle-orm';
+import { db } from '@/src/db/client';
+import * as schema from '@/src/db/schema';
+import { useAuthStore } from '@/src/stores/auth-store';
+import { useChildStore } from '@/src/stores/child-store';
 
 function TabIcon({ icon, label, focused }: { icon: string; label: string; focused: boolean }) {
   return (
@@ -22,6 +28,35 @@ function TabIcon({ icon, label, focused }: { icon: string; label: string; focuse
 
 export default function TabLayout() {
   const { theme } = useUnistyles();
+  const router = useRouter();
+  const familyId = useAuthStore((s) => s.familyId);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isOnboarded = useAuthStore((s) => s.isOnboarded);
+  const ensureSelection = useChildStore((s) => s.ensureSelection);
+
+  useEffect(() => {
+    if (!isAuthenticated || !isOnboarded || !familyId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const kids = await db
+          .select({ id: schema.children.id })
+          .from(schema.children)
+          .where(eq(schema.children.familyId, familyId));
+        if (cancelled) return;
+        if (kids.length === 0) {
+          router.replace('/onboarding/add-child');
+          return;
+        }
+        ensureSelection(kids);
+      } catch (err) {
+        console.error('Failed to ensure child selection on tab mount:', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [familyId, isAuthenticated, isOnboarded, ensureSelection, router]);
 
   return (
     <Tabs
