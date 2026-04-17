@@ -214,7 +214,8 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.1.0
+v0.1.1
 
 ## Changelog
+- v0.1.1 — Null-child safety pass: `ensureSelection` on child-store, auto-repair of stale/null child id in tab layout, onboarding redirect when no children, progress-screen loading-forever fix.
 - v0.1.0 — Initial versioning rules added to CLAUDE.md
