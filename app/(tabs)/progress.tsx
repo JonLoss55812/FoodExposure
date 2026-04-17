@@ -27,7 +27,10 @@ export default function ProgressScreen() {
   const [loading, setLoading] = useState(true);
 
   const loadStats = useCallback(async () => {
-    if (!familyId || !selectedChildId) return;
+    if (!familyId || !selectedChildId) {
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     try {
