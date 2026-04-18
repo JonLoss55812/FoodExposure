@@ -1,14 +1,21 @@
+import { useState } from 'react';
 import { View, Text, ScrollView, Pressable, Alert, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
+import { eq } from 'drizzle-orm';
+import { db } from '@/src/db/client';
+import * as schema from '@/src/db/schema';
 import { useAuthStore } from '@/src/stores/auth-store';
+import { useChildStore } from '@/src/stores/child-store';
 import { useSettingsStore } from '@/src/stores/settings-store';
 import { FEEDING_PROFILES, FEEDING_PROFILE_CONFIG } from '@/src/lib/thresholds';
+import { exportChildData } from '@/src/lib/export';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { familyId, displayName, email, logout } = useAuthStore();
+  const { selectedChildId } = useChildStore();
   const {
     theme,
     quickLogMode,
@@ -19,6 +26,27 @@ export default function SettingsScreen() {
     setNotificationsEnabled,
     setFeedingProfile,
   } = useSettingsStore();
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    if (!selectedChildId) {
+      Alert.alert('No child selected', 'Add or select a child before exporting.');
+      return;
+    }
+    setExporting(true);
+    try {
+      const [child] = await db
+        .select({ name: schema.children.name })
+        .from(schema.children)
+        .where(eq(schema.children.id, selectedChildId))
+        .limit(1);
+      await exportChildData(selectedChildId, child?.name ?? 'child');
+    } catch (err) {
+      Alert.alert('Export failed', err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -138,13 +166,30 @@ export default function SettingsScreen() {
         </View>
       </View>
 
+      {/* Data */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Data</Text>
+        <View style={styles.card}>
+          <Pressable
+            style={styles.row}
+            onPress={handleExport}
+            disabled={exporting}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: exporting, busy: exporting }}
+          >
+            <Text style={styles.label}>Export Data (CSV)</Text>
+            <Text style={styles.value}>{exporting ? 'Exporting…' : 'Share'}</Text>
+          </Pressable>
+        </View>
+      </View>
+
       {/* About */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>About</Text>
         <View style={styles.card}>
           <View style={styles.row}>
             <Text style={styles.label}>Version</Text>
-            <Text style={styles.value}>v0.4.0</Text>
+            <Text style={styles.value}>v0.5.0</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.row}>

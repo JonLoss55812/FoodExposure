@@ -214,9 +214,10 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.4.0
+v0.5.0
 
 ## Changelog
+- v0.5.0 — CSV data export (therapist-ready offline feature): new `src/lib/export.ts` provides pure `formatExposuresCsv`, `csvEscape`, `buildExportFilename` helpers (RFC 4180 quote-escape for commas, quotes, newlines) plus `fetchExportRows` (exposures JOIN foods, ordered by `occurredAt desc`) and `exportChildData` (uses React Native's built-in `Share` API — no new packages). Settings tab gains a "Data → Export Data (CSV)" row that opens the system share sheet with CSV content. 16 new tests cover the escape/format/filename logic.
 - v0.4.0 — Per-food exposure progress vs profile-based threshold: new `src/lib/thresholds.ts` exposes `EXPOSURE_THRESHOLDS = { typical: 15, picky: 20, arfid: 30 }` and a `calcExposureProgress` helper. `feedingProfile` added to `settings-store` (default `typical`) with a chip selector on the Settings tab. Progress tab now lists each food with logged exposures alongside a `current/threshold` ProgressBar, sorted by proximity to threshold, with a check when reached.
 - v0.3.0 — Safe-food availability surface: Foods tab pins a "⭐ Safe Foods" horizontal row above the main list when ≥1 safe food exists. FoodCard renders a star next to the name. Food detail page has a tap-to-toggle "Mark as Safe Food" control that persists to the `foods` table. Added pure `partitionSafeFoods` helper in `src/lib/food-partition.ts` with unit tests.
 - v0.2.0 — Exposure hierarchy UX: "Bump to {next stage}" one-tap primary action on food detail page; writes new `exposures` row (no mutation). Confirmed log form already surfaces all 6 stages at lg size with `tolerate` default. Added `src/lib/stage.ts` helpers (`getNextStage`, `canBumpStage`).
