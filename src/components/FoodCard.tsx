@@ -30,9 +30,20 @@ export function FoodCard({
           <Text style={styles.categoryIcon}>{categoryConfig.icon}</Text>
         </View>
         <View style={styles.info}>
-          <Text style={styles.name} numberOfLines={1}>
-            {name}
-          </Text>
+          <View style={styles.nameRow}>
+            {isSafeFood && (
+              <Text
+                accessibilityLabel="Safe food"
+                accessibilityRole="image"
+                style={styles.safeStar}
+              >
+                ⭐
+              </Text>
+            )}
+            <Text style={styles.name} numberOfLines={1}>
+              {name}
+            </Text>
+          </View>
           <View style={styles.meta}>
             {stageConfig && (
               <View style={[styles.stageBadge, { backgroundColor: stageConfig.color + '20' }]}>
@@ -86,10 +97,19 @@ const styles = StyleSheet.create((theme) => ({
     flex: 1,
     gap: 4,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  safeStar: {
+    fontSize: theme.fontSize.md,
+  },
   name: {
     fontSize: theme.fontSize.md,
     fontWeight: '600',
     color: theme.colors.text,
+    flexShrink: 1,
   },
   meta: {
     flexDirection: 'row',

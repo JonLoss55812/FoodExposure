@@ -93,6 +93,19 @@ export default function FoodDetailScreen() {
     }
   };
 
+  const handleToggleSafeFood = async () => {
+    if (!food) return;
+    const next = !food.isSafeFood;
+    try {
+      await db.update(schema.foods)
+        .set({ isSafeFood: next })
+        .where(eq(schema.foods.id, food.id));
+      setFood({ ...food, isSafeFood: next });
+    } catch (err) {
+      Alert.alert('Error', 'Failed to update safe-food status.');
+    }
+  };
+
   if (!food) return null;
 
   const categoryConfig = CATEGORY_CONFIG[food.category as FoodCategory];
@@ -154,6 +167,25 @@ export default function FoodDetailScreen() {
           variant={canBumpStage(highestStage) ? 'secondary' : 'primary'}
           icon="➕"
         />
+        <Pressable
+          accessibilityRole="switch"
+          accessibilityLabel="Mark as safe food"
+          accessibilityState={{ checked: !!food.isSafeFood }}
+          style={[styles.safeToggle, food.isSafeFood && styles.safeToggleActive]}
+          onPress={handleToggleSafeFood}
+        >
+          <Text style={styles.safeIcon}>{food.isSafeFood ? '⭐' : '☆'}</Text>
+          <View style={styles.safeInfo}>
+            <Text style={styles.safeToggleTitle}>
+              {food.isSafeFood ? 'Safe Food' : 'Mark as Safe Food'}
+            </Text>
+            <Text style={styles.safeToggleDesc}>
+              {food.isSafeFood
+                ? 'Pinned to the top of the Foods tab'
+                : 'A food your child already accepts'}
+            </Text>
+          </View>
+        </Pressable>
       </View>
 
       {/* Exposure History */}
@@ -252,6 +284,36 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: 'center',
   },
   emptyText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+  },
+  safeToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  safeToggleActive: {
+    borderColor: theme.colors.success,
+    backgroundColor: theme.colors.success + '10',
+  },
+  safeIcon: {
+    fontSize: 24,
+  },
+  safeInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  safeToggleTitle: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  safeToggleDesc: {
     fontSize: theme.fontSize.sm,
     color: theme.colors.textSecondary,
   },

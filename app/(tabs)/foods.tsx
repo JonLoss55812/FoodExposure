@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, Pressable, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
 import { FlashList } from '@shopify/flash-list';
@@ -12,6 +12,7 @@ import { useAuthStore } from '@/src/stores/auth-store';
 import { useChildStore } from '@/src/stores/child-store';
 import { FOOD_CATEGORIES, CATEGORY_CONFIG, STAGE_ORDER } from '@/src/lib/constants';
 import type { FoodCategory, ExposureStage } from '@/src/lib/constants';
+import { partitionSafeFoods } from '@/src/lib/food-partition';
 
 type FoodWithStats = typeof schema.foods.$inferSelect & {
   exposureCount: number;
@@ -89,6 +90,8 @@ export default function FoodsScreen() {
     return matchesSearch && matchesCategory;
   });
 
+  const { safeFoods, otherFoods } = partitionSafeFoods(filteredFoods);
+
   const renderFoodItem = useCallback(({ item }: { item: FoodWithStats }) => (
     <View style={styles.cardWrapper}>
       <FoodCard
@@ -101,6 +104,31 @@ export default function FoodsScreen() {
       />
     </View>
   ), [router]);
+
+  const SafeFoodsSection = safeFoods.length > 0 ? (
+    <View style={styles.safeSection} testID="safe-foods-section">
+      <View style={styles.safeHeader}>
+        <Text style={styles.safeTitle}>⭐ Safe Foods</Text>
+        <Text style={styles.safeSubtitle}>{safeFoods.length}</Text>
+      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.safeScroll}
+      >
+        {safeFoods.map((item) => (
+          <Pressable
+            key={item.id}
+            style={styles.safeChip}
+            onPress={() => router.push(`/food/${item.id}`)}
+          >
+            <Text style={styles.safeChipIcon}>{CATEGORY_CONFIG[item.category as FoodCategory].icon}</Text>
+            <Text style={styles.safeChipName} numberOfLines={1}>{item.name}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+    </View>
+  ) : null;
 
   if (loading && foods.length === 0) {
     return (
@@ -163,10 +191,11 @@ export default function FoodsScreen() {
         />
       ) : (
         <FlashList
-          data={filteredFoods}
+          data={otherFoods}
           renderItem={renderFoodItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}
+          ListHeaderComponent={SafeFoodsSection}
         />
       )}
     </SafeAreaView>
@@ -249,5 +278,53 @@ const styles = StyleSheet.create((theme) => ({
   },
   cardWrapper: {
     marginBottom: theme.spacing.sm,
+  },
+  safeSection: {
+    marginBottom: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.lg,
+    backgroundColor: theme.colors.success + '10',
+  },
+  safeHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    paddingHorizontal: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
+  },
+  safeTitle: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  safeSubtitle: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    fontWeight: '600',
+  },
+  safeScroll: {
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.sm,
+  },
+  safeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: theme.spacing.sm + 2,
+    paddingVertical: theme.spacing.sm - 2,
+    borderRadius: theme.borderRadius.full,
+    backgroundColor: theme.colors.cardBackground,
+    borderWidth: 1,
+    borderColor: theme.colors.success + '40',
+    maxWidth: 160,
+  },
+  safeChipIcon: {
+    fontSize: 16,
+  },
+  safeChipName: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.text,
+    flexShrink: 1,
   },
 }));

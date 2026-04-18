@@ -25,9 +25,15 @@ describe('FoodCard', () => {
     expect(screen.getByText('Safe Food')).toBeTruthy();
   });
 
+  it('renders safe food star indicator', () => {
+    render(<FoodCard {...defaultProps} isSafeFood={true} />);
+    expect(screen.getByLabelText('Safe food')).toBeTruthy();
+  });
+
   it('does not render safe food badge when not safe', () => {
     render(<FoodCard {...defaultProps} />);
     expect(screen.queryByText('Safe Food')).toBeNull();
+    expect(screen.queryByLabelText('Safe food')).toBeNull();
   });
 
   it('renders exposure progress', () => {
