@@ -4,11 +4,21 @@ import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { useSettingsStore } from '@/src/stores/settings-store';
+import { FEEDING_PROFILES, FEEDING_PROFILE_CONFIG } from '@/src/lib/thresholds';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { familyId, displayName, email, logout } = useAuthStore();
-  const { theme, quickLogMode, notificationsEnabled, setTheme, setQuickLogMode, setNotificationsEnabled } = useSettingsStore();
+  const {
+    theme,
+    quickLogMode,
+    notificationsEnabled,
+    feedingProfile,
+    setTheme,
+    setQuickLogMode,
+    setNotificationsEnabled,
+    setFeedingProfile,
+  } = useSettingsStore();
 
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -97,13 +107,44 @@ export default function SettingsScreen() {
         </View>
       </View>
 
+      {/* Feeding Profile */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Feeding Profile</Text>
+        <View style={styles.card}>
+          <View style={styles.profileRow}>
+            <Text style={styles.label}>Exposure Target</Text>
+            <View style={styles.profileChips}>
+              {FEEDING_PROFILES.map((p) => (
+                <Pressable
+                  key={p}
+                  style={[styles.themeChip, feedingProfile === p && styles.themeChipSelected]}
+                  onPress={() => setFeedingProfile(p)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: feedingProfile === p }}
+                >
+                  <Text style={[styles.themeText, feedingProfile === p && styles.themeTextSelected]}>
+                    {FEEDING_PROFILE_CONFIG[p].label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.profileDescription}>
+            <Text style={styles.profileDescriptionText}>
+              {FEEDING_PROFILE_CONFIG[feedingProfile].description}
+            </Text>
+          </View>
+        </View>
+      </View>
+
       {/* About */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>About</Text>
         <View style={styles.card}>
           <View style={styles.row}>
             <Text style={styles.label}>Version</Text>
-            <Text style={styles.value}>1.0.0</Text>
+            <Text style={styles.value}>v0.4.0</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.row}>
@@ -187,6 +228,24 @@ const styles = StyleSheet.create((theme) => ({
   themeRow: {
     flexDirection: 'row',
     gap: theme.spacing.xs,
+  },
+  profileRow: {
+    padding: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  profileChips: {
+    flexDirection: 'row',
+    gap: theme.spacing.xs,
+    flexWrap: 'wrap',
+  },
+  profileDescription: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  profileDescriptionText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    fontStyle: 'italic',
   },
   themeChip: {
     paddingHorizontal: theme.spacing.sm + 4,

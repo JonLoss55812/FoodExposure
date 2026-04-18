@@ -214,9 +214,10 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.3.0
+v0.4.0
 
 ## Changelog
+- v0.4.0 — Per-food exposure progress vs profile-based threshold: new `src/lib/thresholds.ts` exposes `EXPOSURE_THRESHOLDS = { typical: 15, picky: 20, arfid: 30 }` and a `calcExposureProgress` helper. `feedingProfile` added to `settings-store` (default `typical`) with a chip selector on the Settings tab. Progress tab now lists each food with logged exposures alongside a `current/threshold` ProgressBar, sorted by proximity to threshold, with a check when reached.
 - v0.3.0 — Safe-food availability surface: Foods tab pins a "⭐ Safe Foods" horizontal row above the main list when ≥1 safe food exists. FoodCard renders a star next to the name. Food detail page has a tap-to-toggle "Mark as Safe Food" control that persists to the `foods` table. Added pure `partitionSafeFoods` helper in `src/lib/food-partition.ts` with unit tests.
 - v0.2.0 — Exposure hierarchy UX: "Bump to {next stage}" one-tap primary action on food detail page; writes new `exposures` row (no mutation). Confirmed log form already surfaces all 6 stages at lg size with `tolerate` default. Added `src/lib/stage.ts` helpers (`getNextStage`, `canBumpStage`).
 - v0.1.1 — Null-child safety pass: `ensureSelection` on child-store, auto-repair of stale/null child id in tab layout, onboarding redirect when no children, progress-screen loading-forever fix.

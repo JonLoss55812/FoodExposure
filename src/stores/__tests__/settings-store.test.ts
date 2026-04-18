@@ -5,6 +5,7 @@ beforeEach(() => {
     theme: 'system',
     quickLogMode: false,
     notificationsEnabled: true,
+    feedingProfile: 'typical',
   });
 });
 
@@ -15,6 +16,7 @@ describe('useSettingsStore', () => {
       expect(state.theme).toBe('system');
       expect(state.quickLogMode).toBe(false);
       expect(state.notificationsEnabled).toBe(true);
+      expect(state.feedingProfile).toBe('typical');
     });
   });
 
@@ -53,6 +55,24 @@ describe('useSettingsStore', () => {
 
       useSettingsStore.getState().setNotificationsEnabled(true);
       expect(useSettingsStore.getState().notificationsEnabled).toBe(true);
+    });
+  });
+
+  describe('setFeedingProfile', () => {
+    it('switches to picky profile', () => {
+      useSettingsStore.getState().setFeedingProfile('picky');
+      expect(useSettingsStore.getState().feedingProfile).toBe('picky');
+    });
+
+    it('switches to arfid profile', () => {
+      useSettingsStore.getState().setFeedingProfile('arfid');
+      expect(useSettingsStore.getState().feedingProfile).toBe('arfid');
+    });
+
+    it('switches back to typical', () => {
+      useSettingsStore.getState().setFeedingProfile('arfid');
+      useSettingsStore.getState().setFeedingProfile('typical');
+      expect(useSettingsStore.getState().feedingProfile).toBe('typical');
     });
   });
 });

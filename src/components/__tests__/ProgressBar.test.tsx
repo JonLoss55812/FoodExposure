@@ -23,4 +23,23 @@ describe('ProgressBar', () => {
     // Just verify it renders without crashing
     expect(container).toBeTruthy();
   });
+
+  it('renders at 0% without crashing', () => {
+    const { container } = render(<ProgressBar current={0} target={15} />);
+    expect(screen.getByText('0/15')).toBeTruthy();
+    expect(container).toBeTruthy();
+  });
+
+  it('renders at exactly 100% without crashing', () => {
+    const { container } = render(<ProgressBar current={15} target={15} />);
+    expect(screen.getByText('15/15')).toBeTruthy();
+    expect(container).toBeTruthy();
+  });
+
+  it('renders past-threshold (>100%) without crashing and shows actual count', () => {
+    const { container } = render(<ProgressBar current={22} target={15} />);
+    // Label shows the real current count, even though the bar clamps visually
+    expect(screen.getByText('22/15')).toBeTruthy();
+    expect(container).toBeTruthy();
+  });
 });

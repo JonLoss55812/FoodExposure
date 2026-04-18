@@ -8,12 +8,25 @@ import * as schema from '@/src/db/schema';
 import { StageIndicator, ProgressBar, EmptyState } from '@/src/components';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { useChildStore } from '@/src/stores/child-store';
-import { STAGE_ORDER, STAGE_CONFIG, FOOD_CATEGORIES, CATEGORY_CONFIG, TARGET_EXPOSURES } from '@/src/lib/constants';
+import { STAGE_ORDER, STAGE_CONFIG, FOOD_CATEGORIES, CATEGORY_CONFIG } from '@/src/lib/constants';
 import type { ExposureStage } from '@/src/lib/constants';
+import { useSettingsStore } from '@/src/stores/settings-store';
+import { calcExposureProgress, FEEDING_PROFILE_CONFIG } from '@/src/lib/thresholds';
+
+interface FoodProgressRow {
+  foodId: string;
+  foodName: string;
+  category: string;
+  current: number;
+  threshold: number;
+  pct: number;
+  reached: boolean;
+}
 
 export default function ProgressScreen() {
   const { familyId } = useAuthStore();
   const { selectedChildId } = useChildStore();
+  const { feedingProfile } = useSettingsStore();
   const [stats, setStats] = useState({
     totalFoods: 0,
     totalExposures: 0,
@@ -23,6 +36,7 @@ export default function ProgressScreen() {
     weeklyExposures: 0,
     avgRating: 0,
     foodsNearTarget: 0,
+    foodProgress: [] as FoodProgressRow[],
   });
   const [loading, setLoading] = useState(true);
 
@@ -79,9 +93,26 @@ export default function ProgressScreen() {
       (e) => (e.occurredAt instanceof Date ? e.occurredAt.getTime() : e.occurredAt) > weekAgo
     ).length;
 
-    // Foods near target
-    const foodsNearTarget = Object.values(exposureCountPerFood).filter(
-      (count) => count >= TARGET_EXPOSURES * 0.8
+    // Per-food progress vs threshold (based on feeding profile)
+    const foodProgress: FoodProgressRow[] = allFoods
+      .map((food) => {
+        const count = exposureCountPerFood[food.id] || 0;
+        const { current, threshold, pct, reached } = calcExposureProgress(count, feedingProfile);
+        return {
+          foodId: food.id,
+          foodName: food.name,
+          category: food.category,
+          current,
+          threshold,
+          pct,
+          reached,
+        };
+      })
+      .filter((row) => row.current > 0)
+      .sort((a, b) => b.pct - a.pct || b.current - a.current);
+
+    const foodsNearTarget = foodProgress.filter(
+      (r) => !r.reached && r.pct >= 0.8
     ).length;
 
     setStats({
@@ -93,13 +124,14 @@ export default function ProgressScreen() {
       weeklyExposures,
       avgRating: ratingCount > 0 ? totalRating / ratingCount : 0,
       foodsNearTarget,
+      foodProgress,
     });
     } catch (err) {
       console.error('Failed to load progress stats:', err);
     } finally {
       setLoading(false);
     }
-  }, [familyId, selectedChildId]);
+  }, [familyId, selectedChildId, feedingProfile]);
 
   useEffect(() => {
     loadStats();
@@ -165,6 +197,37 @@ export default function ProgressScreen() {
         </View>
       )}
 
+      {/* Per-food Exposure Progress */}
+      {stats.foodProgress.length > 0 && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Exposures Toward Acceptance</Text>
+            <Text style={styles.profileTag}>
+              {FEEDING_PROFILE_CONFIG[feedingProfile].label} · {stats.foodProgress[0]?.threshold ?? 15}
+            </Text>
+          </View>
+          {stats.foodProgress.slice(0, 10).map((row) => (
+            <View key={row.foodId} style={styles.foodProgressRow}>
+              <View style={styles.foodProgressHeader}>
+                <Text style={styles.foodProgressName} numberOfLines={1}>
+                  {row.reached ? '✓ ' : ''}{row.foodName}
+                </Text>
+                <Text style={styles.foodProgressCount}>
+                  {row.current}/{row.threshold}
+                </Text>
+              </View>
+              <ProgressBar
+                current={row.current}
+                target={row.threshold}
+                color={row.reached ? '#34D399' : '#F97316'}
+                showLabel={false}
+                height={8}
+              />
+            </View>
+          ))}
+        </View>
+      )}
+
       {/* Stage Distribution */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Stage Distribution</Text>
@@ -218,7 +281,7 @@ export default function ProgressScreen() {
             : stats.totalExposures < 10
             ? "Great start! Keep going — consistency is key to helping little tongues learn."
             : stats.foodsNearTarget > 0
-            ? `${stats.foodsNearTarget} food(s) are getting close to the ${TARGET_EXPOSURES}-exposure target!`
+            ? `${stats.foodsNearTarget} food(s) are getting close to the ${stats.foodProgress[0]?.threshold ?? 15}-exposure target!`
             : "Amazing progress! Your consistency is making a real difference."}
         </Text>
       </View>
@@ -284,6 +347,44 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.fontSize.lg,
     fontWeight: '700',
     color: theme.colors.text,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  profileTag: {
+    fontSize: theme.fontSize.xs,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    backgroundColor: theme.colors.borderLight,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 2,
+    borderRadius: theme.borderRadius.full,
+  },
+  foodProgressRow: {
+    backgroundColor: theme.colors.cardBackground,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.sm,
+    gap: theme.spacing.xs,
+    ...theme.shadows.sm,
+  },
+  foodProgressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  foodProgressName: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.text,
+    flex: 1,
+  },
+  foodProgressCount: {
+    fontSize: theme.fontSize.xs,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+    marginLeft: theme.spacing.sm,
   },
   ratingCard: {
     backgroundColor: theme.colors.cardBackground,
