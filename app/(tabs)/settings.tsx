@@ -189,7 +189,7 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <View style={styles.row}>
             <Text style={styles.label}>Version</Text>
-            <Text style={styles.value}>v0.5.5</Text>
+            <Text style={styles.value}>v0.5.6</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.row}>

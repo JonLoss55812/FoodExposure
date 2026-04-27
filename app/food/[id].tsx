@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, Alert } from 'react-native';
+import { View, Text, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { eq, and, desc } from 'drizzle-orm';
@@ -22,31 +22,39 @@ export default function FoodDetailScreen() {
   const [exposuresList, setExposuresList] = useState<any[]>([]);
   const [highestStage, setHighestStage] = useState<ExposureStage | null>(null);
   const [bumping, setBumping] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
-    if (!id) return;
+    if (!id) {
+      setLoading(false);
+      return;
+    }
 
-    const foodResult = await db.select().from(schema.foods).where(eq(schema.foods.id, id));
-    if (foodResult[0]) setFood(foodResult[0]);
+    try {
+      const foodResult = await db.select().from(schema.foods).where(eq(schema.foods.id, id));
+      setFood(foodResult[0] ?? null);
 
-    if (selectedChildId) {
-      const exps = await db.select({
-        id: schema.exposures.id,
-        stage: schema.exposures.stage,
-        rating: schema.exposures.rating,
-        notes: schema.exposures.notes,
-        occurredAt: schema.exposures.occurredAt,
-        mealType: schema.exposures.mealType,
-      })
-        .from(schema.exposures)
-        .where(and(
-          eq(schema.exposures.foodId, id),
-          eq(schema.exposures.childId, selectedChildId)
-        ))
-        .orderBy(desc(schema.exposures.occurredAt));
+      if (selectedChildId) {
+        const exps = await db.select({
+          id: schema.exposures.id,
+          stage: schema.exposures.stage,
+          rating: schema.exposures.rating,
+          notes: schema.exposures.notes,
+          occurredAt: schema.exposures.occurredAt,
+          mealType: schema.exposures.mealType,
+        })
+          .from(schema.exposures)
+          .where(and(
+            eq(schema.exposures.foodId, id),
+            eq(schema.exposures.childId, selectedChildId)
+          ))
+          .orderBy(desc(schema.exposures.occurredAt));
 
-      setExposuresList(exps);
-      setHighestStage(getHighestStage(exps));
+        setExposuresList(exps);
+        setHighestStage(getHighestStage(exps));
+      }
+    } finally {
+      setLoading(false);
     }
   }, [id, selectedChildId]);
 
@@ -98,7 +106,32 @@ export default function FoodDetailScreen() {
     }
   };
 
-  if (!food) return null;
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color="#F97316" />
+      </View>
+    );
+  }
+
+  if (!food) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()}>
+            <Text style={styles.back}>Back</Text>
+          </Pressable>
+        </View>
+        <EmptyState
+          icon="🤔"
+          title="Food Not Found"
+          description="This food may have been deleted. Try going back to the foods list."
+          actionLabel="Go to Foods"
+          onAction={() => router.replace('/(tabs)/foods' as any)}
+        />
+      </View>
+    );
+  }
 
   const categoryConfig = CATEGORY_CONFIG[food.category as FoodCategory];
 
@@ -209,6 +242,10 @@ const styles = StyleSheet.create((theme) => ({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  centered: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   content: {
     paddingBottom: theme.spacing.xxl * 2,
