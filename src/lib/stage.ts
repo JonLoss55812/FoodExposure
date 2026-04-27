@@ -10,3 +10,17 @@ export function getNextStage(current: ExposureStage | null): ExposureStage | nul
 export function canBumpStage(current: ExposureStage | null): boolean {
   return getNextStage(current) !== null;
 }
+
+export function getHighestStage(
+  exposures: readonly { stage: string }[],
+): ExposureStage | null {
+  let highest: ExposureStage | null = null;
+  for (const exp of exposures) {
+    const stage = exp.stage as ExposureStage;
+    if (STAGE_ORDER.indexOf(stage) < 0) continue;
+    if (!highest || STAGE_ORDER.indexOf(stage) > STAGE_ORDER.indexOf(highest)) {
+      highest = stage;
+    }
+  }
+  return highest;
+}

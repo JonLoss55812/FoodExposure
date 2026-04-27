@@ -8,9 +8,9 @@ import * as schema from '@/src/db/schema';
 import { StageIndicator, ProgressBar, ExposureCard, EmptyState, Button } from '@/src/components';
 import { useChildStore } from '@/src/stores/child-store';
 import { useAuthStore } from '@/src/stores/auth-store';
-import { CATEGORY_CONFIG, STAGE_ORDER, STAGE_CONFIG, TARGET_EXPOSURES } from '@/src/lib/constants';
+import { CATEGORY_CONFIG, STAGE_CONFIG, TARGET_EXPOSURES } from '@/src/lib/constants';
 import type { FoodCategory, ExposureStage } from '@/src/lib/constants';
-import { getNextStage, canBumpStage } from '@/src/lib/stage';
+import { getNextStage, canBumpStage, getHighestStage } from '@/src/lib/stage';
 import { generateId } from '@/src/lib/utils';
 
 export default function FoodDetailScreen() {
@@ -46,15 +46,7 @@ export default function FoodDetailScreen() {
         .orderBy(desc(schema.exposures.occurredAt));
 
       setExposuresList(exps);
-
-      let highest: ExposureStage | null = null;
-      for (const exp of exps) {
-        const stage = exp.stage as ExposureStage;
-        if (!highest || STAGE_ORDER.indexOf(stage) > STAGE_ORDER.indexOf(highest)) {
-          highest = stage;
-        }
-      }
-      setHighestStage(highest);
+      setHighestStage(getHighestStage(exps));
     }
   }, [id, selectedChildId]);
 

@@ -1,4 +1,4 @@
-import { getNextStage, canBumpStage } from '../stage';
+import { getNextStage, canBumpStage, getHighestStage } from '../stage';
 
 describe('getNextStage', () => {
   it('returns first stage (tolerate) when current is null', () => {
@@ -33,5 +33,38 @@ describe('canBumpStage', () => {
 
   it('returns false at terminal stage (eat)', () => {
     expect(canBumpStage('eat')).toBe(false);
+  });
+});
+
+describe('getHighestStage', () => {
+  it('returns null for an empty list', () => {
+    expect(getHighestStage([])).toBeNull();
+  });
+
+  it('returns the only stage when one exposure exists', () => {
+    expect(getHighestStage([{ stage: 'smell' }])).toBe('smell');
+  });
+
+  it('returns the highest stage among many', () => {
+    expect(
+      getHighestStage([
+        { stage: 'tolerate' },
+        { stage: 'taste' },
+        { stage: 'smell' },
+        { stage: 'interact' },
+      ]),
+    ).toBe('taste');
+  });
+
+  it('returns eat when present (terminal stage wins)', () => {
+    expect(getHighestStage([{ stage: 'eat' }, { stage: 'tolerate' }])).toBe('eat');
+  });
+
+  it('ignores unknown stages', () => {
+    expect(getHighestStage([{ stage: 'bogus' }, { stage: 'touch' }])).toBe('touch');
+  });
+
+  it('returns null when only unknown stages are present', () => {
+    expect(getHighestStage([{ stage: 'bogus' }, { stage: 'fake' }])).toBeNull();
   });
 });
