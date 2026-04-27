@@ -1,4 +1,4 @@
-import { partitionSafeFoods, getEmptyStateKind } from '../food-partition';
+import { partitionSafeFoods, getEmptyStateKind, buildFoodsWithStats } from '../food-partition';
 
 type F = { id: string; name: string; isSafeFood: boolean };
 
@@ -35,6 +35,75 @@ describe('partitionSafeFoods', () => {
     const { safeFoods, otherFoods } = partitionSafeFoods(list);
     expect(safeFoods.map((f) => f.id)).toEqual(['a']);
     expect(otherFoods.map((f) => f.id)).toEqual(['b', 'c']);
+  });
+});
+
+describe('buildFoodsWithStats', () => {
+  type Food = { id: string; name: string; category: string };
+  const food = (id: string, name = id): Food => ({ id, name, category: 'fruit' });
+
+  it('returns empty array when no foods are passed', () => {
+    expect(buildFoodsWithStats([], [])).toEqual([]);
+  });
+
+  it('returns foods with zero exposureCount and undefined highestStage when exposures empty', () => {
+    const result = buildFoodsWithStats([food('a'), food('b')], []);
+    expect(result).toEqual([
+      { id: 'a', name: 'a', category: 'fruit', exposureCount: 0, highestStage: undefined },
+      { id: 'b', name: 'b', category: 'fruit', exposureCount: 0, highestStage: undefined },
+    ]);
+  });
+
+  it('counts exposures per food and tracks the highest reached stage', () => {
+    const exposures = [
+      { foodId: 'a', stage: 'tolerate' },
+      { foodId: 'a', stage: 'taste' },
+      { foodId: 'a', stage: 'smell' },
+      { foodId: 'b', stage: 'eat' },
+    ];
+    const result = buildFoodsWithStats([food('a'), food('b'), food('c')], exposures);
+    expect(result[0]).toMatchObject({ id: 'a', exposureCount: 3, highestStage: 'taste' });
+    expect(result[1]).toMatchObject({ id: 'b', exposureCount: 1, highestStage: 'eat' });
+    expect(result[2]).toMatchObject({ id: 'c', exposureCount: 0, highestStage: undefined });
+  });
+
+  it('skips unknown stage strings when computing highestStage', () => {
+    const exposures = [
+      { foodId: 'a', stage: 'mystery' },
+      { foodId: 'a', stage: 'smell' },
+      { foodId: 'a', stage: 'bogus' },
+    ];
+    const result = buildFoodsWithStats([food('a')], exposures);
+    expect(result[0]).toMatchObject({ exposureCount: 3, highestStage: 'smell' });
+  });
+
+  it('returns undefined highestStage when every exposure has an unknown stage', () => {
+    const exposures = [
+      { foodId: 'a', stage: 'mystery' },
+      { foodId: 'a', stage: 'bogus' },
+    ];
+    const result = buildFoodsWithStats([food('a')], exposures);
+    expect(result[0]).toMatchObject({ exposureCount: 2, highestStage: undefined });
+  });
+
+  it('preserves food order from the input list', () => {
+    const result = buildFoodsWithStats(
+      [food('z'), food('a'), food('m')],
+      [{ foodId: 'a', stage: 'eat' }],
+    );
+    expect(result.map((f) => f.id)).toEqual(['z', 'a', 'm']);
+  });
+
+  it('ignores exposures whose foodId does not match any food', () => {
+    const result = buildFoodsWithStats(
+      [food('a')],
+      [
+        { foodId: 'a', stage: 'taste' },
+        { foodId: 'orphan', stage: 'eat' },
+      ],
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ id: 'a', exposureCount: 1, highestStage: 'taste' });
   });
 });
 

@@ -10,9 +10,9 @@ import * as schema from '@/src/db/schema';
 import { FoodCard, EmptyState } from '@/src/components';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { useChildStore } from '@/src/stores/child-store';
-import { FOOD_CATEGORIES, CATEGORY_CONFIG, STAGE_ORDER } from '@/src/lib/constants';
+import { FOOD_CATEGORIES, CATEGORY_CONFIG } from '@/src/lib/constants';
 import type { FoodCategory, ExposureStage } from '@/src/lib/constants';
-import { partitionSafeFoods, getEmptyStateKind } from '@/src/lib/food-partition';
+import { partitionSafeFoods, getEmptyStateKind, buildFoodsWithStats } from '@/src/lib/food-partition';
 
 type FoodWithStats = typeof schema.foods.$inferSelect & {
   exposureCount: number;
@@ -44,34 +44,7 @@ export default function FoodsScreen() {
           .where(eq(schema.exposures.childId, selectedChildId));
       }
 
-      // Group exposures by foodId in memory
-      const exposuresByFood = new Map<string, typeof allExposures>();
-      for (const exp of allExposures) {
-        const existing = exposuresByFood.get(exp.foodId) || [];
-        existing.push(exp);
-        exposuresByFood.set(exp.foodId, existing);
-      }
-
-      // Build stats from grouped data
-      const foodsWithStats: FoodWithStats[] = allFoods.map((food) => {
-        const foodExposures = exposuresByFood.get(food.id) || [];
-
-        let highestStage: ExposureStage | undefined;
-        for (const exp of foodExposures) {
-          const stage = exp.stage as ExposureStage;
-          if (!highestStage || STAGE_ORDER.indexOf(stage) > STAGE_ORDER.indexOf(highestStage)) {
-            highestStage = stage;
-          }
-        }
-
-        return {
-          ...food,
-          exposureCount: foodExposures.length,
-          highestStage,
-        };
-      });
-
-      setFoods(foodsWithStats);
+      setFoods(buildFoodsWithStats(allFoods, allExposures));
     } catch (err) {
       console.error('Failed to load foods:', err);
       Alert.alert('Error', 'Failed to load foods. Please try again.');
