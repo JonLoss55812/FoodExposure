@@ -1,4 +1,10 @@
-import { calcProgressStats, type StatsFood, type StatsExposure } from '../progress-stats';
+import {
+  calcProgressStats,
+  getEncouragementMessage,
+  type ProgressStats,
+  type StatsFood,
+  type StatsExposure,
+} from '../progress-stats';
 
 const NOW = new Date('2026-04-26T12:00:00Z').getTime();
 const DAY = 24 * 60 * 60 * 1000;
@@ -129,5 +135,73 @@ describe('calcProgressStats', () => {
     });
     expect(stats.foodProgress[0].pct).toBeCloseTo(0.8);
     expect(stats.foodsNearTarget).toBe(1);
+  });
+});
+
+describe('getEncouragementMessage', () => {
+  const baseStats = (overrides: Partial<ProgressStats> = {}): ProgressStats => ({
+    totalFoods: 0,
+    totalExposures: 0,
+    safeFoods: 0,
+    stageCounts: {},
+    categoryCounts: {},
+    weeklyExposures: 0,
+    avgRating: 0,
+    foodsNearTarget: 0,
+    foodProgress: [],
+    ...overrides,
+  });
+
+  it('greets a fresh user when no exposures logged', () => {
+    expect(getEncouragementMessage(baseStats({ totalExposures: 0 }))).toMatch(
+      /every journey begins/i,
+    );
+  });
+
+  it('encourages early users with fewer than 10 exposures', () => {
+    expect(getEncouragementMessage(baseStats({ totalExposures: 5 }))).toMatch(
+      /great start/i,
+    );
+  });
+
+  it('boundary: exactly 10 exposures is no longer "early" (uses 10+ branches)', () => {
+    expect(getEncouragementMessage(baseStats({ totalExposures: 10 }))).toMatch(
+      /amazing progress/i,
+    );
+  });
+
+  it('calls out near-target foods when at least one is close, using its threshold', () => {
+    const stats = baseStats({
+      totalExposures: 50,
+      foodsNearTarget: 2,
+      foodProgress: [
+        {
+          foodId: 'a',
+          foodName: 'Apple',
+          category: 'fruit',
+          current: 17,
+          threshold: 20,
+          pct: 0.85,
+          reached: false,
+        },
+      ],
+    });
+    expect(getEncouragementMessage(stats)).toBe(
+      '2 food(s) are getting close to the 20-exposure target!',
+    );
+  });
+
+  it('falls back to threshold 15 when foodProgress is empty but foodsNearTarget > 0', () => {
+    const stats = baseStats({
+      totalExposures: 30,
+      foodsNearTarget: 1,
+      foodProgress: [],
+    });
+    expect(getEncouragementMessage(stats)).toContain('15-exposure');
+  });
+
+  it('celebrates established users with 10+ exposures and nothing near target', () => {
+    const stats = baseStats({ totalExposures: 30, foodsNearTarget: 0 });
+    expect(getEncouragementMessage(stats)).toMatch(/amazing progress/i);
   });
 });

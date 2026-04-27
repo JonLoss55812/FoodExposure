@@ -117,3 +117,20 @@ export function calcProgressStats(
     foodProgress,
   };
 }
+
+const EARLY_EXPOSURES = 10;
+const FALLBACK_THRESHOLD = 15;
+
+export function getEncouragementMessage(stats: ProgressStats): string {
+  if (stats.totalExposures === 0) {
+    return 'Every journey begins with a single step. Start logging exposures today!';
+  }
+  if (stats.totalExposures < EARLY_EXPOSURES) {
+    return 'Great start! Keep going — consistency is key to helping little tongues learn.';
+  }
+  if (stats.foodsNearTarget > 0) {
+    const threshold = stats.foodProgress[0]?.threshold ?? FALLBACK_THRESHOLD;
+    return `${stats.foodsNearTarget} food(s) are getting close to the ${threshold}-exposure target!`;
+  }
+  return 'Amazing progress! Your consistency is making a real difference.';
+}

@@ -11,7 +11,7 @@ import { useChildStore } from '@/src/stores/child-store';
 import { STAGE_ORDER, STAGE_CONFIG, FOOD_CATEGORIES, CATEGORY_CONFIG } from '@/src/lib/constants';
 import { useSettingsStore } from '@/src/stores/settings-store';
 import { FEEDING_PROFILE_CONFIG } from '@/src/lib/thresholds';
-import { calcProgressStats, type ProgressStats } from '@/src/lib/progress-stats';
+import { calcProgressStats, getEncouragementMessage, type ProgressStats } from '@/src/lib/progress-stats';
 
 const EMPTY_STATS: ProgressStats = {
   totalFoods: 0,
@@ -197,13 +197,7 @@ export default function ProgressScreen() {
       {/* Encouragement */}
       <View style={styles.encouragement}>
         <Text style={styles.encouragementText}>
-          {stats.totalExposures === 0
-            ? "Every journey begins with a single step. Start logging exposures today!"
-            : stats.totalExposures < 10
-            ? "Great start! Keep going — consistency is key to helping little tongues learn."
-            : stats.foodsNearTarget > 0
-            ? `${stats.foodsNearTarget} food(s) are getting close to the ${stats.foodProgress[0]?.threshold ?? 15}-exposure target!`
-            : "Amazing progress! Your consistency is making a real difference."}
+          {getEncouragementMessage(stats)}
         </Text>
       </View>
     </ScrollView>
