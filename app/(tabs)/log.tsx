@@ -36,6 +36,14 @@ export default function LogExposureScreen() {
     },
   });
 
+  // Keep the form's childId in sync with the store; the form's defaultValues
+  // capture selectedChildId at mount, so a child resolved later (via
+  // ensureSelection) or a switch from another tab would otherwise leave
+  // childId='' and silently fail validation when the user taps Save.
+  useEffect(() => {
+    setValue('childId', selectedChildId || '');
+  }, [selectedChildId, setValue]);
+
   useEffect(() => {
     if (!familyId) return;
     loadData();
@@ -70,7 +78,9 @@ export default function LogExposureScreen() {
         createdAt: new Date(),
       });
 
-      reset();
+      // Preserve the just-used child so a parent can log multiple
+      // exposures in one session without re-tapping the child each time.
+      reset({ childId: data.childId, foodId: '', stage: 'tolerate' });
       setSelectedFoodId(null);
       setSelectedStage('tolerate');
       Alert.alert('Logged!', 'Food exposure saved successfully.', [
