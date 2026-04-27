@@ -11,3 +11,14 @@ export function partitionSafeFoods<T extends SafeFoodish>(
   }
   return { safeFoods, otherFoods };
 }
+
+export type EmptyStateKind = 'none' | 'filtered' | 'has-results';
+
+export function getEmptyStateKind(
+  totalCount: number,
+  filteredCount: number,
+): EmptyStateKind {
+  if (totalCount === 0) return 'none';
+  if (filteredCount === 0) return 'filtered';
+  return 'has-results';
+}

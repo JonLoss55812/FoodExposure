@@ -1,4 +1,4 @@
-import { partitionSafeFoods } from '../food-partition';
+import { partitionSafeFoods, getEmptyStateKind } from '../food-partition';
 
 type F = { id: string; name: string; isSafeFood: boolean };
 
@@ -35,5 +35,23 @@ describe('partitionSafeFoods', () => {
     const { safeFoods, otherFoods } = partitionSafeFoods(list);
     expect(safeFoods.map((f) => f.id)).toEqual(['a']);
     expect(otherFoods.map((f) => f.id)).toEqual(['b', 'c']);
+  });
+});
+
+describe('getEmptyStateKind', () => {
+  it('returns "none" when no foods exist at all', () => {
+    expect(getEmptyStateKind(0, 0)).toBe('none');
+  });
+
+  it('returns "filtered" when foods exist but filter yields zero', () => {
+    expect(getEmptyStateKind(5, 0)).toBe('filtered');
+  });
+
+  it('returns "has-results" when filter yields at least one match', () => {
+    expect(getEmptyStateKind(5, 3)).toBe('has-results');
+  });
+
+  it('returns "has-results" when every food matches the filter', () => {
+    expect(getEmptyStateKind(5, 5)).toBe('has-results');
   });
 });

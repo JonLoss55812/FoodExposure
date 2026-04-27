@@ -12,7 +12,7 @@ import { useAuthStore } from '@/src/stores/auth-store';
 import { useChildStore } from '@/src/stores/child-store';
 import { FOOD_CATEGORIES, CATEGORY_CONFIG, STAGE_ORDER } from '@/src/lib/constants';
 import type { FoodCategory, ExposureStage } from '@/src/lib/constants';
-import { partitionSafeFoods } from '@/src/lib/food-partition';
+import { partitionSafeFoods, getEmptyStateKind } from '@/src/lib/food-partition';
 
 type FoodWithStats = typeof schema.foods.$inferSelect & {
   exposureCount: number;
@@ -181,23 +181,43 @@ export default function FoodsScreen() {
       </View>
 
       {/* Food List */}
-      {filteredFoods.length === 0 ? (
-        <EmptyState
-          icon="🍽️"
-          title="No Foods Yet"
-          description="Add foods to your library to start tracking exposures."
-          actionLabel="Add Food"
-          onAction={() => router.push('/food/add')}
-        />
-      ) : (
-        <FlashList
-          data={otherFoods}
-          renderItem={renderFoodItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}
-          ListHeaderComponent={SafeFoodsSection}
-        />
-      )}
+      {(() => {
+        const kind = getEmptyStateKind(foods.length, filteredFoods.length);
+        if (kind === 'none') {
+          return (
+            <EmptyState
+              icon="🍽️"
+              title="No Foods Yet"
+              description="Add foods to your library to start tracking exposures."
+              actionLabel="Add Food"
+              onAction={() => router.push('/food/add')}
+            />
+          );
+        }
+        if (kind === 'filtered') {
+          return (
+            <EmptyState
+              icon="🔎"
+              title="No Matches"
+              description="No foods match your search or category filter."
+              actionLabel="Clear Filters"
+              onAction={() => {
+                setSearchQuery('');
+                setSelectedCategory('all');
+              }}
+            />
+          );
+        }
+        return (
+          <FlashList
+            data={otherFoods}
+            renderItem={renderFoodItem}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}
+            ListHeaderComponent={SafeFoodsSection}
+          />
+        );
+      })()}
     </SafeAreaView>
   );
 }

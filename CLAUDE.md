@@ -214,9 +214,10 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.1
+v0.5.2
 
 ## Changelog
+- v0.5.2 — Foods tab now distinguishes "no foods at all" from "no matches for current filter". Previously the screen showed "No Foods Yet → Add Food" any time `filteredFoods.length === 0`, even if the user had foods and just typed a search that matched none — a misleading CTA that nudged duplicates. Added `getEmptyStateKind(totalCount, filteredCount)` to `src/lib/food-partition.ts` returning `'none' | 'filtered' | 'has-results'`. The "filtered" state shows a "🔎 No Matches" EmptyState with a "Clear Filters" action that resets `searchQuery` and `selectedCategory`. +4 unit tests for the helper.
 - v0.5.1 — Log Exposure form now surfaces inline validation errors. `app/(tabs)/log.tsx` previously destructured `errors` from `useForm` but never rendered them, so tapping "Save Exposure" without picking a child or food failed silently. Added `errors.childId` / `errors.foodId` text below their respective sections (matches the pattern already used in `app/food/add.tsx`) and added `foodId: ''` to `defaultValues` so zod surfaces the error reliably. New `error` style mirrors `theme.colors.error`.
 - tests: raise `src/lib/export.ts` coverage from 70.83% → 95.83% lines (overall 85.5% → 88.5%). New `src/lib/__tests__/export.integration.test.ts` covers `fetchExportRows` (empty, Date passthrough, numeric-timestamp coercion, query-builder call order) and `exportChildData` (share-sheet invocation with filename+CSV, header-only empty export, error propagation). +7 tests, no version bump per NEXT_STEPS.md P6 guidance.
 - v0.5.0 — CSV data export (therapist-ready offline feature): new `src/lib/export.ts` provides pure `formatExposuresCsv`, `csvEscape`, `buildExportFilename` helpers (RFC 4180 quote-escape for commas, quotes, newlines) plus `fetchExportRows` (exposures JOIN foods, ordered by `occurredAt desc`) and `exportChildData` (uses React Native's built-in `Share` API — no new packages). Settings tab gains a "Data → Export Data (CSV)" row that opens the system share sheet with CSV content. 16 new tests cover the escape/format/filename logic.
