@@ -31,6 +31,7 @@ export default function LogExposureScreen() {
     resolver: zodResolver(exposureSchema) as any,
     defaultValues: {
       childId: selectedChildId || '',
+      foodId: '',
       stage: 'tolerate',
     },
   });
@@ -102,6 +103,7 @@ export default function LogExposureScreen() {
             setValue('childId', id);
           }}
         />
+        {errors.childId && <Text style={styles.error}>{errors.childId.message}</Text>}
       </View>
 
       {/* Step 2: Select Food */}
@@ -129,6 +131,7 @@ export default function LogExposureScreen() {
         {foodsList.length === 0 && (
           <Text style={styles.hint}>Add some foods first to start logging exposures.</Text>
         )}
+        {errors.foodId && <Text style={styles.error}>{errors.foodId.message}</Text>}
       </View>
 
       {/* Step 3: Select Stage */}
@@ -369,6 +372,10 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.fontSize.sm,
     color: theme.colors.textTertiary,
     fontStyle: 'italic',
+  },
+  error: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.error,
   },
   textInput: {
     backgroundColor: theme.colors.inputBackground,

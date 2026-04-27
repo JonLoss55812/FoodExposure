@@ -214,9 +214,10 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.0
+v0.5.1
 
 ## Changelog
+- v0.5.1 — Log Exposure form now surfaces inline validation errors. `app/(tabs)/log.tsx` previously destructured `errors` from `useForm` but never rendered them, so tapping "Save Exposure" without picking a child or food failed silently. Added `errors.childId` / `errors.foodId` text below their respective sections (matches the pattern already used in `app/food/add.tsx`) and added `foodId: ''` to `defaultValues` so zod surfaces the error reliably. New `error` style mirrors `theme.colors.error`.
 - tests: raise `src/lib/export.ts` coverage from 70.83% → 95.83% lines (overall 85.5% → 88.5%). New `src/lib/__tests__/export.integration.test.ts` covers `fetchExportRows` (empty, Date passthrough, numeric-timestamp coercion, query-builder call order) and `exportChildData` (share-sheet invocation with filename+CSV, header-only empty export, error propagation). +7 tests, no version bump per NEXT_STEPS.md P6 guidance.
 - v0.5.0 — CSV data export (therapist-ready offline feature): new `src/lib/export.ts` provides pure `formatExposuresCsv`, `csvEscape`, `buildExportFilename` helpers (RFC 4180 quote-escape for commas, quotes, newlines) plus `fetchExportRows` (exposures JOIN foods, ordered by `occurredAt desc`) and `exportChildData` (uses React Native's built-in `Share` API — no new packages). Settings tab gains a "Data → Export Data (CSV)" row that opens the system share sheet with CSV content. 16 new tests cover the escape/format/filename logic.
 - v0.4.0 — Per-food exposure progress vs profile-based threshold: new `src/lib/thresholds.ts` exposes `EXPOSURE_THRESHOLDS = { typical: 15, picky: 20, arfid: 30 }` and a `calcExposureProgress` helper. `feedingProfile` added to `settings-store` (default `typical`) with a chip selector on the Settings tab. Progress tab now lists each food with logged exposures alongside a `current/threshold` ProgressBar, sorted by proximity to threshold, with a check when reached.
