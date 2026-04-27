@@ -12,7 +12,7 @@ import { useAuthStore } from '@/src/stores/auth-store';
 import { useChildStore } from '@/src/stores/child-store';
 import { FOOD_CATEGORIES, CATEGORY_CONFIG } from '@/src/lib/constants';
 import type { FoodCategory, ExposureStage } from '@/src/lib/constants';
-import { partitionSafeFoods, getEmptyStateKind, buildFoodsWithStats } from '@/src/lib/food-partition';
+import { partitionSafeFoods, getEmptyStateKind, buildFoodsWithStats, filterFoods } from '@/src/lib/food-partition';
 
 type FoodWithStats = typeof schema.foods.$inferSelect & {
   exposureCount: number;
@@ -57,11 +57,7 @@ export default function FoodsScreen() {
     loadFoods();
   }, [loadFoods]);
 
-  const filteredFoods = foods.filter((food) => {
-    const matchesSearch = food.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || food.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const filteredFoods = filterFoods(foods, searchQuery, selectedCategory);
 
   const { safeFoods, otherFoods } = partitionSafeFoods(filteredFoods);
 

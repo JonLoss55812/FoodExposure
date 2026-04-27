@@ -1,4 +1,4 @@
-import { partitionSafeFoods, getEmptyStateKind, buildFoodsWithStats } from '../food-partition';
+import { partitionSafeFoods, getEmptyStateKind, buildFoodsWithStats, filterFoods } from '../food-partition';
 
 type F = { id: string; name: string; isSafeFood: boolean };
 
@@ -122,5 +122,55 @@ describe('getEmptyStateKind', () => {
 
   it('returns "has-results" when every food matches the filter', () => {
     expect(getEmptyStateKind(5, 5)).toBe('has-results');
+  });
+});
+
+describe('filterFoods', () => {
+  type Item = { id: string; name: string; category: string };
+  const apple = { id: '1', name: 'Apple', category: 'fruit' };
+  const broccoli = { id: '2', name: 'Broccoli', category: 'vegetable' };
+  const bread = { id: '3', name: 'Bread', category: 'grain' };
+  const banana = { id: '4', name: 'Banana', category: 'fruit' };
+  const list: Item[] = [apple, broccoli, bread, banana];
+
+  it('returns every food when search is empty and category is "all"', () => {
+    expect(filterFoods(list, '', 'all')).toEqual(list);
+  });
+
+  it('returns a copy, not the same reference, on the no-op path', () => {
+    const result = filterFoods(list, '', 'all');
+    expect(result).not.toBe(list);
+    expect(result).toEqual(list);
+  });
+
+  it('matches name case-insensitively', () => {
+    expect(filterFoods(list, 'APP', 'all').map((f) => f.id)).toEqual(['1']);
+    expect(filterFoods(list, 'app', 'all').map((f) => f.id)).toEqual(['1']);
+  });
+
+  it('matches anywhere in the name (substring)', () => {
+    expect(filterFoods(list, 'an', 'all').map((f) => f.id)).toEqual(['4']);
+  });
+
+  it('filters by category when search is empty', () => {
+    expect(filterFoods(list, '', 'fruit').map((f) => f.id)).toEqual(['1', '4']);
+  });
+
+  it('combines search and category (AND)', () => {
+    expect(filterFoods(list, 'b', 'fruit').map((f) => f.id)).toEqual(['4']);
+    expect(filterFoods(list, 'b', 'grain').map((f) => f.id)).toEqual(['3']);
+  });
+
+  it('returns empty when nothing matches', () => {
+    expect(filterFoods(list, 'xyz', 'all')).toEqual([]);
+    expect(filterFoods(list, '', 'dairy')).toEqual([]);
+  });
+
+  it('treats whitespace-only search as empty (no narrowing)', () => {
+    expect(filterFoods(list, '   ', 'all')).toEqual(list);
+  });
+
+  it('returns empty for an empty input list', () => {
+    expect(filterFoods([], 'apple', 'all')).toEqual([]);
   });
 });

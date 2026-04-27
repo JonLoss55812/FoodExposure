@@ -29,6 +29,23 @@ export function getEmptyStateKind(
 type FoodIdentifiable = { id: string };
 type ExposureForFood = { foodId: string; stage: string };
 
+type FoodFilterable = { name: string; category: string };
+
+export function filterFoods<T extends FoodFilterable>(
+  foods: readonly T[],
+  search: string,
+  category: string,
+): T[] {
+  const needle = search.trim().toLowerCase();
+  const all = category === 'all';
+  if (!needle && all) return foods.slice();
+  return foods.filter((food) => {
+    const matchesSearch = !needle || food.name.toLowerCase().includes(needle);
+    const matchesCategory = all || food.category === category;
+    return matchesSearch && matchesCategory;
+  });
+}
+
 export type FoodStats = {
   exposureCount: number;
   highestStage?: ExposureStage;
