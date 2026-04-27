@@ -2,42 +2,34 @@ import { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
-import { StageIndicator, ProgressBar, EmptyState } from '@/src/components';
+import { ProgressBar, EmptyState } from '@/src/components';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { useChildStore } from '@/src/stores/child-store';
 import { STAGE_ORDER, STAGE_CONFIG, FOOD_CATEGORIES, CATEGORY_CONFIG } from '@/src/lib/constants';
-import type { ExposureStage } from '@/src/lib/constants';
 import { useSettingsStore } from '@/src/stores/settings-store';
-import { calcExposureProgress, FEEDING_PROFILE_CONFIG } from '@/src/lib/thresholds';
+import { FEEDING_PROFILE_CONFIG } from '@/src/lib/thresholds';
+import { calcProgressStats, type ProgressStats } from '@/src/lib/progress-stats';
 
-interface FoodProgressRow {
-  foodId: string;
-  foodName: string;
-  category: string;
-  current: number;
-  threshold: number;
-  pct: number;
-  reached: boolean;
-}
+const EMPTY_STATS: ProgressStats = {
+  totalFoods: 0,
+  totalExposures: 0,
+  safeFoods: 0,
+  stageCounts: {},
+  categoryCounts: {},
+  weeklyExposures: 0,
+  avgRating: 0,
+  foodsNearTarget: 0,
+  foodProgress: [],
+};
 
 export default function ProgressScreen() {
   const { familyId } = useAuthStore();
   const { selectedChildId } = useChildStore();
   const { feedingProfile } = useSettingsStore();
-  const [stats, setStats] = useState({
-    totalFoods: 0,
-    totalExposures: 0,
-    safeFoods: 0,
-    stageCounts: {} as Record<string, number>,
-    categoryCounts: {} as Record<string, number>,
-    weeklyExposures: 0,
-    avgRating: 0,
-    foodsNearTarget: 0,
-    foodProgress: [] as FoodProgressRow[],
-  });
+  const [stats, setStats] = useState<ProgressStats>(EMPTY_STATS);
   const [loading, setLoading] = useState(true);
 
   const loadStats = useCallback(async () => {
@@ -48,84 +40,13 @@ export default function ProgressScreen() {
 
     setLoading(true);
     try {
-    const allFoods = await db.select().from(schema.foods)
-      .where(eq(schema.foods.familyId, familyId));
+      const allFoods = await db.select().from(schema.foods)
+        .where(eq(schema.foods.familyId, familyId));
 
-    const allExposures = await db.select().from(schema.exposures)
-      .where(eq(schema.exposures.childId, selectedChildId));
+      const allExposures = await db.select().from(schema.exposures)
+        .where(eq(schema.exposures.childId, selectedChildId));
 
-    // Stage distribution (highest stage per food)
-    const highestStagePerFood: Record<string, ExposureStage> = {};
-    const exposureCountPerFood: Record<string, number> = {};
-    let totalRating = 0;
-    let ratingCount = 0;
-
-    for (const exp of allExposures) {
-      const stage = exp.stage as ExposureStage;
-      const foodId = exp.foodId;
-
-      exposureCountPerFood[foodId] = (exposureCountPerFood[foodId] || 0) + 1;
-
-      if (!highestStagePerFood[foodId] || STAGE_ORDER.indexOf(stage) > STAGE_ORDER.indexOf(highestStagePerFood[foodId])) {
-        highestStagePerFood[foodId] = stage;
-      }
-
-      if (exp.rating) {
-        totalRating += exp.rating;
-        ratingCount++;
-      }
-    }
-
-    const stageCounts: Record<string, number> = {};
-    for (const stage of Object.values(highestStagePerFood)) {
-      stageCounts[stage] = (stageCounts[stage] || 0) + 1;
-    }
-
-    // Category distribution
-    const categoryCounts: Record<string, number> = {};
-    for (const food of allFoods) {
-      categoryCounts[food.category] = (categoryCounts[food.category] || 0) + 1;
-    }
-
-    // Weekly exposures
-    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    const weeklyExposures = allExposures.filter(
-      (e) => (e.occurredAt instanceof Date ? e.occurredAt.getTime() : e.occurredAt) > weekAgo
-    ).length;
-
-    // Per-food progress vs threshold (based on feeding profile)
-    const foodProgress: FoodProgressRow[] = allFoods
-      .map((food) => {
-        const count = exposureCountPerFood[food.id] || 0;
-        const { current, threshold, pct, reached } = calcExposureProgress(count, feedingProfile);
-        return {
-          foodId: food.id,
-          foodName: food.name,
-          category: food.category,
-          current,
-          threshold,
-          pct,
-          reached,
-        };
-      })
-      .filter((row) => row.current > 0)
-      .sort((a, b) => b.pct - a.pct || b.current - a.current);
-
-    const foodsNearTarget = foodProgress.filter(
-      (r) => !r.reached && r.pct >= 0.8
-    ).length;
-
-    setStats({
-      totalFoods: Object.keys(highestStagePerFood).length,
-      totalExposures: allExposures.length,
-      safeFoods: allFoods.filter((f) => f.isSafeFood).length,
-      stageCounts,
-      categoryCounts,
-      weeklyExposures,
-      avgRating: ratingCount > 0 ? totalRating / ratingCount : 0,
-      foodsNearTarget,
-      foodProgress,
-    });
+      setStats(calcProgressStats(allFoods, allExposures, feedingProfile));
     } catch (err) {
       console.error('Failed to load progress stats:', err);
     } finally {
