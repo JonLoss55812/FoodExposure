@@ -1,4 +1,11 @@
-import { useAuthStore } from '../auth-store';
+import { act, renderHook } from '@testing-library/react';
+import {
+  useAuthStore,
+  useAuthFamilyId,
+  useAuthUserId,
+  useIsAuthenticated,
+  useIsOnboarded,
+} from '../auth-store';
 
 // Reset store between tests
 beforeEach(() => {
@@ -77,6 +84,63 @@ describe('useAuthStore', () => {
     it('updates family ID', () => {
       useAuthStore.getState().setFamilyId('new-family');
       expect(useAuthStore.getState().familyId).toBe('new-family');
+    });
+  });
+
+  describe('typed selector hooks', () => {
+    it('useAuthUserId returns null initially and current userId after login', () => {
+      const { result } = renderHook(() => useAuthUserId());
+      expect(result.current).toBeNull();
+
+      act(() => {
+        useAuthStore.getState().login({
+          userId: 'user-42',
+          familyId: 'family-1',
+          email: 'a@b.co',
+          displayName: 'A',
+        });
+      });
+      expect(result.current).toBe('user-42');
+    });
+
+    it('useAuthFamilyId tracks setFamilyId updates', () => {
+      const { result } = renderHook(() => useAuthFamilyId());
+      expect(result.current).toBeNull();
+
+      act(() => {
+        useAuthStore.getState().setFamilyId('family-99');
+      });
+      expect(result.current).toBe('family-99');
+    });
+
+    it('useIsAuthenticated flips true on login and false on logout', () => {
+      const { result } = renderHook(() => useIsAuthenticated());
+      expect(result.current).toBe(false);
+
+      act(() => {
+        useAuthStore.getState().login({
+          userId: 'u',
+          familyId: 'f',
+          email: 'e',
+          displayName: 'd',
+        });
+      });
+      expect(result.current).toBe(true);
+
+      act(() => {
+        useAuthStore.getState().logout();
+      });
+      expect(result.current).toBe(false);
+    });
+
+    it('useIsOnboarded mirrors setOnboarded', () => {
+      const { result } = renderHook(() => useIsOnboarded());
+      expect(result.current).toBe(false);
+
+      act(() => {
+        useAuthStore.getState().setOnboarded(true);
+      });
+      expect(result.current).toBe(true);
     });
   });
 });
