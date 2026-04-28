@@ -71,3 +71,21 @@ export function buildFoodsWithStats<T extends FoodIdentifiable>(
     };
   });
 }
+
+export function computeStageCounts(
+  exposures: readonly ExposureForFood[],
+): Record<string, number> {
+  const byFood = new Map<string, ExposureForFood[]>();
+  for (const exp of exposures) {
+    const existing = byFood.get(exp.foodId);
+    if (existing) existing.push(exp);
+    else byFood.set(exp.foodId, [exp]);
+  }
+  const counts: Record<string, number> = {};
+  for (const foodExposures of byFood.values()) {
+    const highest = getHighestStage(foodExposures);
+    if (!highest) continue;
+    counts[highest] = (counts[highest] ?? 0) + 1;
+  }
+  return counts;
+}

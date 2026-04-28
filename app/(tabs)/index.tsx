@@ -11,6 +11,7 @@ import { useChildStore } from '@/src/stores/child-store';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { STAGE_ORDER, STAGE_CONFIG, TARGET_EXPOSURES } from '@/src/lib/constants';
 import { formatRelativeDate } from '@/src/lib/utils';
+import { computeStageCounts } from '@/src/lib/food-partition';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -65,7 +66,9 @@ export default function DashboardScreen() {
         .limit(10);
       setRecentExposures(recent);
 
-      // Load stage distribution - get highest stage per food
+      // Load stage distribution - count each food at its highest reached stage.
+      // Delegates to computeStageCounts so this matches Foods/Progress tabs and
+      // skips legacy/unknown stage strings (foods.tsx harmonization, v0.5.8).
       const allExposures = await db.select({
         foodId: schema.exposures.foodId,
         stage: schema.exposures.stage,
@@ -73,19 +76,7 @@ export default function DashboardScreen() {
         .from(schema.exposures)
         .where(eq(schema.exposures.childId, childId));
 
-      const highestStagePerFood: Record<string, string> = {};
-      for (const exp of allExposures) {
-        const current = highestStagePerFood[exp.foodId];
-        if (!current || STAGE_ORDER.indexOf(exp.stage as any) > STAGE_ORDER.indexOf(current as any)) {
-          highestStagePerFood[exp.foodId] = exp.stage;
-        }
-      }
-
-      const counts: Record<string, number> = {};
-      for (const stage of Object.values(highestStagePerFood)) {
-        counts[stage] = (counts[stage] || 0) + 1;
-      }
-      setStageCounts(counts);
+      setStageCounts(computeStageCounts(allExposures));
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     } finally {

@@ -1,4 +1,10 @@
-import { partitionSafeFoods, getEmptyStateKind, buildFoodsWithStats, filterFoods } from '../food-partition';
+import {
+  partitionSafeFoods,
+  getEmptyStateKind,
+  buildFoodsWithStats,
+  filterFoods,
+  computeStageCounts,
+} from '../food-partition';
 
 type F = { id: string; name: string; isSafeFood: boolean };
 
@@ -122,6 +128,55 @@ describe('getEmptyStateKind', () => {
 
   it('returns "has-results" when every food matches the filter', () => {
     expect(getEmptyStateKind(5, 5)).toBe('has-results');
+  });
+});
+
+describe('computeStageCounts', () => {
+  it('returns an empty object when no exposures are passed', () => {
+    expect(computeStageCounts([])).toEqual({});
+  });
+
+  it('counts each food once at its highest reached stage', () => {
+    const exposures = [
+      { foodId: 'a', stage: 'tolerate' },
+      { foodId: 'a', stage: 'taste' },
+      { foodId: 'a', stage: 'smell' },
+      { foodId: 'b', stage: 'eat' },
+      { foodId: 'c', stage: 'touch' },
+    ];
+    expect(computeStageCounts(exposures)).toEqual({
+      taste: 1,
+      eat: 1,
+      touch: 1,
+    });
+  });
+
+  it('aggregates multiple foods reaching the same highest stage', () => {
+    const exposures = [
+      { foodId: 'a', stage: 'taste' },
+      { foodId: 'b', stage: 'taste' },
+      { foodId: 'b', stage: 'tolerate' },
+      { foodId: 'c', stage: 'eat' },
+    ];
+    expect(computeStageCounts(exposures)).toEqual({ taste: 2, eat: 1 });
+  });
+
+  it('skips foods whose every exposure has an unknown stage', () => {
+    const exposures = [
+      { foodId: 'a', stage: 'mystery' },
+      { foodId: 'a', stage: 'bogus' },
+      { foodId: 'b', stage: 'eat' },
+    ];
+    expect(computeStageCounts(exposures)).toEqual({ eat: 1 });
+  });
+
+  it('uses the highest known stage when unknown stages are mixed in', () => {
+    const exposures = [
+      { foodId: 'a', stage: 'mystery' },
+      { foodId: 'a', stage: 'smell' },
+      { foodId: 'a', stage: 'bogus' },
+    ];
+    expect(computeStageCounts(exposures)).toEqual({ smell: 1 });
   });
 });
 
