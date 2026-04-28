@@ -1,5 +1,6 @@
-import { STAGE_ORDER, type ExposureStage } from './constants';
+import { type ExposureStage } from './constants';
 import { calcExposureProgress, type FeedingProfile } from './thresholds';
+import { getHighestStage } from './stage';
 
 export interface StatsFood {
   id: string;
@@ -46,21 +47,22 @@ export function calcProgressStats(
   profile: FeedingProfile,
   now: number = Date.now(),
 ): ProgressStats {
-  const highestStagePerFood: Record<string, ExposureStage> = {};
+  // Bucket exposures by foodId so we can run highest-stage selection
+  // through the canonical getHighestStage helper (skips unknown stage
+  // strings, matching foods.tsx + index.tsx). Counts and ratings still
+  // accumulate in the same single pass.
+  const exposuresByFood = new Map<string, StatsExposure[]>();
   const exposureCountPerFood: Record<string, number> = {};
   let totalRating = 0;
   let ratingCount = 0;
 
   for (const exp of exposures) {
-    const stage = exp.stage as ExposureStage;
     const foodId = exp.foodId;
-
     exposureCountPerFood[foodId] = (exposureCountPerFood[foodId] || 0) + 1;
 
-    const currentBest = highestStagePerFood[foodId];
-    if (!currentBest || STAGE_ORDER.indexOf(stage) > STAGE_ORDER.indexOf(currentBest)) {
-      highestStagePerFood[foodId] = stage;
-    }
+    const bucket = exposuresByFood.get(foodId);
+    if (bucket) bucket.push(exp);
+    else exposuresByFood.set(foodId, [exp]);
 
     if (exp.rating != null) {
       totalRating += exp.rating;
@@ -68,9 +70,13 @@ export function calcProgressStats(
     }
   }
 
+  const highestStagePerFood: Record<string, ExposureStage> = {};
   const stageCounts: Record<string, number> = {};
-  for (const stage of Object.values(highestStagePerFood)) {
-    stageCounts[stage] = (stageCounts[stage] || 0) + 1;
+  for (const [foodId, bucket] of exposuresByFood) {
+    const highest = getHighestStage(bucket);
+    if (!highest) continue;
+    highestStagePerFood[foodId] = highest;
+    stageCounts[highest] = (stageCounts[highest] || 0) + 1;
   }
 
   const categoryCounts: Record<string, number> = {};
@@ -106,7 +112,11 @@ export function calcProgressStats(
   ).length;
 
   return {
-    totalFoods: Object.keys(highestStagePerFood).length,
+    // "Foods Tried" — any food with at least one exposure, regardless of
+    // whether the stage strings were valid. This is independent from stageCounts,
+    // which gates on getHighestStage and so drops foods whose every exposure
+    // carries an unknown stage.
+    totalFoods: Object.keys(exposureCountPerFood).length,
     totalExposures: exposures.length,
     safeFoods: foods.filter((f) => f.isSafeFood).length,
     stageCounts,

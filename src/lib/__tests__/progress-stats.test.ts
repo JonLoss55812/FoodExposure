@@ -122,6 +122,25 @@ describe('calcProgressStats', () => {
     expect(stats.foodsNearTarget).toBe(1);
   });
 
+  it('skips unknown stage strings when computing stageCounts but still counts foods toward totalFoods', () => {
+    const foods = [
+      food({ id: 'a', name: 'Apple', category: 'fruit' }),
+      food({ id: 'b', name: 'Broccoli', category: 'vegetable' }),
+    ];
+    const exposures = [
+      // Food a: only legacy/unknown stage strings — should land in totalFoods
+      // (still a "food tried") but not in stageCounts (no valid stage to bucket).
+      expo({ foodId: 'a', stage: 'mystery', occurredAt: NOW }),
+      expo({ foodId: 'a', stage: 'legacy_taste', occurredAt: NOW }),
+      // Food b: a real stage — buckets normally.
+      expo({ foodId: 'b', stage: 'eat', occurredAt: NOW }),
+    ];
+    const stats = calcProgressStats(foods, exposures, 'typical', NOW);
+    expect(stats.totalFoods).toBe(2);
+    expect(stats.totalExposures).toBe(3);
+    expect(stats.stageCounts).toEqual({ eat: 1 });
+  });
+
   it('respects the picky profile threshold (20)', () => {
     const foods = [food({ id: 'a', name: 'Apple', category: 'fruit' })];
     const exposures: StatsExposure[] = [];
