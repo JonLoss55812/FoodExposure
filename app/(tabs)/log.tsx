@@ -14,7 +14,6 @@ import { useAuthStore } from '@/src/stores/auth-store';
 import { exposureSchema, type ExposureFormData } from '@/src/lib/validation';
 import { generateId } from '@/src/lib/utils';
 import { STAGE_ORDER, STAGE_CONFIG, MEAL_TYPES, TEMPERATURES, TEXTURES } from '@/src/lib/constants';
-import type { ExposureStage } from '@/src/lib/constants';
 
 export default function LogExposureScreen() {
   const router = useRouter();
@@ -22,12 +21,10 @@ export default function LogExposureScreen() {
   const { selectedChildId, selectChild } = useChildStore();
   const [childrenList, setChildrenList] = useState<(typeof schema.children.$inferSelect)[]>([]);
   const [foodsList, setFoodsList] = useState<(typeof schema.foods.$inferSelect)[]>([]);
-  const [selectedFoodId, setSelectedFoodId] = useState<string | null>(null);
-  const [selectedStage, setSelectedStage] = useState<ExposureStage>('tolerate');
   const [showDetails, setShowDetails] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const { control, handleSubmit, setValue, reset, formState: { errors } } = useForm<ExposureFormData>({
+  const { control, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<ExposureFormData>({
     resolver: zodResolver(exposureSchema) as any,
     defaultValues: {
       childId: selectedChildId || '',
@@ -35,6 +32,12 @@ export default function LogExposureScreen() {
       stage: 'tolerate',
     },
   });
+
+  // Derive UI selection state from the form rather than holding parallel
+  // useState — the form is the single source of truth, so the chip
+  // highlight and validated submit value can never disagree.
+  const selectedFoodId = watch('foodId');
+  const selectedStage = watch('stage');
 
   // Keep the form's childId in sync with the store; the form's defaultValues
   // capture selectedChildId at mount, so a child resolved later (via
@@ -80,9 +83,9 @@ export default function LogExposureScreen() {
 
       // Preserve the just-used child so a parent can log multiple
       // exposures in one session without re-tapping the child each time.
+      // The form is the single source of truth for foodId/stage now —
+      // reset() flows back to the watched values, so no parallel setState.
       reset({ childId: data.childId, foodId: '', stage: 'tolerate' });
-      setSelectedFoodId(null);
-      setSelectedStage('tolerate');
       Alert.alert('Logged!', 'Food exposure saved successfully.', [
         { text: 'Log Another', style: 'default' },
         { text: 'Go Home', onPress: () => router.push('/(tabs)' as any) },
@@ -129,10 +132,7 @@ export default function LogExposureScreen() {
             <Pressable
               key={food.id}
               style={[styles.foodChip, selectedFoodId === food.id && styles.foodChipSelected]}
-              onPress={() => {
-                setSelectedFoodId(food.id);
-                setValue('foodId', food.id);
-              }}
+              onPress={() => setValue('foodId', food.id)}
             >
               <Text style={styles.foodChipText}>{food.name}</Text>
             </Pressable>
@@ -149,10 +149,7 @@ export default function LogExposureScreen() {
         <Text style={styles.sectionLabel}>Stage Reached</Text>
         <StageIndicator
           currentStage={selectedStage}
-          onStageSelect={(stage) => {
-            setSelectedStage(stage);
-            setValue('stage', stage);
-          }}
+          onStageSelect={(stage) => setValue('stage', stage)}
           size="lg"
           interactive
         />
