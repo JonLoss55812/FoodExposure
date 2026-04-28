@@ -1,5 +1,6 @@
 import { families, users, children, foods, exposures, foodChains } from '../schema';
 import { getTableColumns } from 'drizzle-orm';
+import { getTableConfig } from 'drizzle-orm/sqlite-core';
 
 describe('Database Schema', () => {
   describe('families table', () => {
@@ -147,6 +148,75 @@ describe('Database Schema', () => {
 
     it('foodChains has 7 columns', () => {
       expect(Object.keys(getTableColumns(foodChains))).toHaveLength(7);
+    });
+  });
+
+  describe('foreign key references', () => {
+    /**
+     * Resolve the inline foreign keys for `table` and return one entry per FK
+     * with the source column name and the resolved foreign-table name. Calling
+     * `.reference()` on each ForeignKeyBuilder is what invokes the schema's
+     * `() => referencedTable.column` arrow lambdas — without this, those lines
+     * stay uncovered (the lambdas are never called at module-import time).
+     */
+    function resolveForeignKeys(
+      table: Parameters<typeof getTableConfig>[0],
+    ): { columnName: string; foreignTable: string }[] {
+      const cfg = getTableConfig(table);
+      return cfg.foreignKeys.map((fkBuilder: any) => {
+        const ref = fkBuilder.reference();
+        return {
+          columnName: ref.columns[0].name,
+          foreignTable: ref.foreignTable[Symbol.for('drizzle:Name')] as string,
+        };
+      });
+    }
+
+    it('users.familyId references families', () => {
+      const fks = resolveForeignKeys(users);
+      expect(fks).toEqual(
+        expect.arrayContaining([{ columnName: 'family_id', foreignTable: 'families' }]),
+      );
+    });
+
+    it('children.familyId references families', () => {
+      const fks = resolveForeignKeys(children);
+      expect(fks).toEqual(
+        expect.arrayContaining([{ columnName: 'family_id', foreignTable: 'families' }]),
+      );
+    });
+
+    it('foods.familyId references families', () => {
+      const fks = resolveForeignKeys(foods);
+      expect(fks).toEqual(
+        expect.arrayContaining([{ columnName: 'family_id', foreignTable: 'families' }]),
+      );
+    });
+
+    it('exposures references children, foods, and users', () => {
+      const fks = resolveForeignKeys(exposures);
+      expect(fks).toEqual(
+        expect.arrayContaining([
+          { columnName: 'child_id', foreignTable: 'children' },
+          { columnName: 'food_id', foreignTable: 'foods' },
+          { columnName: 'logged_by', foreignTable: 'users' },
+        ]),
+      );
+    });
+
+    it('foodChains.childId references children, source/target reference foods', () => {
+      const fks = resolveForeignKeys(foodChains);
+      expect(fks).toEqual(
+        expect.arrayContaining([
+          { columnName: 'child_id', foreignTable: 'children' },
+          { columnName: 'source_food_id', foreignTable: 'foods' },
+          { columnName: 'target_food_id', foreignTable: 'foods' },
+        ]),
+      );
+    });
+
+    it('families has no inline foreign keys (root of the hierarchy)', () => {
+      expect(resolveForeignKeys(families)).toEqual([]);
     });
   });
 });
