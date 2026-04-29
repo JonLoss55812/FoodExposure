@@ -153,7 +153,12 @@ export default function DashboardScreen() {
               <Text style={styles.summaryNumber}>{totalFoodsTracked}</Text>
               <Text style={styles.summaryLabel}>Foods{'\n'}Tracked</Text>
             </View>
-            <Pressable style={styles.summaryCard} onPress={() => router.push('/(tabs)/log')}>
+            <Pressable
+              style={styles.summaryCard}
+              onPress={() => router.push('/(tabs)/log')}
+              accessibilityRole="button"
+              accessibilityLabel="Log new food exposure"
+            >
               <Text style={styles.addIcon}>+</Text>
               <Text style={styles.summaryLabel}>Log{'\n'}Exposure</Text>
             </Pressable>

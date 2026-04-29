@@ -69,7 +69,11 @@ export default function AddFoodScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()}>
+        <Pressable
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel and go back"
+        >
           <Text style={styles.back}>Cancel</Text>
         </Pressable>
         <Text style={styles.title}>Add Food</Text>
@@ -107,6 +111,9 @@ export default function AddFoodScreen() {
                 key={cat}
                 style={[styles.categoryButton, selectedCategory === cat && styles.categorySelected]}
                 onPress={() => setValue('category', cat)}
+                accessibilityRole="button"
+                accessibilityLabel={`Category: ${config.label}`}
+                accessibilityState={{ selected: selectedCategory === cat }}
               >
                 <Text style={styles.categoryEmoji}>{config.icon}</Text>
                 <Text style={[styles.categoryLabel, selectedCategory === cat && styles.categoryLabelSelected]}>
@@ -126,17 +133,23 @@ export default function AddFoodScreen() {
           name="defaultPreparation"
           render={({ field: { onChange, value } }) => (
             <View style={styles.chipRow}>
-              {PREPARATIONS.map((prep) => (
-                <Pressable
-                  key={prep}
-                  style={[styles.chip, value === prep && styles.chipSelected]}
-                  onPress={() => onChange(prep)}
-                >
-                  <Text style={[styles.chipText, value === prep && styles.chipTextSelected]}>
-                    {prep.charAt(0).toUpperCase() + prep.slice(1)}
-                  </Text>
-                </Pressable>
-              ))}
+              {PREPARATIONS.map((prep) => {
+                const label = prep.charAt(0).toUpperCase() + prep.slice(1);
+                return (
+                  <Pressable
+                    key={prep}
+                    style={[styles.chip, value === prep && styles.chipSelected]}
+                    onPress={() => onChange(prep)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Preparation: ${label}`}
+                    accessibilityState={{ selected: value === prep }}
+                  >
+                    <Text style={[styles.chipText, value === prep && styles.chipTextSelected]}>
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
           )}
         />
