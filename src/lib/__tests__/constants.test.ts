@@ -5,6 +5,7 @@ import {
   CATEGORY_CONFIG,
   RATING_CONFIG,
   TARGET_EXPOSURES,
+  APP_VERSION,
   MEAL_TYPES,
   TEMPERATURES,
   TEXTURES,
@@ -97,6 +98,12 @@ describe('RATING_CONFIG', () => {
 describe('TARGET_EXPOSURES', () => {
   it('is 15 (research-backed)', () => {
     expect(TARGET_EXPOSURES).toBe(15);
+  });
+});
+
+describe('APP_VERSION', () => {
+  it('is a valid semver string with v-prefix', () => {
+    expect(APP_VERSION).toMatch(/^v\d+\.\d+\.\d+$/);
   });
 });
 

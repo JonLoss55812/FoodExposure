@@ -10,6 +10,7 @@ import { useAuthStore } from '@/src/stores/auth-store';
 import { useChildStore } from '@/src/stores/child-store';
 import { useSettingsStore } from '@/src/stores/settings-store';
 import { FEEDING_PROFILES, FEEDING_PROFILE_CONFIG } from '@/src/lib/thresholds';
+import { APP_VERSION } from '@/src/lib/constants';
 import { exportChildData } from '@/src/lib/export';
 
 export default function SettingsScreen() {
@@ -189,7 +190,7 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <View style={styles.row}>
             <Text style={styles.label}>Version</Text>
-            <Text style={styles.value}>v0.5.6</Text>
+            <Text style={styles.value}>{APP_VERSION}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.row}>
