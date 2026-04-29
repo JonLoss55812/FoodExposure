@@ -90,6 +90,8 @@ export default function FoodsScreen() {
             key={item.id}
             style={styles.safeChip}
             onPress={() => router.push(`/food/${item.id}`)}
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${item.name} details`}
           >
             <Text style={styles.safeChipIcon}>{CATEGORY_CONFIG[item.category as FoodCategory].icon}</Text>
             <Text style={styles.safeChipName} numberOfLines={1}>{item.name}</Text>
@@ -111,7 +113,12 @@ export default function FoodsScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Foods</Text>
-        <Pressable style={styles.addButton} onPress={() => router.push('/food/add')}>
+        <Pressable
+          style={styles.addButton}
+          onPress={() => router.push('/food/add')}
+          accessibilityRole="button"
+          accessibilityLabel="Add new food"
+        >
           <Text style={styles.addButtonText}>+ Add</Text>
         </Pressable>
       </View>
@@ -124,6 +131,7 @@ export default function FoodsScreen() {
           onChangeText={setSearchQuery}
           placeholder="Search foods..."
           placeholderTextColor="#94A3B8"
+          accessibilityLabel="Search foods"
         />
       </View>
 
@@ -132,6 +140,9 @@ export default function FoodsScreen() {
         <Pressable
           style={[styles.filterChip, selectedCategory === 'all' && styles.filterChipSelected]}
           onPress={() => setSelectedCategory('all')}
+          accessibilityRole="button"
+          accessibilityLabel="Filter by all categories"
+          accessibilityState={{ selected: selectedCategory === 'all' }}
         >
           <Text style={[styles.filterText, selectedCategory === 'all' && styles.filterTextSelected]}>All</Text>
         </Pressable>
@@ -140,6 +151,9 @@ export default function FoodsScreen() {
             key={cat}
             style={[styles.filterChip, selectedCategory === cat && styles.filterChipSelected]}
             onPress={() => setSelectedCategory(cat)}
+            accessibilityRole="button"
+            accessibilityLabel={`Filter by ${CATEGORY_CONFIG[cat].label}`}
+            accessibilityState={{ selected: selectedCategory === cat }}
           >
             <Text style={{ fontSize: 14 }}>{CATEGORY_CONFIG[cat].icon}</Text>
             <Text style={[styles.filterText, selectedCategory === cat && styles.filterTextSelected]}>

@@ -98,3 +98,4 @@ logs/
 # generated native folders
 /ios
 /android
+.planning/
