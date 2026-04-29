@@ -176,7 +176,7 @@ export default function FoodDetailScreen() {
 
       {/* Quick Log */}
       <View style={styles.section}>
-        {canBumpStage(highestStage) && (
+        {selectedChildId && canBumpStage(highestStage) && (
           <Button
             label={`Bump to ${STAGE_CONFIG[getNextStage(highestStage)!].label}`}
             onPress={handleBumpStage}
@@ -189,7 +189,7 @@ export default function FoodDetailScreen() {
           label="Log Detailed Exposure"
           onPress={() => router.push('/(tabs)/log')}
           fullWidth
-          variant={canBumpStage(highestStage) ? 'secondary' : 'primary'}
+          variant={selectedChildId && canBumpStage(highestStage) ? 'secondary' : 'primary'}
           icon="➕"
         />
         <Pressable
@@ -216,7 +216,13 @@ export default function FoodDetailScreen() {
       {/* Exposure History */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Exposure History ({exposuresList.length})</Text>
-        {exposuresList.length === 0 ? (
+        {!selectedChildId ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyText}>
+              Select a child on the dashboard to see exposure history.
+            </Text>
+          </View>
+        ) : exposuresList.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyText}>No exposures yet for this food.</Text>
           </View>
