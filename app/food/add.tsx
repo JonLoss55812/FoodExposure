@@ -18,7 +18,7 @@ export default function AddFoodScreen() {
 
   const [saving, setSaving] = useState(false);
 
-  const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm<FoodFormData>({
+  const { control, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<FoodFormData>({
     resolver: zodResolver(foodSchema) as any,
     defaultValues: {
       name: '',
@@ -46,7 +46,17 @@ export default function AddFoodScreen() {
       });
 
       Alert.alert('Added!', `${data.name} has been added to your food library.`, [
-        { text: 'Add Another', style: 'default' },
+        {
+          text: 'Add Another',
+          style: 'default',
+          onPress: () =>
+            reset({
+              name: '',
+              category: 'other',
+              defaultPreparation: undefined,
+              isSafeFood: false,
+            }),
+        },
         { text: 'Done', onPress: () => router.back() },
       ]);
     } catch (err) {
