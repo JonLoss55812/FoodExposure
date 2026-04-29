@@ -144,6 +144,9 @@ export default function AddFoodScreen() {
 
       {/* Safe Food Toggle */}
       <Pressable
+        accessibilityRole="switch"
+        accessibilityLabel="Mark as safe food"
+        accessibilityState={{ checked: !!isSafeFood }}
         style={[styles.safeToggle, isSafeFood && styles.safeToggleActive]}
         onPress={() => setValue('isSafeFood', !isSafeFood)}
       >

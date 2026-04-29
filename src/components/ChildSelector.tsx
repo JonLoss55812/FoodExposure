@@ -29,6 +29,9 @@ export function ChildSelector({ children, selectedId, onSelect }: ChildSelectorP
             key={child.id}
             style={[styles.chip, isSelected && styles.chipSelected]}
             onPress={() => onSelect(child.id)}
+            accessibilityRole="button"
+            accessibilityLabel={`Select ${child.name}`}
+            accessibilityState={{ selected: isSelected }}
           >
             <Text style={styles.emoji}>{child.avatarEmoji}</Text>
             <Text style={[styles.name, isSelected && styles.nameSelected]}>
