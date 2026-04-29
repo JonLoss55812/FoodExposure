@@ -123,7 +123,11 @@ export default function LogExposureScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionLabel}>Food</Text>
-          <Pressable onPress={() => router.push('/food/add')}>
+          <Pressable
+            onPress={() => router.push('/food/add')}
+            accessibilityRole="button"
+            accessibilityLabel="Add new food"
+          >
             <Text style={styles.addLink}>+ Add New</Text>
           </Pressable>
         </View>
@@ -133,6 +137,9 @@ export default function LogExposureScreen() {
               key={food.id}
               style={[styles.foodChip, selectedFoodId === food.id && styles.foodChipSelected]}
               onPress={() => setValue('foodId', food.id)}
+              accessibilityRole="button"
+              accessibilityLabel={`Select ${food.name}`}
+              accessibilityState={{ selected: selectedFoodId === food.id }}
             >
               <Text style={styles.foodChipText}>{food.name}</Text>
             </Pressable>
@@ -171,7 +178,13 @@ export default function LogExposureScreen() {
       </View>
 
       {/* Toggle Details */}
-      <Pressable style={styles.detailsToggle} onPress={() => setShowDetails(!showDetails)}>
+      <Pressable
+        style={styles.detailsToggle}
+        onPress={() => setShowDetails(!showDetails)}
+        accessibilityRole="button"
+        accessibilityLabel={showDetails ? 'Hide additional details' : 'Show additional details'}
+        accessibilityState={{ expanded: showDetails }}
+      >
         <Text style={styles.detailsToggleText}>
           {showDetails ? 'Hide Details' : 'Add More Details (optional)'}
         </Text>
@@ -188,17 +201,23 @@ export default function LogExposureScreen() {
               name="mealType"
               render={({ field: { onChange, value } }) => (
                 <View style={styles.chipRow}>
-                  {MEAL_TYPES.map((meal) => (
-                    <Pressable
-                      key={meal}
-                      style={[styles.chip, value === meal && styles.chipSelected]}
-                      onPress={() => onChange(meal)}
-                    >
-                      <Text style={[styles.chipText, value === meal && styles.chipTextSelected]}>
-                        {meal.charAt(0).toUpperCase() + meal.slice(1)}
-                      </Text>
-                    </Pressable>
-                  ))}
+                  {MEAL_TYPES.map((meal) => {
+                    const label = meal.charAt(0).toUpperCase() + meal.slice(1);
+                    return (
+                      <Pressable
+                        key={meal}
+                        style={[styles.chip, value === meal && styles.chipSelected]}
+                        onPress={() => onChange(meal)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Meal: ${label}`}
+                        accessibilityState={{ selected: value === meal }}
+                      >
+                        <Text style={[styles.chipText, value === meal && styles.chipTextSelected]}>
+                          {label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
                 </View>
               )}
             />
@@ -212,17 +231,23 @@ export default function LogExposureScreen() {
               name="temperature"
               render={({ field: { onChange, value } }) => (
                 <View style={styles.chipRow}>
-                  {TEMPERATURES.map((temp) => (
-                    <Pressable
-                      key={temp}
-                      style={[styles.chip, value === temp && styles.chipSelected]}
-                      onPress={() => onChange(temp)}
-                    >
-                      <Text style={[styles.chipText, value === temp && styles.chipTextSelected]}>
-                        {temp.charAt(0).toUpperCase() + temp.slice(1)}
-                      </Text>
-                    </Pressable>
-                  ))}
+                  {TEMPERATURES.map((temp) => {
+                    const label = temp.charAt(0).toUpperCase() + temp.slice(1);
+                    return (
+                      <Pressable
+                        key={temp}
+                        style={[styles.chip, value === temp && styles.chipSelected]}
+                        onPress={() => onChange(temp)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Temperature: ${label}`}
+                        accessibilityState={{ selected: value === temp }}
+                      >
+                        <Text style={[styles.chipText, value === temp && styles.chipTextSelected]}>
+                          {label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
                 </View>
               )}
             />
