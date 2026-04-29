@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Pressable, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
@@ -79,6 +79,7 @@ export default function DashboardScreen() {
       setStageCounts(computeStageCounts(allExposures));
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
+      Alert.alert('Error', 'Failed to load dashboard data. Please try again.');
     } finally {
       setLoading(false);
     }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
 import { eq } from 'drizzle-orm';
@@ -49,6 +49,7 @@ export default function ProgressScreen() {
       setStats(calcProgressStats(allFoods, allExposures, feedingProfile));
     } catch (err) {
       console.error('Failed to load progress stats:', err);
+      Alert.alert('Error', 'Failed to load progress data. Please try again.');
     } finally {
       setLoading(false);
     }
