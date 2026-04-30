@@ -70,15 +70,21 @@ export default function AddChildOnboardingScreen() {
       <View style={styles.section}>
         <Text style={styles.label}>Choose an Avatar</Text>
         <View style={styles.emojiGrid}>
-          {EMOJI_OPTIONS.map((emoji) => (
-            <Pressable
-              key={emoji}
-              style={[styles.emojiButton, selectedEmoji === emoji && styles.emojiSelected]}
-              onPress={() => setValue('avatarEmoji', emoji)}
-            >
-              <Text style={styles.emoji}>{emoji}</Text>
-            </Pressable>
-          ))}
+          {EMOJI_OPTIONS.map((emoji) => {
+            const isSelected = selectedEmoji === emoji;
+            return (
+              <Pressable
+                key={emoji}
+                style={[styles.emojiButton, isSelected && styles.emojiSelected]}
+                onPress={() => setValue('avatarEmoji', emoji)}
+                accessibilityRole="button"
+                accessibilityLabel={`Avatar: ${emoji}`}
+                accessibilityState={{ selected: isSelected }}
+              >
+                <Text style={styles.emoji}>{emoji}</Text>
+              </Pressable>
+            );
+          })}
         </View>
       </View>
 
@@ -97,6 +103,7 @@ export default function AddChildOnboardingScreen() {
               placeholderTextColor="#94A3B8"
               autoCapitalize="words"
               maxLength={50}
+              accessibilityLabel="Child's name"
             />
           )}
         />
@@ -116,6 +123,7 @@ export default function AddChildOnboardingScreen() {
               onChangeText={onChange}
               placeholder="YYYY-MM-DD"
               placeholderTextColor="#94A3B8"
+              accessibilityLabel="Date of birth (optional)"
             />
           )}
         />
@@ -137,6 +145,7 @@ export default function AddChildOnboardingScreen() {
               multiline
               numberOfLines={3}
               maxLength={500}
+              accessibilityLabel="Notes (optional)"
             />
           )}
         />
