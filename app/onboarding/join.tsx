@@ -75,6 +75,7 @@ export default function JoinFamilyScreen() {
               placeholderTextColor="#94A3B8"
               autoCapitalize="words"
               maxLength={50}
+              accessibilityLabel="Your name"
             />
           </View>
 
@@ -88,6 +89,7 @@ export default function JoinFamilyScreen() {
               placeholderTextColor="#94A3B8"
               autoCapitalize="characters"
               maxLength={6}
+              accessibilityLabel="Invite code"
             />
           </View>
         </View>

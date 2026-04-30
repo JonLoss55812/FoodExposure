@@ -94,6 +94,7 @@ export default function AddFoodScreen() {
               placeholderTextColor="#94A3B8"
               autoCapitalize="words"
               maxLength={80}
+              accessibilityLabel="Food name"
             />
           )}
         />

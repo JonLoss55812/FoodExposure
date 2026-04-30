@@ -269,6 +269,7 @@ export default function LogExposureScreen() {
                   multiline
                   numberOfLines={3}
                   maxLength={500}
+                  accessibilityLabel="Notes (optional)"
                 />
               )}
             />
