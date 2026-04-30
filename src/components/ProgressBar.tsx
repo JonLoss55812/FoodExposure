@@ -7,6 +7,7 @@ interface ProgressBarProps {
   color?: string;
   showLabel?: boolean;
   height?: number;
+  accessibilityLabel?: string;
 }
 
 export function ProgressBar({
@@ -15,11 +16,17 @@ export function ProgressBar({
   color = '#F97316',
   showLabel = true,
   height = 8,
+  accessibilityLabel,
 }: ProgressBarProps) {
   const progress = Math.min(current / target, 1);
 
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      accessibilityRole="progressbar"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityValue={{ now: current, min: 0, max: target }}
+    >
       {showLabel && (
         <Text style={styles.label}>
           {current}/{target}
