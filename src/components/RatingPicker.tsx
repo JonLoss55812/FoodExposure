@@ -10,26 +10,24 @@ interface RatingPickerProps {
 export function RatingPicker({ value, onChange }: RatingPickerProps) {
   return (
     <View style={styles.container}>
-      {RATING_CONFIG.map((config) => (
-        <Pressable
-          key={config.value}
-          style={[
-            styles.button,
-            value === config.value && styles.selected,
-          ]}
-          onPress={() => onChange(config.value)}
-        >
-          <Text style={styles.emoji}>{config.emoji}</Text>
-          <Text
-            style={[
-              styles.label,
-              value === config.value && styles.selectedLabel,
-            ]}
+      {RATING_CONFIG.map((config) => {
+        const isSelected = value === config.value;
+        return (
+          <Pressable
+            key={config.value}
+            style={[styles.button, isSelected && styles.selected]}
+            onPress={() => onChange(config.value)}
+            accessibilityRole="button"
+            accessibilityLabel={`Rating: ${config.label}`}
+            accessibilityState={{ selected: isSelected }}
           >
-            {config.label}
-          </Text>
-        </Pressable>
-      ))}
+            <Text style={styles.emoji}>{config.emoji}</Text>
+            <Text style={[styles.label, isSelected && styles.selectedLabel]}>
+              {config.label}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }

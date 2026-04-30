@@ -49,4 +49,26 @@ describe('RatingPicker', () => {
     fireEvent.click(screen.getByText('Enjoyed'));
     expect(onChange).toHaveBeenCalledWith(5);
   });
+
+  it('exposes each chip as an accessible button labeled "Rating: <label>"', () => {
+    // The Pressable carries accessibilityRole="button" + accessibilityLabel —
+    // VoiceOver/TalkBack reads "Rating: Enjoyed, button" on iOS/Android, and
+    // on web the chip becomes a <button aria-label="Rating: Enjoyed">.
+    // accessibilityState.selected is also passed and honored natively;
+    // react-native-web does not serialize selected for button role to a DOM
+    // attribute, so the web harness only verifies role + label here.
+    render(<RatingPicker value={3} onChange={() => {}} />);
+    for (const label of ['Refused', 'Reluctant', 'Neutral', 'Willing', 'Enjoyed']) {
+      const el = screen.getByLabelText(`Rating: ${label}`);
+      expect(el.tagName.toLowerCase()).toBe('button');
+      expect(el.getAttribute('role')).toBe('button');
+    }
+  });
+
+  it('keeps each chip click wired to onChange after a11y props are added', () => {
+    const onChange = jest.fn();
+    render(<RatingPicker onChange={onChange} />);
+    fireEvent.click(screen.getByLabelText('Rating: Reluctant'));
+    expect(onChange).toHaveBeenCalledWith(2);
+  });
 });
