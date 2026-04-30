@@ -83,7 +83,12 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Family</Text>
         <View style={styles.card}>
-          <Pressable style={styles.row} onPress={() => router.push('/child/add')}>
+          <Pressable
+            style={styles.row}
+            onPress={() => router.push('/child/add')}
+            accessibilityRole="button"
+            accessibilityLabel="Add child"
+          >
             <Text style={styles.label}>Add Child</Text>
             <Text style={styles.arrow}>{'>'}</Text>
           </Pressable>
@@ -120,17 +125,23 @@ export default function SettingsScreen() {
           <View style={styles.row}>
             <Text style={styles.label}>Theme</Text>
             <View style={styles.themeRow}>
-              {(['light', 'dark', 'system'] as const).map((t) => (
-                <Pressable
-                  key={t}
-                  style={[styles.themeChip, theme === t && styles.themeChipSelected]}
-                  onPress={() => setTheme(t)}
-                >
-                  <Text style={[styles.themeText, theme === t && styles.themeTextSelected]}>
-                    {t.charAt(0).toUpperCase() + t.slice(1)}
-                  </Text>
-                </Pressable>
-              ))}
+              {(['light', 'dark', 'system'] as const).map((t) => {
+                const label = t.charAt(0).toUpperCase() + t.slice(1);
+                return (
+                  <Pressable
+                    key={t}
+                    style={[styles.themeChip, theme === t && styles.themeChipSelected]}
+                    onPress={() => setTheme(t)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Theme: ${label}`}
+                    accessibilityState={{ selected: theme === t }}
+                  >
+                    <Text style={[styles.themeText, theme === t && styles.themeTextSelected]}>
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
           </View>
         </View>
@@ -201,7 +212,12 @@ export default function SettingsScreen() {
       </View>
 
       {/* Sign Out */}
-      <Pressable style={styles.signOutButton} onPress={handleLogout}>
+      <Pressable
+        style={styles.signOutButton}
+        onPress={handleLogout}
+        accessibilityRole="button"
+        accessibilityLabel="Sign out"
+      >
         <Text style={styles.signOutText}>Sign Out</Text>
       </Pressable>
 
