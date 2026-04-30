@@ -47,4 +47,18 @@ describe('FoodCard', () => {
     fireEvent.click(screen.getByText('Broccoli'));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
+
+  it('exposes the card as an accessible button labeled "Open <name> details"', () => {
+    render(<FoodCard {...defaultProps} />);
+    const el = screen.getByLabelText('Open Broccoli details');
+    expect(el.tagName.toLowerCase()).toBe('button');
+    expect(el.getAttribute('role')).toBe('button');
+  });
+
+  it('keeps onPress wired to the labeled card', () => {
+    const onPress = jest.fn();
+    render(<FoodCard {...defaultProps} onPress={onPress} />);
+    fireEvent.click(screen.getByLabelText('Open Broccoli details'));
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
 });

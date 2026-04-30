@@ -24,7 +24,12 @@ export function FoodCard({
   const stageConfig = currentStage ? STAGE_CONFIG[currentStage] : null;
 
   return (
-    <Pressable style={styles.container} onPress={onPress}>
+    <Pressable
+      style={styles.container}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${name} details`}
+    >
       <View style={styles.header}>
         <View style={[styles.categoryBadge, { backgroundColor: categoryConfig.color + '20' }]}>
           <Text style={styles.categoryIcon}>{categoryConfig.icon}</Text>
