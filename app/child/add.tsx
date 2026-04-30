@@ -61,7 +61,11 @@ export default function AddChildScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()}>
+        <Pressable
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel"
+        >
           <Text style={styles.back}>Cancel</Text>
         </Pressable>
         <Text style={styles.title}>Add Child</Text>
@@ -75,6 +79,9 @@ export default function AddChildScreen() {
               key={emoji}
               style={[styles.emojiButton, selectedEmoji === emoji && styles.emojiSelected]}
               onPress={() => setValue('avatarEmoji', emoji)}
+              accessibilityRole="button"
+              accessibilityLabel={`Avatar: ${emoji}`}
+              accessibilityState={{ selected: selectedEmoji === emoji }}
             >
               <Text style={styles.emoji}>{emoji}</Text>
             </Pressable>
@@ -96,6 +103,7 @@ export default function AddChildScreen() {
               placeholderTextColor="#94A3B8"
               autoCapitalize="words"
               maxLength={50}
+              accessibilityLabel="Child's name"
             />
           )}
         />
@@ -114,6 +122,7 @@ export default function AddChildScreen() {
               onChangeText={onChange}
               placeholder="YYYY-MM-DD"
               placeholderTextColor="#94A3B8"
+              accessibilityLabel="Date of birth (optional)"
             />
           )}
         />
@@ -133,6 +142,7 @@ export default function AddChildScreen() {
               placeholderTextColor="#94A3B8"
               multiline
               maxLength={500}
+              accessibilityLabel="Notes (optional)"
             />
           )}
         />
