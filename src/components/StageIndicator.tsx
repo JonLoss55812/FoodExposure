@@ -78,7 +78,13 @@ export function StageIndicator({
 
         if (interactive && onStageSelect) {
           return (
-            <Pressable key={stage} onPress={() => onStageSelect(stage)}>
+            <Pressable
+              key={stage}
+              onPress={() => onStageSelect(stage)}
+              accessibilityRole="button"
+              accessibilityLabel={`Stage: ${config.label}`}
+              accessibilityState={{ selected: isCurrent }}
+            >
               {dot}
             </Pressable>
           );

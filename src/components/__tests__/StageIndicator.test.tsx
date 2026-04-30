@@ -96,4 +96,29 @@ describe('StageIndicator', () => {
     expect(screen.getByText('Tolerate')).toBeTruthy();
     expect(screen.getByText('Eat')).toBeTruthy();
   });
+
+  it('exposes interactive segments to screen readers with role + dimension-prefixed label', () => {
+    // The Log Exposure form mounts this with interactive=lg — six tappable
+    // dots that previously rendered as bare Pressables with no role/label.
+    // Lock the v0.5.27 contract: each segment is reachable via its
+    // dimension-prefixed accessibilityLabel ("Stage: Tolerate" through
+    // "Stage: Eat") and resolves to a button role on react-native-web.
+    const onSelect = jest.fn();
+    render(<StageIndicator interactive onStageSelect={onSelect} size="lg" />);
+    for (const label of ['Tolerate', 'Interact', 'Smell', 'Touch', 'Taste', 'Eat']) {
+      const el = screen.getByLabelText(`Stage: ${label}`);
+      expect(el).toBeTruthy();
+      expect(el.getAttribute('role')).toBe('button');
+    }
+  });
+
+  it('still fires onStageSelect when interactive segment is reached via accessibilityLabel', () => {
+    // Re-bind the click assertion to the labeled element so a future
+    // refactor that drops the accessibilityLabel fails this test, not
+    // just the role test above.
+    const onSelect = jest.fn();
+    render(<StageIndicator interactive onStageSelect={onSelect} size="md" />);
+    fireEvent.click(screen.getByLabelText('Stage: Taste'));
+    expect(onSelect).toHaveBeenCalledWith('taste');
+  });
 });
