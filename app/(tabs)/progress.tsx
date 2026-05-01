@@ -114,6 +114,7 @@ export default function ProgressScreen() {
               color="#F97316"
               showLabel={false}
               height={10}
+              accessibilityLabel="Average acceptance rating"
             />
           </View>
         </View>
@@ -144,6 +145,7 @@ export default function ProgressScreen() {
                 color={row.reached ? '#34D399' : '#F97316'}
                 showLabel={false}
                 height={8}
+                accessibilityLabel={`${row.foodName} exposures progress`}
               />
             </View>
           ))}
@@ -169,6 +171,7 @@ export default function ProgressScreen() {
                   color={config.color}
                   showLabel={false}
                   height={8}
+                  accessibilityLabel={`${config.label} stage food count`}
                 />
               </View>
               <Text style={styles.stageCount}>{count}</Text>

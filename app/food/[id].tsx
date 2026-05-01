@@ -178,6 +178,7 @@ export default function FoodDetailScreen() {
             current={exposuresList.length}
             target={TARGET_EXPOSURES}
             color={highestStage ? STAGE_CONFIG[highestStage].color : '#F97316'}
+            accessibilityLabel={`${food.name} exposures progress`}
           />
         </View>
       </View>
