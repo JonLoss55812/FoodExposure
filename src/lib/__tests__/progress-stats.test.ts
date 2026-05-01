@@ -35,6 +35,15 @@ describe('calcProgressStats', () => {
     });
   });
 
+  it('falls back to Date.now() when called without an explicit `now`', () => {
+    // Default-arg branch: every other test passes NOW explicitly, so the
+    // `now: number = Date.now()` fallback was uncovered. Empty inputs make
+    // the assertion deterministic — no field depends on the wall clock.
+    const stats = calcProgressStats([], [], 'typical');
+    expect(stats.totalFoods).toBe(0);
+    expect(stats.weeklyExposures).toBe(0);
+  });
+
   it('counts safe foods from the foods table independent of exposures', () => {
     const foods = [
       food({ id: 'a', name: 'Apple', category: 'fruit', isSafeFood: true }),
