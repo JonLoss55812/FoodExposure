@@ -201,7 +201,7 @@ export default function ProgressScreen() {
       {/* Encouragement */}
       <View style={styles.encouragement}>
         <Text style={styles.encouragementText}>
-          {getEncouragementMessage(stats)}
+          {getEncouragementMessage(stats, feedingProfile)}
         </Text>
       </View>
     </ScrollView>

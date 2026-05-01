@@ -181,24 +181,24 @@ describe('getEncouragementMessage', () => {
   });
 
   it('greets a fresh user when no exposures logged', () => {
-    expect(getEncouragementMessage(baseStats({ totalExposures: 0 }))).toMatch(
+    expect(getEncouragementMessage(baseStats({ totalExposures: 0 }), 'typical')).toMatch(
       /every journey begins/i,
     );
   });
 
   it('encourages early users with fewer than 10 exposures', () => {
-    expect(getEncouragementMessage(baseStats({ totalExposures: 5 }))).toMatch(
+    expect(getEncouragementMessage(baseStats({ totalExposures: 5 }), 'typical')).toMatch(
       /great start/i,
     );
   });
 
   it('boundary: exactly 10 exposures is no longer "early" (uses 10+ branches)', () => {
-    expect(getEncouragementMessage(baseStats({ totalExposures: 10 }))).toMatch(
+    expect(getEncouragementMessage(baseStats({ totalExposures: 10 }), 'typical')).toMatch(
       /amazing progress/i,
     );
   });
 
-  it('calls out near-target foods when at least one is close, using its threshold', () => {
+  it('calls out near-target foods using the picky profile threshold (20)', () => {
     const stats = baseStats({
       totalExposures: 50,
       foodsNearTarget: 2,
@@ -214,22 +214,28 @@ describe('getEncouragementMessage', () => {
         },
       ],
     });
-    expect(getEncouragementMessage(stats)).toBe(
+    expect(getEncouragementMessage(stats, 'picky')).toBe(
       '2 food(s) are getting close to the 20-exposure target!',
     );
   });
 
-  it('falls back to threshold 15 when foodProgress is empty but foodsNearTarget > 0', () => {
+  it('uses the explicit profile threshold instead of foodProgress[0].threshold', () => {
+    // Regression: previously this branch read stats.foodProgress[0]?.threshold
+    // (the threshold of the highest-pct food, which could be a *reached* food
+    // by sort order) and fell back to a hardcoded 15. The signature now takes
+    // FeedingProfile, so the threshold is derived from the profile and the
+    // foodProgress[0] crutch is gone.
     const stats = baseStats({
       totalExposures: 30,
       foodsNearTarget: 1,
       foodProgress: [],
     });
-    expect(getEncouragementMessage(stats)).toContain('15-exposure');
+    expect(getEncouragementMessage(stats, 'arfid')).toContain('30-exposure');
+    expect(getEncouragementMessage(stats, 'typical')).toContain('15-exposure');
   });
 
   it('celebrates established users with 10+ exposures and nothing near target', () => {
     const stats = baseStats({ totalExposures: 30, foodsNearTarget: 0 });
-    expect(getEncouragementMessage(stats)).toMatch(/amazing progress/i);
+    expect(getEncouragementMessage(stats, 'typical')).toMatch(/amazing progress/i);
   });
 });

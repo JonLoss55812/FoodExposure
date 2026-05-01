@@ -1,5 +1,5 @@
 import { type ExposureStage } from './constants';
-import { calcExposureProgress, type FeedingProfile } from './thresholds';
+import { calcExposureProgress, getThresholdForProfile, type FeedingProfile } from './thresholds';
 import { getHighestStage } from './stage';
 
 export interface StatsFood {
@@ -129,9 +129,11 @@ export function calcProgressStats(
 }
 
 const EARLY_EXPOSURES = 10;
-const FALLBACK_THRESHOLD = 15;
 
-export function getEncouragementMessage(stats: ProgressStats): string {
+export function getEncouragementMessage(
+  stats: ProgressStats,
+  profile: FeedingProfile,
+): string {
   if (stats.totalExposures === 0) {
     return 'Every journey begins with a single step. Start logging exposures today!';
   }
@@ -139,7 +141,7 @@ export function getEncouragementMessage(stats: ProgressStats): string {
     return 'Great start! Keep going — consistency is key to helping little tongues learn.';
   }
   if (stats.foodsNearTarget > 0) {
-    const threshold = stats.foodProgress[0]?.threshold ?? FALLBACK_THRESHOLD;
+    const threshold = getThresholdForProfile(profile);
     return `${stats.foodsNearTarget} food(s) are getting close to the ${threshold}-exposure target!`;
   }
   return 'Amazing progress! Your consistency is making a real difference.';
