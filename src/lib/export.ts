@@ -40,7 +40,6 @@ export function csvEscape(value: unknown): string {
 
 function toIsoDate(value: Date | number | string): string {
   if (value instanceof Date) return value.toISOString();
-  if (typeof value === 'number') return new Date(value).toISOString();
   return new Date(value).toISOString();
 }
 
