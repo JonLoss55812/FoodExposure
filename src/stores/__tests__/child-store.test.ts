@@ -1,4 +1,5 @@
-import { useChildStore } from '../child-store';
+import { act, renderHook } from '@testing-library/react';
+import { useChildStore, useSelectedChildId } from '../child-store';
 
 beforeEach(() => {
   useChildStore.setState({ selectedChildId: null });
@@ -48,5 +49,35 @@ describe('ensureSelection', () => {
   it('leaves selection as null when the children list is empty and nothing was selected', () => {
     useChildStore.getState().ensureSelection([]);
     expect(useChildStore.getState().selectedChildId).toBeNull();
+  });
+});
+
+describe('useSelectedChildId', () => {
+  it('returns null when no child is selected', () => {
+    const { result } = renderHook(() => useSelectedChildId());
+    expect(result.current).toBeNull();
+  });
+
+  it('returns the selected child id and re-renders on selectChild', () => {
+    const { result } = renderHook(() => useSelectedChildId());
+
+    act(() => {
+      useChildStore.getState().selectChild('child-7');
+    });
+    expect(result.current).toBe('child-7');
+
+    act(() => {
+      useChildStore.getState().selectChild('child-9');
+    });
+    expect(result.current).toBe('child-9');
+  });
+
+  it('reflects ensureSelection auto-pick', () => {
+    const { result } = renderHook(() => useSelectedChildId());
+
+    act(() => {
+      useChildStore.getState().ensureSelection([{ id: 'first' }, { id: 'second' }]);
+    });
+    expect(result.current).toBe('first');
   });
 });
