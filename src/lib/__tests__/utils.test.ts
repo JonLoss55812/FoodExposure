@@ -183,4 +183,19 @@ describe('getStartOfWeek', () => {
     const start = getStartOfWeek(sunday);
     expect(start.getDate()).toBe(22);
   });
+
+  it('defaults to current week when called with no args', () => {
+    const start = getStartOfWeek();
+    expect(start.getDay()).toBe(0); // Sunday-rooted
+    expect(start.getHours()).toBe(0);
+    expect(start.getMinutes()).toBe(0);
+
+    // Verify the returned date is the Sunday of the current week:
+    // walking forward by today's day-of-week should land on today's date.
+    const now = new Date();
+    const expected = new Date(now);
+    expected.setDate(now.getDate() - now.getDay());
+    expected.setHours(0, 0, 0, 0);
+    expect(start.getTime()).toBe(expected.getTime());
+  });
 });
