@@ -1,4 +1,4 @@
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, Alert } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/src/stores/auth-store';
@@ -13,34 +13,38 @@ export default function OnboardingScreen() {
   const { login, setOnboarded, setFamilyId } = useAuthStore();
 
   const handleGetStarted = async () => {
-    // Create a local family and user for offline-first experience
     const familyId = generateId();
     const userId = generateId();
     const inviteCode = generateInviteCode();
 
-    await db.insert(schema.families).values({
-      id: familyId,
-      name: 'My Family',
-      inviteCode,
-      createdAt: new Date(),
-    });
+    try {
+      await db.insert(schema.families).values({
+        id: familyId,
+        name: 'My Family',
+        inviteCode,
+        createdAt: new Date(),
+      });
 
-    await db.insert(schema.users).values({
-      id: userId,
-      familyId,
-      email: 'local@tonguetutor.app',
-      displayName: 'Parent',
-      createdAt: new Date(),
-    });
+      await db.insert(schema.users).values({
+        id: userId,
+        familyId,
+        email: 'local@tonguetutor.app',
+        displayName: 'Parent',
+        createdAt: new Date(),
+      });
 
-    login({
-      userId,
-      familyId,
-      email: 'local@tonguetutor.app',
-      displayName: 'Parent',
-    });
+      login({
+        userId,
+        familyId,
+        email: 'local@tonguetutor.app',
+        displayName: 'Parent',
+      });
 
-    router.push('/onboarding/add-child');
+      router.push('/onboarding/add-child');
+    } catch (err) {
+      console.error('Failed to start onboarding:', err);
+      Alert.alert('Error', 'Failed to start. Please try again.');
+    }
   };
 
   return (
