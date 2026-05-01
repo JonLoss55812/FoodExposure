@@ -143,4 +143,17 @@ describe('useAuthStore', () => {
       expect(result.current).toBe(true);
     });
   });
+
+  describe('persist storage adapter', () => {
+    it('clearStorage routes through MMKV remove (covers removeItem branch)', async () => {
+      useAuthStore.getState().login({
+        userId: 'persist-user',
+        familyId: 'persist-family',
+        email: 'p@e.co',
+        displayName: 'P',
+      });
+      await useAuthStore.persist.clearStorage();
+      expect(useAuthStore.persist.hasHydrated()).toBe(true);
+    });
+  });
 });

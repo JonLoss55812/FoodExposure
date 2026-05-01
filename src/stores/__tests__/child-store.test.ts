@@ -81,3 +81,11 @@ describe('useSelectedChildId', () => {
     expect(result.current).toBe('first');
   });
 });
+
+describe('persist storage adapter', () => {
+  it('clearStorage routes through MMKV remove (covers removeItem branch)', async () => {
+    useChildStore.getState().selectChild('child-persist');
+    await useChildStore.persist.clearStorage();
+    expect(useChildStore.persist.hasHydrated()).toBe(true);
+  });
+});

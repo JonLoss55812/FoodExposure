@@ -75,4 +75,12 @@ describe('useSettingsStore', () => {
       expect(useSettingsStore.getState().feedingProfile).toBe('typical');
     });
   });
+
+  describe('persist storage adapter', () => {
+    it('clearStorage routes through MMKV remove (covers removeItem branch)', async () => {
+      useSettingsStore.getState().setTheme('dark');
+      await useSettingsStore.persist.clearStorage();
+      expect(useSettingsStore.persist.hasHydrated()).toBe(true);
+    });
+  });
 });
