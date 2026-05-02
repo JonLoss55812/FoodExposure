@@ -53,6 +53,9 @@ export default function FoodDetailScreen() {
         setExposuresList(exps);
         setHighestStage(getHighestStage(exps));
       }
+    } catch (err) {
+      console.error('Failed to load food detail:', err);
+      Alert.alert('Error', 'Failed to load food details. Please try again.');
     } finally {
       setLoading(false);
     }
