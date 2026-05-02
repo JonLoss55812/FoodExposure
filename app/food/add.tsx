@@ -60,6 +60,7 @@ export default function AddFoodScreen() {
         { text: 'Done', onPress: () => router.back() },
       ]);
     } catch (err) {
+      console.error('Failed to add food:', err);
       Alert.alert('Error', 'Failed to add food. Please try again.');
     } finally {
       setSaving(false);

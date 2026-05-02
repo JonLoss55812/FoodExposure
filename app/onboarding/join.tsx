@@ -52,6 +52,7 @@ export default function JoinFamilyScreen() {
 
       router.replace('/(tabs)' as any);
     } catch (err) {
+      console.error('Failed to join family:', err);
       Alert.alert('Error', 'Failed to join family. Please try again.');
     } finally {
       setLoading(false);

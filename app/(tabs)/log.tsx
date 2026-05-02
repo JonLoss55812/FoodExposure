@@ -96,6 +96,7 @@ export default function LogExposureScreen() {
         { text: 'Go Home', onPress: () => router.push('/(tabs)' as any) },
       ]);
     } catch (err) {
+      console.error('Failed to save exposure:', err);
       Alert.alert('Error', 'Failed to save exposure. Please try again.');
     } finally {
       setSaving(false);

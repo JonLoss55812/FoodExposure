@@ -90,6 +90,7 @@ export default function FoodDetailScreen() {
       });
       await loadData();
     } catch (err) {
+      console.error('Failed to bump stage:', err);
       Alert.alert('Error', 'Failed to bump stage. Please try again.');
     } finally {
       setBumping(false);
@@ -105,6 +106,7 @@ export default function FoodDetailScreen() {
         .where(eq(schema.foods.id, food.id));
       setFood({ ...food, isSafeFood: next });
     } catch (err) {
+      console.error('Failed to toggle safe food:', err);
       Alert.alert('Error', 'Failed to update safe-food status.');
     }
   };

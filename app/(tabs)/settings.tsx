@@ -43,6 +43,7 @@ export default function SettingsScreen() {
         .limit(1);
       await exportChildData(selectedChildId, child?.name ?? 'child');
     } catch (err) {
+      console.error('Failed to export data:', err);
       Alert.alert('Export failed', err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setExporting(false);

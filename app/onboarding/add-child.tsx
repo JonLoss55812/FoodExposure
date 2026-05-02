@@ -52,6 +52,7 @@ export default function AddChildOnboardingScreen() {
       setOnboarded(true);
       router.replace('/(tabs)' as any);
     } catch (err) {
+      console.error('Failed to add child:', err);
       Alert.alert('Error', 'Failed to add child. Please try again.');
     } finally {
       setSaving(false);

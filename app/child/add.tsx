@@ -52,6 +52,7 @@ export default function AddChildScreen() {
         { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (err) {
+      console.error('Failed to add child:', err);
       Alert.alert('Error', 'Failed to add child. Please try again.');
     } finally {
       setSaving(false);
