@@ -75,7 +75,9 @@ export default function ProgressScreen() {
       <EmptyState
         icon="📊"
         title="Select a Child"
-        description="Go to the dashboard and select a child to view their progress."
+        description="Pick a child on the dashboard to view their progress."
+        actionLabel="Go to Dashboard"
+        onAction={() => router.push('/(tabs)' as any)}
       />
     );
   }
