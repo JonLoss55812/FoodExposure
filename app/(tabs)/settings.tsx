@@ -155,19 +155,23 @@ export default function SettingsScreen() {
           <View style={styles.profileRow}>
             <Text style={styles.label}>Exposure Target</Text>
             <View style={styles.profileChips}>
-              {FEEDING_PROFILES.map((p) => (
-                <Pressable
-                  key={p}
-                  style={[styles.themeChip, feedingProfile === p && styles.themeChipSelected]}
-                  onPress={() => setFeedingProfile(p)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: feedingProfile === p }}
-                >
-                  <Text style={[styles.themeText, feedingProfile === p && styles.themeTextSelected]}>
-                    {FEEDING_PROFILE_CONFIG[p].label}
-                  </Text>
-                </Pressable>
-              ))}
+              {FEEDING_PROFILES.map((p) => {
+                const profileLabel = FEEDING_PROFILE_CONFIG[p].label;
+                return (
+                  <Pressable
+                    key={p}
+                    style={[styles.themeChip, feedingProfile === p && styles.themeChipSelected]}
+                    onPress={() => setFeedingProfile(p)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Profile: ${profileLabel}`}
+                    accessibilityState={{ selected: feedingProfile === p }}
+                  >
+                    <Text style={[styles.themeText, feedingProfile === p && styles.themeTextSelected]}>
+                      {profileLabel}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
           </View>
           <View style={styles.divider} />
