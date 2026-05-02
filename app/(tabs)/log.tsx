@@ -259,6 +259,37 @@ export default function LogExposureScreen() {
             />
           </View>
 
+          {/* Texture */}
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Texture</Text>
+            <Controller
+              control={control}
+              name="texture"
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.chipRow}>
+                  {TEXTURES.map((tex) => {
+                    const label = tex.charAt(0).toUpperCase() + tex.slice(1);
+                    const isSelected = value === tex;
+                    return (
+                      <Pressable
+                        key={tex}
+                        style={[styles.chip, isSelected && styles.chipSelected]}
+                        onPress={() => onChange(tex)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Texture: ${label}`}
+                        accessibilityState={{ selected: isSelected }}
+                      >
+                        <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
+                          {label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+            />
+          </View>
+
           {/* Notes */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Notes</Text>
