@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
+import { useRouter } from 'expo-router';
 import { eq } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
@@ -26,11 +27,13 @@ const EMPTY_STATS: ProgressStats = {
 };
 
 export default function ProgressScreen() {
+  const router = useRouter();
   const { familyId } = useAuthStore();
   const { selectedChildId } = useChildStore();
   const { feedingProfile } = useSettingsStore();
   const [stats, setStats] = useState<ProgressStats>(EMPTY_STATS);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadStats = useCallback(async () => {
     if (!familyId || !selectedChildId) {
@@ -77,9 +80,31 @@ export default function ProgressScreen() {
     );
   }
 
+  if (stats.totalExposures === 0) {
+    return (
+      <EmptyState
+        icon="📊"
+        title="No Progress Yet"
+        description="Log your first food exposure to see progress charts and stage distribution."
+        actionLabel="Log Exposure"
+        onAction={() => router.push('/(tabs)/log')}
+      />
+    );
+  }
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadStats();
+    setRefreshing(false);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+    >
       <View style={styles.header}>
         <Text style={styles.title}>Progress</Text>
         <Text style={styles.subtitle}>Track your journey</Text>
