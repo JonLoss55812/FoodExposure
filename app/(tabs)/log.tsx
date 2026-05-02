@@ -54,10 +54,15 @@ export default function LogExposureScreen() {
 
   const loadData = async () => {
     if (!familyId) return;
-    const kids = await db.select().from(schema.children).where(eq(schema.children.familyId, familyId));
-    setChildrenList(kids);
-    const allFoods = await db.select().from(schema.foods).where(eq(schema.foods.familyId, familyId));
-    setFoodsList(allFoods);
+    try {
+      const kids = await db.select().from(schema.children).where(eq(schema.children.familyId, familyId));
+      setChildrenList(kids);
+      const allFoods = await db.select().from(schema.foods).where(eq(schema.foods.familyId, familyId));
+      setFoodsList(allFoods);
+    } catch (err) {
+      console.error('Failed to load log data:', err);
+      Alert.alert('Error', 'Failed to load data. Please try again.');
+    }
   };
 
   const onSubmit = async (data: ExposureFormData) => {
