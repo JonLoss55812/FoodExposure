@@ -174,6 +174,11 @@ export default function ProgressScreen() {
               />
             </View>
           ))}
+          {stats.foodProgress.length > 10 && (
+            <Text style={styles.truncationNote}>
+              Showing top 10 of {stats.foodProgress.length}
+            </Text>
+          )}
         </View>
       )}
 
@@ -329,6 +334,13 @@ const styles = StyleSheet.create((theme) => ({
     fontWeight: '700',
     color: theme.colors.textSecondary,
     marginLeft: theme.spacing.sm,
+  },
+  truncationNote: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: theme.spacing.xs,
   },
   ratingCard: {
     backgroundColor: theme.colors.cardBackground,
