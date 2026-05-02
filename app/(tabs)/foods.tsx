@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, Pressable, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { View, Text, TextInput, Pressable, ActivityIndicator, Alert, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
 import { FlashList } from '@shopify/flash-list';
@@ -27,6 +27,7 @@ export default function FoodsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<FoodCategory | 'all'>('all');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadFoods = useCallback(async () => {
     if (!familyId) return;
@@ -55,6 +56,12 @@ export default function FoodsScreen() {
 
   useEffect(() => {
     loadFoods();
+  }, [loadFoods]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadFoods();
+    setRefreshing(false);
   }, [loadFoods]);
 
   const filteredFoods = filterFoods(foods, searchQuery, selectedCategory);
@@ -198,6 +205,7 @@ export default function FoodsScreen() {
             keyExtractor={(item) => item.id}
             contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}
             ListHeaderComponent={SafeFoodsSection}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           />
         );
       })()}
