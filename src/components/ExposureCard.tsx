@@ -28,7 +28,12 @@ export function ExposureCard({
   const ratingConfig = rating ? RATING_CONFIG.find((r) => r.value === rating) : null;
 
   return (
-    <Pressable style={styles.container} onPress={onPress}>
+    <Pressable
+      style={styles.container}
+      onPress={onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={onPress ? `Open ${foodName} details` : undefined}
+    >
       <View style={styles.header}>
         <View style={[styles.stageIcon, { backgroundColor: stageConfig.color + '20' }]}>
           <Text style={{ fontSize: 20 }}>{stageConfig.icon}</Text>

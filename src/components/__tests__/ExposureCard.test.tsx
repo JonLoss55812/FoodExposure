@@ -38,6 +38,29 @@ describe('ExposureCard', () => {
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
+  it('exposes role=button and an a11y label when onPress is provided', () => {
+    // Without role+label, a screen-reader user navigating the dashboard
+    // recently-logged list hears each card as separate text nodes (food
+    // name, child name, "Today") with no anchor that the row is tappable.
+    // Mirror the v0.5.24 FoodCard pattern: name-bearing label so the SR
+    // announces "Open Carrots details, button" as the highlight lands.
+    const onPress = jest.fn();
+    render(<ExposureCard {...defaultProps} onPress={onPress} />);
+    const button = screen.getByLabelText('Open Carrots details');
+    expect(button).toBeTruthy();
+    fireEvent.click(button);
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('omits role and label when onPress is undefined (decorative)', () => {
+    // The food detail page mounts ExposureCard without onPress (read-only
+    // history list). It should not be announced as a tappable button when
+    // tapping does nothing.
+    render(<ExposureCard {...defaultProps} />);
+    expect(screen.queryByLabelText('Open Carrots details')).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
   it('renders rating emoji when rating prop is provided', () => {
     // Exercises the `rating ? RATING_CONFIG.find(...) : null` truthy
     // branch and the `ratingConfig && ...` truthy branch. RATING_CONFIG[3]
