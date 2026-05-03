@@ -11,7 +11,7 @@ import { useAuthStore } from '@/src/stores/auth-store';
 import { useChildStore } from '@/src/stores/child-store';
 import { STAGE_ORDER, STAGE_CONFIG, FOOD_CATEGORIES, CATEGORY_CONFIG } from '@/src/lib/constants';
 import { useSettingsStore } from '@/src/stores/settings-store';
-import { FEEDING_PROFILE_CONFIG } from '@/src/lib/thresholds';
+import { FEEDING_PROFILE_CONFIG, getThresholdForProfile } from '@/src/lib/thresholds';
 import { calcProgressStats, getEncouragementMessage, type ProgressStats } from '@/src/lib/progress-stats';
 
 const EMPTY_STATS: ProgressStats = {
@@ -153,7 +153,7 @@ export default function ProgressScreen() {
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Exposures Toward Acceptance</Text>
             <Text style={styles.profileTag}>
-              {FEEDING_PROFILE_CONFIG[feedingProfile].label} · {stats.foodProgress[0]?.threshold ?? 15}
+              {FEEDING_PROFILE_CONFIG[feedingProfile].label} · {getThresholdForProfile(feedingProfile)}
             </Text>
           </View>
           {stats.foodProgress.slice(0, 10).map((row) => (
