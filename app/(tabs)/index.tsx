@@ -51,6 +51,7 @@ export default function DashboardScreen() {
       // Load recent exposures with food names
       const recent = await db.select({
         id: schema.exposures.id,
+        foodId: schema.exposures.foodId,
         foodName: schema.foods.name,
         childName: schema.children.name,
         stage: schema.exposures.stage,
@@ -203,6 +204,7 @@ export default function DashboardScreen() {
                   rating={exp.rating ?? undefined}
                   notes={exp.notes ?? undefined}
                   occurredAt={new Date(exp.occurredAt)}
+                  onPress={() => router.push(`/food/${exp.foodId}` as any)}
                 />
               ))
             )}
