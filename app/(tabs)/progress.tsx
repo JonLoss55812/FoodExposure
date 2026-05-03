@@ -72,25 +72,29 @@ export default function ProgressScreen() {
 
   if (!selectedChildId) {
     return (
-      <EmptyState
-        icon="📊"
-        title="Select a Child"
-        description="Pick a child on the dashboard to view their progress."
-        actionLabel="Go to Dashboard"
-        onAction={() => router.push('/(tabs)' as any)}
-      />
+      <SafeAreaView style={styles.container}>
+        <EmptyState
+          icon="📊"
+          title="Select a Child"
+          description="Pick a child on the dashboard to view their progress."
+          actionLabel="Go to Dashboard"
+          onAction={() => router.push('/(tabs)' as any)}
+        />
+      </SafeAreaView>
     );
   }
 
   if (stats.totalExposures === 0) {
     return (
-      <EmptyState
-        icon="📊"
-        title="No Progress Yet"
-        description="Log your first food exposure to see progress charts and stage distribution."
-        actionLabel="Log Exposure"
-        onAction={() => router.push('/(tabs)/log')}
-      />
+      <SafeAreaView style={styles.container}>
+        <EmptyState
+          icon="📊"
+          title="No Progress Yet"
+          description="Log your first food exposure to see progress charts and stage distribution."
+          actionLabel="Log Exposure"
+          onAction={() => router.push('/(tabs)/log')}
+        />
+      </SafeAreaView>
     );
   }
 
