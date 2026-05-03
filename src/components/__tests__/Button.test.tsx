@@ -65,4 +65,20 @@ describe('Button', () => {
     expect(screen.getByText('+')).toBeTruthy();
     expect(screen.getByText('Add')).toBeTruthy();
   });
+
+  it('announces busy state to assistive tech while loading', () => {
+    // Save Exposure / Add Food / Add Child / Bump-to-stage all funnel
+    // through this Button. Without aria-busy, a screen-reader user taps
+    // the button, the inline spinner appears, and VoiceOver only reports
+    // "dimmed" — no cue that the in-flight async work is happening.
+    render(<Button label="Save" onPress={() => {}} loading />);
+    const target = screen.getByLabelText('Save');
+    expect(target.getAttribute('aria-busy')).toBe('true');
+  });
+
+  it('does not advertise busy state when not loading', () => {
+    render(<Button label="Save" onPress={() => {}} />);
+    const target = screen.getByLabelText('Save');
+    expect(target.getAttribute('aria-busy')).not.toBe('true');
+  });
 });

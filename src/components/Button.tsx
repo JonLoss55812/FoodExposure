@@ -61,7 +61,8 @@ export function Button({
       disabled={disabled || loading}
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ disabled: disabled || loading }}
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
+      aria-busy={loading}
     >
       {loading ? (
         <ActivityIndicator color={variant === 'primary' ? '#FFF' : '#F97316'} />
