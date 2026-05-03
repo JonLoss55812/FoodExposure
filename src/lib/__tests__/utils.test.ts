@@ -132,6 +132,36 @@ describe('formatRelativeDate', () => {
     const result = formatRelativeDate(twoWeeksAgo);
     expect(result).not.toContain('days ago');
   });
+
+  it('returns "Yesterday" for late-evening logs viewed in the early morning', () => {
+    // Calendar-day correctness: a parent logs an exposure at 11pm and
+    // checks the dashboard at 1am the next day — only 2 wall-clock hours
+    // separate the two, but they straddle midnight, so it should show
+    // "Yesterday", not "Today". The pre-v0.5.49 implementation returned
+    // "Today" because it floored a 2-hour diff to 0 days.
+    jest.useFakeTimers().setSystemTime(new Date(2026, 4, 3, 1, 0, 0));
+    const lateLastNight = new Date(2026, 4, 2, 23, 0, 0);
+    expect(formatRelativeDate(lateLastNight)).toBe('Yesterday');
+    jest.useRealTimers();
+  });
+
+  it('returns "Today" for a same-day log earlier in the day', () => {
+    jest.useFakeTimers().setSystemTime(new Date(2026, 4, 3, 18, 0, 0));
+    const sameDayMorning = new Date(2026, 4, 3, 7, 30, 0);
+    expect(formatRelativeDate(sameDayMorning)).toBe('Today');
+    jest.useRealTimers();
+  });
+
+  it('returns "Today" for future-dated rows (defensive)', () => {
+    // Clock skew or device-time drift can produce a row whose occurredAt
+    // is slightly in the future. Old code returned "Today" via floor of a
+    // negative diff; new code keeps that via the days <= 0 guard, so an
+    // off-by-a-few-minutes timestamp still renders sanely.
+    jest.useFakeTimers().setSystemTime(new Date(2026, 4, 3, 12, 0, 0));
+    const slightlyFuture = new Date(2026, 4, 3, 12, 5, 0);
+    expect(formatRelativeDate(slightlyFuture)).toBe('Today');
+    jest.useRealTimers();
+  });
 });
 
 describe('getStartOfDay', () => {
