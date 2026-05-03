@@ -13,7 +13,7 @@ import { useChildStore } from '@/src/stores/child-store';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { exposureSchema, type ExposureFormData } from '@/src/lib/validation';
 import { generateId } from '@/src/lib/utils';
-import { STAGE_ORDER, STAGE_CONFIG, MEAL_TYPES, TEMPERATURES, TEXTURES } from '@/src/lib/constants';
+import { STAGE_ORDER, STAGE_CONFIG, MEAL_TYPES, TEMPERATURES, TEXTURES, SETTINGS } from '@/src/lib/constants';
 
 export default function LogExposureScreen() {
   const router = useRouter();
@@ -277,6 +277,37 @@ export default function LogExposureScreen() {
                         onPress={() => onChange(tex)}
                         accessibilityRole="button"
                         accessibilityLabel={`Texture: ${label}`}
+                        accessibilityState={{ selected: isSelected }}
+                      >
+                        <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
+                          {label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+            />
+          </View>
+
+          {/* Setting */}
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Setting</Text>
+            <Controller
+              control={control}
+              name="setting"
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.chipRow}>
+                  {SETTINGS.map((setting) => {
+                    const label = setting.charAt(0).toUpperCase() + setting.slice(1);
+                    const isSelected = value === setting;
+                    return (
+                      <Pressable
+                        key={setting}
+                        style={[styles.chip, isSelected && styles.chipSelected]}
+                        onPress={() => onChange(setting)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Setting: ${label}`}
                         accessibilityState={{ selected: isSelected }}
                       >
                         <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
