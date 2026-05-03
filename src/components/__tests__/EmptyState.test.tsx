@@ -26,6 +26,23 @@ describe('EmptyState', () => {
     expect(onAction).toHaveBeenCalledTimes(1);
   });
 
+  it('announces the action button to assistive tech via role + label', () => {
+    const onAction = jest.fn();
+    render(
+      <EmptyState
+        icon="X"
+        title="No Foods"
+        description="Add some foods"
+        actionLabel="Add Food"
+        onAction={onAction}
+      />
+    );
+    const button = screen.getByLabelText('Add Food');
+    expect(button.getAttribute('role')).toBe('button');
+    fireEvent.click(button);
+    expect(onAction).toHaveBeenCalledTimes(1);
+  });
+
   it('does not render action button when no actionLabel', () => {
     render(<EmptyState icon="X" title="No Foods" description="Add some foods" />);
     expect(screen.queryByText('Add Food')).toBeNull();
