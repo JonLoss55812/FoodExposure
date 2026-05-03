@@ -111,6 +111,7 @@ export default function SettingsScreen() {
               value={quickLogMode}
               onValueChange={setQuickLogMode}
               trackColor={{ true: '#F97316' }}
+              accessibilityLabel="Quick Log Mode"
             />
           </View>
           <View style={styles.divider} />
@@ -120,6 +121,7 @@ export default function SettingsScreen() {
               value={notificationsEnabled}
               onValueChange={setNotificationsEnabled}
               trackColor={{ true: '#F97316' }}
+              accessibilityLabel="Notifications"
             />
           </View>
           <View style={styles.divider} />
