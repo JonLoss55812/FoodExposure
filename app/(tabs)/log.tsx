@@ -152,7 +152,16 @@ export default function LogExposureScreen() {
           ))}
         </ScrollView>
         {foodsList.length === 0 && (
-          <Text style={styles.hint}>Add some foods first to start logging exposures.</Text>
+          <Pressable
+            onPress={() => router.push('/food/add')}
+            style={styles.emptyFoodsCta}
+            accessibilityRole="button"
+            accessibilityLabel="Add foods to start logging exposures"
+          >
+            <Text style={styles.emptyFoodsCtaText}>
+              No foods yet — tap to add your first one →
+            </Text>
+          </Pressable>
         )}
         {errors.foodId && <Text style={styles.error}>{errors.foodId.message}</Text>}
       </View>
@@ -473,6 +482,20 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.fontSize.sm,
     color: theme.colors.textTertiary,
     fontStyle: 'italic',
+  },
+  emptyFoodsCta: {
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
+    backgroundColor: theme.colors.primaryLight,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+    alignItems: 'center',
+  },
+  emptyFoodsCtaText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.primary,
+    fontWeight: '600',
   },
   error: {
     fontSize: theme.fontSize.sm,
