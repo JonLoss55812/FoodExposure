@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, asc } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
 import { FoodCard, EmptyState } from '@/src/components';
@@ -36,7 +36,8 @@ export default function FoodsScreen() {
     try {
       // Load all foods
       const allFoods = await db.select().from(schema.foods)
-        .where(eq(schema.foods.familyId, familyId));
+        .where(eq(schema.foods.familyId, familyId))
+        .orderBy(asc(schema.foods.name));
 
       // Load ALL exposures for selected child in one query
       let allExposures: (typeof schema.exposures.$inferSelect)[] = [];

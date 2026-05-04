@@ -5,7 +5,7 @@ import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { eq } from 'drizzle-orm';
+import { eq, asc } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
 import { ChildSelector, StageIndicator, RatingPicker, Button } from '@/src/components';
@@ -57,7 +57,7 @@ export default function LogExposureScreen() {
     try {
       const kids = await db.select().from(schema.children).where(eq(schema.children.familyId, familyId));
       setChildrenList(kids);
-      const allFoods = await db.select().from(schema.foods).where(eq(schema.foods.familyId, familyId));
+      const allFoods = await db.select().from(schema.foods).where(eq(schema.foods.familyId, familyId)).orderBy(asc(schema.foods.name));
       setFoodsList(allFoods);
     } catch (err) {
       console.error('Failed to load log data:', err);
