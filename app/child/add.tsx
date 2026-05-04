@@ -4,6 +4,7 @@ import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
 import { useAuthStore } from '@/src/stores/auth-store';
@@ -21,8 +22,12 @@ export default function AddChildScreen() {
 
   const [saving, setSaving] = useState(false);
 
-  const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm<ChildFormData>({
-    resolver: zodResolver(childSchema) as any,
+  const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm<
+    z.input<typeof childSchema>,
+    unknown,
+    ChildFormData
+  >({
+    resolver: zodResolver(childSchema),
     defaultValues: {
       name: '',
       avatarEmoji: '👶',

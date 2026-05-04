@@ -4,6 +4,7 @@ import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
 import { useAuthStore } from '@/src/stores/auth-store';
@@ -18,8 +19,12 @@ export default function AddFoodScreen() {
 
   const [saving, setSaving] = useState(false);
 
-  const { control, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<FoodFormData>({
-    resolver: zodResolver(foodSchema) as any,
+  const { control, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<
+    z.input<typeof foodSchema>,
+    unknown,
+    FoodFormData
+  >({
+    resolver: zodResolver(foodSchema),
     defaultValues: {
       name: '',
       category: 'other',

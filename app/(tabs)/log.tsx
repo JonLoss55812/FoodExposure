@@ -5,6 +5,7 @@ import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { eq, asc } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
@@ -24,8 +25,12 @@ export default function LogExposureScreen() {
   const [showDetails, setShowDetails] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const { control, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<ExposureFormData>({
-    resolver: zodResolver(exposureSchema) as any,
+  const { control, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<
+    z.input<typeof exposureSchema>,
+    unknown,
+    ExposureFormData
+  >({
+    resolver: zodResolver(exposureSchema),
     defaultValues: {
       childId: selectedChildId || '',
       foodId: '',
