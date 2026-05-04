@@ -42,6 +42,9 @@ export default function FoodDetailScreen() {
           notes: schema.exposures.notes,
           occurredAt: schema.exposures.occurredAt,
           mealType: schema.exposures.mealType,
+          temperature: schema.exposures.temperature,
+          texture: schema.exposures.texture,
+          setting: schema.exposures.setting,
         })
           .from(schema.exposures)
           .where(and(
@@ -250,6 +253,10 @@ export default function FoodDetailScreen() {
               rating={exp.rating ?? undefined}
               notes={exp.notes ?? undefined}
               occurredAt={new Date(exp.occurredAt)}
+              mealType={exp.mealType ?? undefined}
+              temperature={exp.temperature ?? undefined}
+              texture={exp.texture ?? undefined}
+              setting={exp.setting ?? undefined}
             />
           ))
         )}

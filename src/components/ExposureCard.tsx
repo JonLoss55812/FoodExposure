@@ -11,8 +11,19 @@ interface ExposureCardProps {
   notes?: string;
   occurredAt: Date;
   loggedByName?: string;
+  mealType?: string;
+  temperature?: string;
+  texture?: string;
+  setting?: string;
   onPress?: () => void;
 }
+
+const META_ICONS = {
+  mealType: '🍽️',
+  temperature: '🌡️',
+  texture: '🧊',
+  setting: '📍',
+} as const;
 
 export function ExposureCard({
   foodName,
@@ -22,10 +33,15 @@ export function ExposureCard({
   notes,
   occurredAt,
   loggedByName,
+  mealType,
+  temperature,
+  texture,
+  setting,
   onPress,
 }: ExposureCardProps) {
   const stageConfig = STAGE_CONFIG[stage];
   const ratingConfig = rating ? RATING_CONFIG.find((r) => r.value === rating) : null;
+  const hasMeta = !!(mealType || temperature || texture || setting);
 
   return (
     <Pressable
@@ -53,6 +69,14 @@ export function ExposureCard({
         <Text style={styles.notes} numberOfLines={2}>
           {notes}
         </Text>
+      )}
+      {hasMeta && (
+        <View style={styles.metaRow}>
+          {mealType && <Text style={styles.metaItem}>{META_ICONS.mealType} {mealType}</Text>}
+          {temperature && <Text style={styles.metaItem}>{META_ICONS.temperature} {temperature}</Text>}
+          {texture && <Text style={styles.metaItem}>{META_ICONS.texture} {texture}</Text>}
+          {setting && <Text style={styles.metaItem}>{META_ICONS.setting} {setting}</Text>}
+        </View>
       )}
       {loggedByName && (
         <Text style={styles.loggedBy}>Logged by {loggedByName}</Text>
@@ -106,6 +130,16 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.fontSize.sm,
     color: theme.colors.textSecondary,
     fontStyle: 'italic',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+  },
+  metaItem: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textTertiary,
+    textTransform: 'capitalize',
   },
   loggedBy: {
     fontSize: theme.fontSize.xs,

@@ -87,6 +87,50 @@ describe('ExposureCard', () => {
     expect(screen.getByText('Carrots')).toBeTruthy();
   });
 
+  it('renders meta row when any optional field is provided', () => {
+    // Data round-trips into SQLite from the v0.5.39/v0.5.41 chip rows on
+    // the Log Exposure form (mealType, temperature, texture, setting). The
+    // food detail history view dropped them silently before this fix; lock
+    // the display contract so a future ExposureCard refactor cannot
+    // regress to silent-data-drop again.
+    render(
+      <ExposureCard
+        {...defaultProps}
+        mealType="lunch"
+        temperature="hot"
+        texture="crunchy"
+        setting="home"
+      />
+    );
+    expect(screen.getByText('🍽️ lunch')).toBeTruthy();
+    expect(screen.getByText('🌡️ hot')).toBeTruthy();
+    expect(screen.getByText('🧊 crunchy')).toBeTruthy();
+    expect(screen.getByText('📍 home')).toBeTruthy();
+  });
+
+  it('omits the meta row when no optional fields are provided', () => {
+    // Most exposures will skip the optional details block (the form's
+    // "Add More Details" toggle is collapsed by default). Confirms the
+    // card stays clean when fields are undefined — no leftover icons,
+    // no empty row taking layout space.
+    render(<ExposureCard {...defaultProps} />);
+    expect(screen.queryByText(/🍽️/)).toBeNull();
+    expect(screen.queryByText(/🌡️/)).toBeNull();
+    expect(screen.queryByText(/🧊/)).toBeNull();
+    expect(screen.queryByText(/📍/)).toBeNull();
+  });
+
+  it('renders only the meta fields that are populated', () => {
+    // Partial-fill is the common case — a parent might log meal context
+    // (lunch) without bothering with texture. Each field gates its own
+    // <Text/>; this test pins the per-field independence.
+    render(<ExposureCard {...defaultProps} mealType="dinner" />);
+    expect(screen.getByText('🍽️ dinner')).toBeTruthy();
+    expect(screen.queryByText(/🌡️/)).toBeNull();
+    expect(screen.queryByText(/🧊/)).toBeNull();
+    expect(screen.queryByText(/📍/)).toBeNull();
+  });
+
   it('renders with each stage variant (covers all STAGE_CONFIG keys)', () => {
     // The component reads STAGE_CONFIG[stage] unconditionally; if a future
     // stage is added to STAGE_ORDER but not STAGE_CONFIG, this loop will
