@@ -93,11 +93,6 @@ export default function SettingsScreen() {
             <Text style={styles.label}>Add Child</Text>
             <Text style={styles.arrow}>{'>'}</Text>
           </Pressable>
-          <View style={styles.divider} />
-          <View style={styles.row}>
-            <Text style={styles.label}>Invite Spouse</Text>
-            <Text style={styles.value}>Share invite code</Text>
-          </View>
         </View>
       </View>
 
