@@ -6,9 +6,28 @@ import type { FeedingProfile } from '@/src/lib/thresholds';
 const storage = createMMKV({ id: 'settings-storage' });
 
 const mmkvStorage = {
-  getItem: (name: string) => storage.getString(name) ?? null,
-  setItem: (name: string, value: string) => storage.set(name, value),
-  removeItem: (name: string) => storage.remove(name),
+  getItem: (name: string) => {
+    try {
+      return storage.getString(name) ?? null;
+    } catch (err) {
+      console.error('settings-store MMKV getItem failed:', err);
+      return null;
+    }
+  },
+  setItem: (name: string, value: string) => {
+    try {
+      storage.set(name, value);
+    } catch (err) {
+      console.error('settings-store MMKV setItem failed:', err);
+    }
+  },
+  removeItem: (name: string) => {
+    try {
+      storage.remove(name);
+    } catch (err) {
+      console.error('settings-store MMKV removeItem failed:', err);
+    }
+  },
 };
 
 type ThemeMode = 'light' | 'dark' | 'system';
