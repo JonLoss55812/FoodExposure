@@ -34,6 +34,26 @@ describe('childSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts a 50-character name (boundary)', () => {
+    const result = childSchema.safeParse({ name: 'a'.repeat(50) });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a 51-character name (boundary +1)', () => {
+    const result = childSchema.safeParse({ name: 'a'.repeat(51) });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts 500-character notes (boundary)', () => {
+    const result = childSchema.safeParse({ name: 'Emma', notes: 'a'.repeat(500) });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects 501-character notes (boundary +1)', () => {
+    const result = childSchema.safeParse({ name: 'Emma', notes: 'a'.repeat(501) });
+    expect(result.success).toBe(false);
+  });
+
   it('defaults avatarEmoji to baby emoji', () => {
     const result = childSchema.safeParse({ name: 'Emma' });
     expect(result.success).toBe(true);
@@ -85,6 +105,40 @@ describe('foodSchema', () => {
     if (result.success) {
       expect(result.data.isSafeFood).toBe(false);
     }
+  });
+
+  it('accepts an 80-character name (boundary)', () => {
+    const result = foodSchema.safeParse({
+      name: 'a'.repeat(80),
+      category: 'other',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects an 81-character name (boundary +1)', () => {
+    const result = foodSchema.safeParse({
+      name: 'a'.repeat(81),
+      category: 'other',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts a 50-character defaultPreparation (boundary)', () => {
+    const result = foodSchema.safeParse({
+      name: 'Broccoli',
+      category: 'vegetable',
+      defaultPreparation: 'a'.repeat(50),
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a 51-character defaultPreparation (boundary +1)', () => {
+    const result = foodSchema.safeParse({
+      name: 'Broccoli',
+      category: 'vegetable',
+      defaultPreparation: 'a'.repeat(51),
+    });
+    expect(result.success).toBe(false);
   });
 });
 
@@ -176,6 +230,68 @@ describe('exposureSchema', () => {
       exposureSchema.safeParse({ childId: 'c1', foodId: 'f1', stage: 'eat', texture: 'gooey' }).success
     ).toBe(false);
   });
+
+  it('validates mealType enum', () => {
+    expect(
+      exposureSchema.safeParse({
+        childId: 'c1',
+        foodId: 'f1',
+        stage: 'eat',
+        mealType: 'brunch',
+      }).success
+    ).toBe(false);
+  });
+
+  it('validates setting enum', () => {
+    expect(
+      exposureSchema.safeParse({
+        childId: 'c1',
+        foodId: 'f1',
+        stage: 'eat',
+        setting: 'park',
+      }).success
+    ).toBe(false);
+  });
+
+  it('accepts 50-character preparation (boundary)', () => {
+    const result = exposureSchema.safeParse({
+      childId: 'c1',
+      foodId: 'f1',
+      stage: 'eat',
+      preparation: 'a'.repeat(50),
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects 51-character preparation (boundary +1)', () => {
+    const result = exposureSchema.safeParse({
+      childId: 'c1',
+      foodId: 'f1',
+      stage: 'eat',
+      preparation: 'a'.repeat(51),
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts 500-character notes (boundary)', () => {
+    const result = exposureSchema.safeParse({
+      childId: 'c1',
+      foodId: 'f1',
+      stage: 'eat',
+      notes: 'a'.repeat(500),
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects 501-character notes (boundary +1)', () => {
+    const result = exposureSchema.safeParse({
+      childId: 'c1',
+      foodId: 'f1',
+      stage: 'eat',
+      notes: 'a'.repeat(501),
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('loginSchema', () => {
@@ -207,6 +323,30 @@ describe('loginSchema', () => {
     const result = loginSchema.safeParse({
       email: 'test@example.com',
       password: '12345678',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects 254-character email under the local-part limit (boundary +1)', () => {
+    const result = loginSchema.safeParse({
+      email: 'a'.repeat(255) + '@e.com',
+      password: 'password123',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a 129-character password (boundary +1)', () => {
+    const result = loginSchema.safeParse({
+      email: 'test@example.com',
+      password: 'a'.repeat(129),
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts a 128-character password (boundary)', () => {
+    const result = loginSchema.safeParse({
+      email: 'test@example.com',
+      password: 'a'.repeat(128),
     });
     expect(result.success).toBe(true);
   });
@@ -242,6 +382,26 @@ describe('registerSchema', () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it('rejects a 51-character displayName (boundary +1)', () => {
+    const result = registerSchema.safeParse({
+      email: 'test@example.com',
+      password: 'password123',
+      displayName: 'a'.repeat(51),
+      familyName: 'Test Family',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a 51-character familyName (boundary +1)', () => {
+    const result = registerSchema.safeParse({
+      email: 'test@example.com',
+      password: 'password123',
+      displayName: 'Test User',
+      familyName: 'a'.repeat(51),
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('joinFamilySchema', () => {
@@ -271,6 +431,28 @@ describe('joinFamilySchema', () => {
         displayName: 'Partner',
         email: 'p@e.com',
         password: 'password123',
+      }).success
+    ).toBe(false);
+  });
+
+  it('rejects invalid email', () => {
+    expect(
+      joinFamilySchema.safeParse({
+        inviteCode: 'ABC123',
+        displayName: 'Partner',
+        email: 'not-an-email',
+        password: 'password123',
+      }).success
+    ).toBe(false);
+  });
+
+  it('rejects short password', () => {
+    expect(
+      joinFamilySchema.safeParse({
+        inviteCode: 'ABC123',
+        displayName: 'Partner',
+        email: 'p@e.com',
+        password: 'short',
       }).success
     ).toBe(false);
   });
