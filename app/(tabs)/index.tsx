@@ -146,11 +146,19 @@ export default function DashboardScreen() {
         <>
           {/* Today's Summary */}
           <View style={styles.summaryRow}>
-            <View style={styles.summaryCard}>
+            <View
+              style={styles.summaryCard}
+              accessibilityRole="text"
+              accessibilityLabel={`Today's Exposures: ${todayCount}`}
+            >
               <Text style={styles.summaryNumber}>{todayCount}</Text>
               <Text style={styles.summaryLabel}>Today's{'\n'}Exposures</Text>
             </View>
-            <View style={styles.summaryCard}>
+            <View
+              style={styles.summaryCard}
+              accessibilityRole="text"
+              accessibilityLabel={`Foods Tracked: ${totalFoodsTracked}`}
+            >
               <Text style={styles.summaryNumber}>{totalFoodsTracked}</Text>
               <Text style={styles.summaryLabel}>Foods{'\n'}Tracked</Text>
             </View>
@@ -174,7 +182,12 @@ export default function DashboardScreen() {
                   const config = STAGE_CONFIG[stage];
                   const count = stageCounts[stage] || 0;
                   return (
-                    <View key={stage} style={styles.stageItem}>
+                    <View
+                      key={stage}
+                      style={styles.stageItem}
+                      accessibilityRole="text"
+                      accessibilityLabel={`${config.label} stage: ${count} ${count === 1 ? 'food' : 'foods'}`}
+                    >
                       <View style={[styles.stageDot, { backgroundColor: config.color }]}>
                         <Text style={{ fontSize: 16 }}>{config.icon}</Text>
                       </View>
