@@ -58,7 +58,9 @@ export function ExposureCard({
           <Text style={styles.foodName} numberOfLines={1}>
             {foodName}
           </Text>
-          <Text style={styles.childName}>{childName}</Text>
+          {childName ? (
+            <Text style={styles.childName}>{childName}</Text>
+          ) : null}
         </View>
         <View style={styles.right}>
           {ratingConfig && <Text style={{ fontSize: 20 }}>{ratingConfig.emoji}</Text>}

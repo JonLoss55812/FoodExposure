@@ -131,6 +131,20 @@ describe('ExposureCard', () => {
     expect(screen.queryByText(/📍/)).toBeNull();
   });
 
+  it('hides the childName Text when childName is empty', () => {
+    // The food detail page mounts ExposureCard with childName="" because
+    // the parent already chose the child upstream — there is no need to
+    // re-state it on every history row. Rendering an empty <Text/> still
+    // pulled the parent's `gap: 2` into the header layout, leaving a
+    // 2px ghost line below the food name. Gating the Text on truthy
+    // childName collapses the gap cleanly.
+    render(<ExposureCard {...defaultProps} childName="" />);
+    expect(screen.getByText('Carrots')).toBeTruthy();
+    expect(screen.queryByText('Emma')).toBeNull();
+    // The food name is still the only header text node — no empty Text
+    // sibling.
+  });
+
   it('renders with each stage variant (covers all STAGE_CONFIG keys)', () => {
     // The component reads STAGE_CONFIG[stage] unconditionally; if a future
     // stage is added to STAGE_ORDER but not STAGE_CONFIG, this loop will
