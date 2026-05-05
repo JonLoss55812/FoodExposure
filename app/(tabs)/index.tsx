@@ -13,12 +13,23 @@ import { STAGE_ORDER, STAGE_CONFIG, TARGET_EXPOSURES } from '@/src/lib/constants
 import { formatRelativeDate } from '@/src/lib/utils';
 import { computeStageCounts } from '@/src/lib/food-partition';
 
+type RecentExposure = {
+  id: string;
+  foodId: string;
+  foodName: string;
+  childName: string;
+  stage: typeof schema.exposures.$inferSelect.stage;
+  rating: number | null;
+  notes: string | null;
+  occurredAt: Date;
+};
+
 export default function DashboardScreen() {
   const router = useRouter();
   const { familyId, isAuthenticated, isOnboarded } = useAuthStore();
   const { selectedChildId, selectChild, ensureSelection } = useChildStore();
   const [childrenList, setChildrenList] = useState<(typeof schema.children.$inferSelect)[]>([]);
-  const [recentExposures, setRecentExposures] = useState<any[]>([]);
+  const [recentExposures, setRecentExposures] = useState<RecentExposure[]>([]);
   const [todayCount, setTodayCount] = useState(0);
   const [stageCounts, setStageCounts] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState(false);
@@ -213,7 +224,7 @@ export default function DashboardScreen() {
                   key={exp.id}
                   foodName={exp.foodName}
                   childName={exp.childName}
-                  stage={exp.stage as any}
+                  stage={exp.stage}
                   rating={exp.rating ?? undefined}
                   notes={exp.notes ?? undefined}
                   occurredAt={new Date(exp.occurredAt)}
