@@ -7,10 +7,12 @@ import {
   TARGET_EXPOSURES,
   APP_VERSION,
   MEAL_TYPES,
+  SETTINGS,
   TEMPERATURES,
   TEXTURES,
   PREPARATIONS,
 } from '../constants';
+import { exposureSchema, foodSchema } from '../validation';
 
 describe('STAGE_ORDER', () => {
   it('has exactly 6 stages', () => {
@@ -122,7 +124,53 @@ describe('enum arrays', () => {
     expect(TEXTURES).toHaveLength(5);
   });
 
+  it('SETTINGS has 4 options', () => {
+    expect(SETTINGS).toHaveLength(4);
+    expect(SETTINGS).toContain('home');
+    expect(SETTINGS).toContain('school');
+    expect(SETTINGS).toContain('restaurant');
+    expect(SETTINGS).toContain('therapy');
+  });
+
   it('PREPARATIONS has 8 options', () => {
     expect(PREPARATIONS).toHaveLength(8);
+  });
+});
+
+describe('constants align with validation schema enums', () => {
+  // The form chip rows on `app/(tabs)/log.tsx` and `app/food/add.tsx` iterate
+  // over the constants here, but the form's onSubmit validates against
+  // exposureSchema/foodSchema in `validation.ts`. If a contributor edits one
+  // file without the other (e.g. adds 'park' to SETTINGS but forgets the
+  // zod enum), a chip would render that submission silently rejects.
+
+  function getEnumValues(schema: { shape: Record<string, unknown> }, key: string): string[] {
+    const field = schema.shape[key] as { unwrap?: () => { options: string[] }; options?: string[] };
+    const enumDef = typeof field.unwrap === 'function' ? field.unwrap() : field;
+    return [...(enumDef.options ?? [])].sort();
+  }
+
+  it('MEAL_TYPES matches exposureSchema.mealType enum', () => {
+    expect(getEnumValues(exposureSchema, 'mealType')).toEqual([...MEAL_TYPES].sort());
+  });
+
+  it('TEMPERATURES matches exposureSchema.temperature enum', () => {
+    expect(getEnumValues(exposureSchema, 'temperature')).toEqual([...TEMPERATURES].sort());
+  });
+
+  it('TEXTURES matches exposureSchema.texture enum', () => {
+    expect(getEnumValues(exposureSchema, 'texture')).toEqual([...TEXTURES].sort());
+  });
+
+  it('SETTINGS matches exposureSchema.setting enum', () => {
+    expect(getEnumValues(exposureSchema, 'setting')).toEqual([...SETTINGS].sort());
+  });
+
+  it('STAGE_ORDER matches exposureSchema.stage enum', () => {
+    expect(getEnumValues(exposureSchema, 'stage')).toEqual([...STAGE_ORDER].sort());
+  });
+
+  it('FOOD_CATEGORIES matches foodSchema.category enum', () => {
+    expect(getEnumValues(foodSchema, 'category')).toEqual([...FOOD_CATEGORIES].sort());
   });
 });
