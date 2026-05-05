@@ -2,7 +2,6 @@ import { View, Text, Pressable, Alert } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/src/stores/auth-store';
-import { useChildStore } from '@/src/stores/child-store';
 import { generateId, generateInviteCode } from '@/src/lib/utils';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
@@ -10,7 +9,7 @@ import { Button } from '@/src/components';
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { login, setOnboarded, setFamilyId } = useAuthStore();
+  const { login } = useAuthStore();
 
   const handleGetStarted = async () => {
     const familyId = generateId();

@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { View, ActivityIndicator, Text } from 'react-native';
-import { db, expoDb } from '../db/client';
+import { expoDb } from '../db/client';
 
 export function DatabaseProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);

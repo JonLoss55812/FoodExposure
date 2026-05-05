@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TextInput, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
@@ -14,7 +14,7 @@ import { useChildStore } from '@/src/stores/child-store';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { exposureSchema, type ExposureFormData } from '@/src/lib/validation';
 import { generateId } from '@/src/lib/utils';
-import { STAGE_ORDER, STAGE_CONFIG, MEAL_TYPES, TEMPERATURES, TEXTURES, SETTINGS } from '@/src/lib/constants';
+import { STAGE_CONFIG, MEAL_TYPES, TEMPERATURES, TEXTURES, SETTINGS } from '@/src/lib/constants';
 
 export default function LogExposureScreen() {
   const router = useRouter();

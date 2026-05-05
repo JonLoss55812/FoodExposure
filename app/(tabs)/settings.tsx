@@ -15,7 +15,7 @@ import { exportChildData } from '@/src/lib/export';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { familyId, displayName, email, logout } = useAuthStore();
+  const { displayName, email, logout } = useAuthStore();
   const { selectedChildId } = useChildStore();
   const { theme, feedingProfile, setTheme, setFeedingProfile } = useSettingsStore();
   const [exporting, setExporting] = useState(false);

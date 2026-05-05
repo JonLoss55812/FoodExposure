@@ -1,4 +1,4 @@
-import { ScrollView, View, Text, Pressable } from 'react-native';
+import { ScrollView, Text, Pressable } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 
 interface Child {

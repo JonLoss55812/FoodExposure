@@ -6,11 +6,10 @@ import { useRouter } from 'expo-router';
 import { eq, desc, and, sql } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
-import { ChildSelector, ExposureCard, StageIndicator, EmptyState } from '@/src/components';
+import { ChildSelector, ExposureCard, EmptyState } from '@/src/components';
 import { useChildStore } from '@/src/stores/child-store';
 import { useAuthStore } from '@/src/stores/auth-store';
-import { STAGE_ORDER, STAGE_CONFIG, TARGET_EXPOSURES } from '@/src/lib/constants';
-import { formatRelativeDate } from '@/src/lib/utils';
+import { STAGE_ORDER, STAGE_CONFIG } from '@/src/lib/constants';
 import { computeStageCounts } from '@/src/lib/food-partition';
 
 type RecentExposure = {
