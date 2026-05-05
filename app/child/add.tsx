@@ -155,7 +155,7 @@ export default function AddChildScreen() {
       </View>
 
       <View style={styles.footer}>
-        <Button label="Add Child" onPress={handleSubmit(onSubmit as any)} size="lg" fullWidth loading={saving} disabled={saving} />
+        <Button label="Add Child" onPress={handleSubmit(onSubmit)} size="lg" fullWidth loading={saving} disabled={saving} />
       </View>
     </ScrollView>
   );

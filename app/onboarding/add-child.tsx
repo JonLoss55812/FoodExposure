@@ -160,7 +160,7 @@ export default function AddChildOnboardingScreen() {
       <View style={styles.footer}>
         <Button
           label="Start Tracking"
-          onPress={handleSubmit(onSubmit as any)}
+          onPress={handleSubmit(onSubmit)}
           size="lg"
           fullWidth
           icon="🚀"

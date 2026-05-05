@@ -363,7 +363,7 @@ export default function LogExposureScreen() {
       <View style={styles.submitSection}>
         <Button
           label="Save Exposure"
-          onPress={handleSubmit(onSubmit as any)}
+          onPress={handleSubmit(onSubmit)}
           loading={saving}
           fullWidth
           size="lg"

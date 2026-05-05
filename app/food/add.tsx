@@ -178,7 +178,7 @@ export default function AddFoodScreen() {
       </Pressable>
 
       <View style={styles.footer}>
-        <Button label="Add Food" onPress={handleSubmit(onSubmit as any)} size="lg" fullWidth icon="🍽️" loading={saving} />
+        <Button label="Add Food" onPress={handleSubmit(onSubmit)} size="lg" fullWidth icon="🍽️" loading={saving} />
       </View>
     </ScrollView>
   );
