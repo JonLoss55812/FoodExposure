@@ -10,7 +10,6 @@ interface ExposureCardProps {
   rating?: number;
   notes?: string;
   occurredAt: Date;
-  loggedByName?: string;
   mealType?: string;
   temperature?: string;
   texture?: string;
@@ -32,7 +31,6 @@ export function ExposureCard({
   rating,
   notes,
   occurredAt,
-  loggedByName,
   mealType,
   temperature,
   texture,
@@ -79,9 +77,6 @@ export function ExposureCard({
           {texture && <Text style={styles.metaItem}>{META_ICONS.texture} {texture}</Text>}
           {setting && <Text style={styles.metaItem}>{META_ICONS.setting} {setting}</Text>}
         </View>
-      )}
-      {loggedByName && (
-        <Text style={styles.loggedBy}>Logged by {loggedByName}</Text>
       )}
     </Pressable>
   );
@@ -142,9 +137,5 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.fontSize.xs,
     color: theme.colors.textTertiary,
     textTransform: 'capitalize',
-  },
-  loggedBy: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textTertiary,
   },
 }));

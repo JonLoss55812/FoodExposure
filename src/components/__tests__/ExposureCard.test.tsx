@@ -21,11 +21,6 @@ describe('ExposureCard', () => {
     expect(screen.getByText('Touched it briefly')).toBeTruthy();
   });
 
-  it('renders logged by name when provided', () => {
-    render(<ExposureCard {...defaultProps} loggedByName="Mom" />);
-    expect(screen.getByText('Logged by Mom')).toBeTruthy();
-  });
-
   it('shows Today for current date', () => {
     render(<ExposureCard {...defaultProps} />);
     expect(screen.getByText('Today')).toBeTruthy();
