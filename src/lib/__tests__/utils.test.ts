@@ -1,9 +1,6 @@
 import {
   generateId,
   generateInviteCode,
-  getStageIndex,
-  isStageHigher,
-  getExposureProgress,
   formatDate,
   formatRelativeDate,
   getStartOfDay,
@@ -42,60 +39,6 @@ describe('generateInviteCode', () => {
   it('generates different codes', () => {
     const codes = new Set(Array.from({ length: 50 }, () => generateInviteCode()));
     expect(codes.size).toBeGreaterThan(1);
-  });
-});
-
-describe('getStageIndex', () => {
-  it('returns correct indices for all stages', () => {
-    expect(getStageIndex('tolerate')).toBe(0);
-    expect(getStageIndex('interact')).toBe(1);
-    expect(getStageIndex('smell')).toBe(2);
-    expect(getStageIndex('touch')).toBe(3);
-    expect(getStageIndex('taste')).toBe(4);
-    expect(getStageIndex('eat')).toBe(5);
-  });
-});
-
-describe('isStageHigher', () => {
-  it('returns true when first stage is higher', () => {
-    expect(isStageHigher('eat', 'tolerate')).toBe(true);
-    expect(isStageHigher('taste', 'smell')).toBe(true);
-    expect(isStageHigher('touch', 'interact')).toBe(true);
-  });
-
-  it('returns false when first stage is lower', () => {
-    expect(isStageHigher('tolerate', 'eat')).toBe(false);
-    expect(isStageHigher('smell', 'taste')).toBe(false);
-  });
-
-  it('returns false when stages are equal', () => {
-    expect(isStageHigher('eat', 'eat')).toBe(false);
-    expect(isStageHigher('tolerate', 'tolerate')).toBe(false);
-  });
-});
-
-describe('getExposureProgress', () => {
-  it('returns 0 for 0 exposures', () => {
-    expect(getExposureProgress(0)).toBe(0);
-  });
-
-  it('returns correct ratio', () => {
-    expect(getExposureProgress(5, 15)).toBeCloseTo(1 / 3);
-    expect(getExposureProgress(10, 15)).toBeCloseTo(2 / 3);
-  });
-
-  it('caps at 1.0 when exceeding target', () => {
-    expect(getExposureProgress(20, 15)).toBe(1);
-    expect(getExposureProgress(100, 15)).toBe(1);
-  });
-
-  it('returns 1.0 when exactly at target', () => {
-    expect(getExposureProgress(15, 15)).toBe(1);
-  });
-
-  it('uses default target of 15', () => {
-    expect(getExposureProgress(15)).toBe(1);
-    expect(getExposureProgress(7.5)).toBeCloseTo(0.5);
   });
 });
 

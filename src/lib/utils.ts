@@ -1,5 +1,4 @@
 import { v4 as uuidv4 } from 'uuid';
-import { STAGE_ORDER, type ExposureStage } from './constants';
 
 export function generateId(): string {
   return uuidv4();
@@ -12,18 +11,6 @@ export function generateInviteCode(): string {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return code;
-}
-
-export function getStageIndex(stage: ExposureStage): number {
-  return STAGE_ORDER.indexOf(stage);
-}
-
-export function isStageHigher(a: ExposureStage, b: ExposureStage): boolean {
-  return getStageIndex(a) > getStageIndex(b);
-}
-
-export function getExposureProgress(count: number, target: number = 15): number {
-  return Math.min(count / target, 1);
 }
 
 export function formatDate(date: Date): string {
