@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, ScrollView, Pressable, Alert, Switch } from 'react-native';
+import { View, Text, ScrollView, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
@@ -17,16 +17,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { familyId, displayName, email, logout } = useAuthStore();
   const { selectedChildId } = useChildStore();
-  const {
-    theme,
-    quickLogMode,
-    notificationsEnabled,
-    feedingProfile,
-    setTheme,
-    setQuickLogMode,
-    setNotificationsEnabled,
-    setFeedingProfile,
-  } = useSettingsStore();
+  const { theme, feedingProfile, setTheme, setFeedingProfile } = useSettingsStore();
   const [exporting, setExporting] = useState(false);
 
   const handleExport = async () => {
@@ -100,26 +91,6 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Preferences</Text>
         <View style={styles.card}>
-          <View style={styles.row}>
-            <Text style={styles.label}>Quick Log Mode</Text>
-            <Switch
-              value={quickLogMode}
-              onValueChange={setQuickLogMode}
-              trackColor={{ true: '#F97316' }}
-              accessibilityLabel="Quick Log Mode"
-            />
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.row}>
-            <Text style={styles.label}>Notifications</Text>
-            <Switch
-              value={notificationsEnabled}
-              onValueChange={setNotificationsEnabled}
-              trackColor={{ true: '#F97316' }}
-              accessibilityLabel="Notifications"
-            />
-          </View>
-          <View style={styles.divider} />
           <View style={styles.row}>
             <Text style={styles.label}>Theme</Text>
             <View style={styles.themeRow}>
