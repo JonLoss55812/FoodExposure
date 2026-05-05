@@ -3,14 +3,13 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { ConvexProvider } from '../src/providers/ConvexProvider';
-import { QueryProvider } from '../src/providers/QueryProvider';
-import { DatabaseProvider } from '../src/providers/DatabaseProvider';
-import { initSentry } from '../src/lib/sentry';
-import { initPostHog } from '../src/lib/posthog';
+import { ConvexProvider } from '@/src/providers/ConvexProvider';
+import { QueryProvider } from '@/src/providers/QueryProvider';
+import { DatabaseProvider } from '@/src/providers/DatabaseProvider';
+import { initSentry } from '@/src/lib/sentry';
+import { initPostHog } from '@/src/lib/posthog';
 
-// Import Unistyles theme registration (side effect)
-import '../src/styles/theme';
+import '@/src/styles/theme';
 
 SplashScreen.preventAutoHideAsync();
 initSentry();
