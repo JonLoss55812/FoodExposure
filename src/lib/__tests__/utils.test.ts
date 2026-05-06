@@ -4,7 +4,6 @@ import {
   formatDate,
   formatRelativeDate,
   getStartOfDay,
-  getStartOfWeek,
 } from '../utils';
 
 describe('generateId', () => {
@@ -138,56 +137,3 @@ describe('getStartOfDay', () => {
   });
 });
 
-describe('getStartOfWeek', () => {
-  it('returns a Sunday', () => {
-    const date = new Date(2026, 2, 26); // Thursday
-    const start = getStartOfWeek(date);
-    expect(start.getDay()).toBe(0); // Sunday
-  });
-
-  it('sets time to midnight', () => {
-    const start = getStartOfWeek(new Date(2026, 2, 26, 14, 30));
-    expect(start.getHours()).toBe(0);
-    expect(start.getMinutes()).toBe(0);
-  });
-
-  it('returns same day if already Sunday', () => {
-    const sunday = new Date(2026, 2, 22); // Sunday March 22
-    const start = getStartOfWeek(sunday);
-    expect(start.getDate()).toBe(22);
-  });
-
-  it('defaults to current week when called with no args', () => {
-    const start = getStartOfWeek();
-    expect(start.getDay()).toBe(0); // Sunday-rooted
-    expect(start.getHours()).toBe(0);
-    expect(start.getMinutes()).toBe(0);
-
-    // Verify the returned date is the Sunday of the current week:
-    // walking forward by today's day-of-week should land on today's date.
-    const now = new Date();
-    const expected = new Date(now);
-    expected.setDate(now.getDate() - now.getDay());
-    expected.setHours(0, 0, 0, 0);
-    expect(start.getTime()).toBe(expected.getTime());
-  });
-
-  it('does not mutate the original date', () => {
-    const date = new Date(2026, 2, 26, 14, 30);
-    getStartOfWeek(date);
-    expect(date.getDate()).toBe(26);
-    expect(date.getHours()).toBe(14);
-    expect(date.getMinutes()).toBe(30);
-  });
-
-  it('rolls into the previous month when input is in the first week', () => {
-    // Thu Jan 1, 2026 → Sun Dec 28, 2025. The setDate(1 - 4) = setDate(-3)
-    // call must roll backwards across the month boundary.
-    const thursday = new Date(2026, 0, 1);
-    const start = getStartOfWeek(thursday);
-    expect(start.getFullYear()).toBe(2025);
-    expect(start.getMonth()).toBe(11); // December
-    expect(start.getDate()).toBe(28);
-    expect(start.getDay()).toBe(0); // Sunday
-  });
-});

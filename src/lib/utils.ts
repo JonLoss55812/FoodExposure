@@ -33,11 +33,3 @@ export function getStartOfDay(date: Date = new Date()): Date {
   d.setHours(0, 0, 0, 0);
   return d;
 }
-
-export function getStartOfWeek(date: Date = new Date()): Date {
-  const d = new Date(date);
-  const day = d.getDay();
-  d.setDate(d.getDate() - day);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
