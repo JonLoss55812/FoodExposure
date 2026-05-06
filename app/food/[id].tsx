@@ -13,13 +13,18 @@ import type { FoodCategory, ExposureStage } from '@/src/lib/constants';
 import { getNextStage, canBumpStage, getHighestStage } from '@/src/lib/stage';
 import { generateId } from '@/src/lib/utils';
 
+type ExposureRow = Pick<
+  typeof schema.exposures.$inferSelect,
+  'id' | 'stage' | 'rating' | 'notes' | 'occurredAt' | 'mealType' | 'temperature' | 'texture' | 'setting'
+>;
+
 export default function FoodDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { selectedChildId } = useChildStore();
   const { userId } = useAuthStore();
   const [food, setFood] = useState<typeof schema.foods.$inferSelect | null>(null);
-  const [exposuresList, setExposuresList] = useState<any[]>([]);
+  const [exposuresList, setExposuresList] = useState<ExposureRow[]>([]);
   const [highestStage, setHighestStage] = useState<ExposureStage | null>(null);
   const [bumping, setBumping] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -249,7 +254,7 @@ export default function FoodDetailScreen() {
               key={exp.id}
               foodName={food.name}
               childName=""
-              stage={exp.stage as ExposureStage}
+              stage={exp.stage}
               rating={exp.rating ?? undefined}
               notes={exp.notes ?? undefined}
               occurredAt={new Date(exp.occurredAt)}
