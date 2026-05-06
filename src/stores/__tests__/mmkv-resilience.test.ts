@@ -107,4 +107,40 @@ describe('MMKV adapter resilience', () => {
     }).not.toThrow();
     expect(useSettingsStore.getState().theme).toBe('dark');
   });
+
+  it('child-store clearStorage does not crash when MMKV.remove throws', () => {
+    mockThrowingMMKV();
+    const { useChildStore } = require('../child-store');
+    expect(() => {
+      useChildStore.persist.clearStorage();
+    }).not.toThrow();
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'child-store MMKV removeItem failed:',
+      expect.any(Error)
+    );
+  });
+
+  it('auth-store clearStorage does not crash when MMKV.remove throws', () => {
+    mockThrowingMMKV();
+    const { useAuthStore } = require('../auth-store');
+    expect(() => {
+      useAuthStore.persist.clearStorage();
+    }).not.toThrow();
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'auth-store MMKV removeItem failed:',
+      expect.any(Error)
+    );
+  });
+
+  it('settings-store clearStorage does not crash when MMKV.remove throws', () => {
+    mockThrowingMMKV();
+    const { useSettingsStore } = require('../settings-store');
+    expect(() => {
+      useSettingsStore.persist.clearStorage();
+    }).not.toThrow();
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'settings-store MMKV removeItem failed:',
+      expect.any(Error)
+    );
+  });
 });
