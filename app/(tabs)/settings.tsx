@@ -160,6 +160,7 @@ export default function SettingsScreen() {
             onPress={handleExport}
             disabled={exporting}
             accessibilityRole="button"
+            accessibilityLabel="Export data as CSV"
             accessibilityState={{ disabled: exporting, busy: exporting }}
           >
             <Text style={styles.label}>Export Data (CSV)</Text>
