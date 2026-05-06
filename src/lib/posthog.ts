@@ -20,5 +20,3 @@ export function captureEvent(event: string, properties?: Record<string, any>) {
 export function identifyUser(userId: string, properties?: Record<string, any>) {
   posthog?.identify(userId, properties);
 }
-
-export { posthog };
