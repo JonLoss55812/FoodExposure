@@ -17,16 +17,18 @@ export default function JoinFamilyScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleJoin = async () => {
-    if (!inviteCode || !displayName) {
+    const trimmedCode = inviteCode.trim().toUpperCase();
+    const trimmedName = displayName.trim();
+
+    if (!trimmedCode || !trimmedName) {
       Alert.alert('Missing Info', 'Please enter both your name and the invite code.');
       return;
     }
 
     setLoading(true);
     try {
-      // Look up family by invite code in local DB
       const family = await db.select().from(schema.families)
-        .where(eq(schema.families.inviteCode, inviteCode.toUpperCase()))
+        .where(eq(schema.families.inviteCode, trimmedCode))
         .then(rows => rows[0]);
 
       if (!family) {
@@ -35,19 +37,20 @@ export default function JoinFamilyScreen() {
       }
 
       const userId = generateId();
+      const email = `${trimmedName.toLowerCase().replace(/\s/g, '')}@tonguetutor.app`;
       await db.insert(schema.users).values({
         id: userId,
         familyId: family.id,
-        email: `${displayName.toLowerCase().replace(/\s/g, '')}@tonguetutor.app`,
-        displayName,
+        email,
+        displayName: trimmedName,
         createdAt: new Date(),
       });
 
       login({
         userId,
         familyId: family.id,
-        email: `${displayName.toLowerCase().replace(/\s/g, '')}@tonguetutor.app`,
-        displayName,
+        email,
+        displayName: trimmedName,
       });
 
       router.replace('/(tabs)' as any);
