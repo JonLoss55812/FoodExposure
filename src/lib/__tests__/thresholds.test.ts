@@ -1,6 +1,7 @@
 import {
   EXPOSURE_THRESHOLDS,
   FEEDING_PROFILES,
+  FEEDING_PROFILE_CONFIG,
   getThresholdForProfile,
   calcExposureProgress,
   type FeedingProfile,
@@ -82,5 +83,31 @@ describe('calcExposureProgress', () => {
   it('accepts FeedingProfile type safely', () => {
     const profile: FeedingProfile = 'typical';
     expect(getThresholdForProfile(profile)).toBe(15);
+  });
+});
+
+describe('cross-record alignment', () => {
+  it('every FEEDING_PROFILES key has an EXPOSURE_THRESHOLDS entry', () => {
+    const thresholdKeys = Object.keys(EXPOSURE_THRESHOLDS).sort();
+    expect(thresholdKeys).toEqual([...FEEDING_PROFILES].sort());
+  });
+
+  it('every FEEDING_PROFILES key has a FEEDING_PROFILE_CONFIG entry with label and description', () => {
+    const configKeys = Object.keys(FEEDING_PROFILE_CONFIG).sort();
+    expect(configKeys).toEqual([...FEEDING_PROFILES].sort());
+    for (const profile of FEEDING_PROFILES) {
+      expect(typeof FEEDING_PROFILE_CONFIG[profile].label).toBe('string');
+      expect(FEEDING_PROFILE_CONFIG[profile].label.length).toBeGreaterThan(0);
+      expect(typeof FEEDING_PROFILE_CONFIG[profile].description).toBe('string');
+      expect(FEEDING_PROFILE_CONFIG[profile].description.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('FEEDING_PROFILE_CONFIG.description copy includes the threshold value for each profile', () => {
+    for (const profile of FEEDING_PROFILES) {
+      const threshold = EXPOSURE_THRESHOLDS[profile];
+      const description = FEEDING_PROFILE_CONFIG[profile].description;
+      expect(description).toContain(String(threshold));
+    }
   });
 });
