@@ -457,3 +457,76 @@ describe('joinFamilySchema', () => {
     ).toBe(false);
   });
 });
+
+describe('whitespace handling on required string fields', () => {
+  it('childSchema rejects whitespace-only name', () => {
+    expect(childSchema.safeParse({ name: '   ' }).success).toBe(false);
+  });
+
+  it('childSchema strips surrounding whitespace from name', () => {
+    const result = childSchema.safeParse({ name: '  Emma  ' });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.name).toBe('Emma');
+  });
+
+  it('foodSchema rejects whitespace-only name', () => {
+    expect(foodSchema.safeParse({ name: '   ', category: 'other' }).success).toBe(false);
+  });
+
+  it('foodSchema strips surrounding whitespace from name', () => {
+    const result = foodSchema.safeParse({ name: '  Broccoli  ', category: 'vegetable' });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.name).toBe('Broccoli');
+  });
+
+  it('registerSchema rejects whitespace-only displayName', () => {
+    const result = registerSchema.safeParse({
+      email: 'a@b.co',
+      password: 'a'.repeat(8),
+      displayName: '   ',
+      familyName: 'Test',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('registerSchema rejects whitespace-only familyName', () => {
+    const result = registerSchema.safeParse({
+      email: 'a@b.co',
+      password: 'a'.repeat(8),
+      displayName: 'Test',
+      familyName: '   ',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('joinFamilySchema rejects whitespace-only displayName', () => {
+    const result = joinFamilySchema.safeParse({
+      inviteCode: 'ABC123',
+      displayName: '   ',
+      email: 'p@e.com',
+      password: 'password123',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('joinFamilySchema strips surrounding whitespace from inviteCode before length check', () => {
+    const result = joinFamilySchema.safeParse({
+      inviteCode: '  ABC123  ',
+      displayName: 'Partner',
+      email: 'p@e.com',
+      password: 'password123',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.inviteCode).toBe('ABC123');
+  });
+
+  it('joinFamilySchema rejects pure-whitespace inviteCode', () => {
+    const result = joinFamilySchema.safeParse({
+      inviteCode: '      ',
+      displayName: 'Partner',
+      email: 'p@e.com',
+      password: 'password123',
+    });
+    expect(result.success).toBe(false);
+  });
+});
