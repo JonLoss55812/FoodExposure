@@ -31,6 +31,7 @@ export default function DashboardScreen() {
   const [recentExposures, setRecentExposures] = useState<RecentExposure[]>([]);
   const [todayCount, setTodayCount] = useState(0);
   const [stageCounts, setStageCounts] = useState<Record<string, number>>({});
+  const [foodsTrackedCount, setFoodsTrackedCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -88,6 +89,7 @@ export default function DashboardScreen() {
         .where(eq(schema.exposures.childId, childId));
 
       setStageCounts(computeStageCounts(allExposures));
+      setFoodsTrackedCount(new Set(allExposures.map((e) => e.foodId)).size);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
       Alert.alert('Error', 'Failed to load dashboard data. Please try again.');
@@ -120,7 +122,7 @@ export default function DashboardScreen() {
     );
   }
 
-  const totalFoodsTracked = Object.values(stageCounts).reduce((a, b) => a + b, 0);
+  const stageDistributionTotal = Object.values(stageCounts).reduce((a, b) => a + b, 0);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -167,9 +169,9 @@ export default function DashboardScreen() {
             <View
               style={styles.summaryCard}
               accessibilityRole="text"
-              accessibilityLabel={`Foods Tracked: ${totalFoodsTracked}`}
+              accessibilityLabel={`Foods Tracked: ${foodsTrackedCount}`}
             >
-              <Text style={styles.summaryNumber}>{totalFoodsTracked}</Text>
+              <Text style={styles.summaryNumber}>{foodsTrackedCount}</Text>
               <Text style={styles.summaryLabel}>Foods{'\n'}Tracked</Text>
             </View>
             <Pressable
@@ -184,7 +186,7 @@ export default function DashboardScreen() {
           </View>
 
           {/* Stage Distribution */}
-          {totalFoodsTracked > 0 && (
+          {stageDistributionTotal > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Stage Distribution</Text>
               <View style={styles.stageGrid}>
