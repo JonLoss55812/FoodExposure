@@ -4,6 +4,7 @@ import {
   formatDate,
   formatRelativeDate,
   getStartOfDay,
+  deriveLocalEmailPart,
 } from '../utils';
 
 describe('generateId', () => {
@@ -134,6 +135,36 @@ describe('getStartOfDay', () => {
     const date = new Date(2026, 2, 26, 14, 30);
     getStartOfDay(date);
     expect(date.getHours()).toBe(14);
+  });
+});
+
+describe('deriveLocalEmailPart', () => {
+  it('lowercases an alphanumeric name', () => {
+    expect(deriveLocalEmailPart('Anne')).toBe('anne');
+  });
+
+  it('strips whitespace from a multi-word name', () => {
+    expect(deriveLocalEmailPart('Anne Smith')).toBe('annesmith');
+  });
+
+  it('strips RFC-invalid local-part punctuation', () => {
+    expect(deriveLocalEmailPart('Jon (Dad)!')).toBe('jondad');
+  });
+
+  it('strips emoji and other non-ASCII characters', () => {
+    expect(deriveLocalEmailPart('Anne 👶')).toBe('anne');
+  });
+
+  it("preserves RFC-safe local-part characters: a-z, 0-9, '.', '+', '-'", () => {
+    expect(deriveLocalEmailPart('jane.doe+filter-2')).toBe('jane.doe+filter-2');
+  });
+
+  it("falls back to 'user' when input contains only invalid characters", () => {
+    expect(deriveLocalEmailPart('👶')).toBe('user');
+  });
+
+  it("falls back to 'user' on empty string", () => {
+    expect(deriveLocalEmailPart('')).toBe('user');
   });
 });
 

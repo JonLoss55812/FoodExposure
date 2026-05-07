@@ -33,3 +33,8 @@ export function getStartOfDay(date: Date = new Date()): Date {
   d.setHours(0, 0, 0, 0);
   return d;
 }
+
+export function deriveLocalEmailPart(displayName: string): string {
+  const sanitized = displayName.toLowerCase().replace(/[^a-z0-9.+-]/g, '');
+  return sanitized.length > 0 ? sanitized : 'user';
+}

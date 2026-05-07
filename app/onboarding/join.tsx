@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
 import { useAuthStore } from '@/src/stores/auth-store';
-import { generateId } from '@/src/lib/utils';
+import { generateId, deriveLocalEmailPart } from '@/src/lib/utils';
 import { Button } from '@/src/components';
 
 export default function JoinFamilyScreen() {
@@ -37,7 +37,7 @@ export default function JoinFamilyScreen() {
       }
 
       const userId = generateId();
-      const email = `${trimmedName.toLowerCase().replace(/\s/g, '')}@tonguetutor.app`;
+      const email = `${deriveLocalEmailPart(trimmedName)}@tonguetutor.app`;
       await db.insert(schema.users).values({
         id: userId,
         familyId: family.id,
