@@ -52,7 +52,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isOnboarded: false,
       login: (data) => set({ ...data, isAuthenticated: true }),
-      logout: () => set({ userId: null, familyId: null, email: null, displayName: null, isAuthenticated: false }),
+      logout: () => set({ userId: null, familyId: null, email: null, displayName: null, isAuthenticated: false, isOnboarded: false }),
       setOnboarded: (value) => set({ isOnboarded: value }),
       setFamilyId: (familyId) => set({ familyId }),
     }),

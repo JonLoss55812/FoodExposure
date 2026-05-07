@@ -22,6 +22,22 @@ describe('useChildStore', () => {
   });
 });
 
+describe('clear', () => {
+  it('resets selectedChildId to null after a selection', () => {
+    useChildStore.getState().selectChild('child-1');
+    expect(useChildStore.getState().selectedChildId).toBe('child-1');
+
+    useChildStore.getState().clear();
+
+    expect(useChildStore.getState().selectedChildId).toBeNull();
+  });
+
+  it('is a no-op when nothing was selected', () => {
+    useChildStore.getState().clear();
+    expect(useChildStore.getState().selectedChildId).toBeNull();
+  });
+});
+
 describe('ensureSelection', () => {
   it('picks the first child when selectedChildId is null', () => {
     useChildStore.getState().ensureSelection([{ id: 'a' }, { id: 'b' }]);

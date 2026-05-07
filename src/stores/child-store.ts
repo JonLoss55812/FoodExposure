@@ -33,6 +33,7 @@ interface ChildState {
   selectedChildId: string | null;
   selectChild: (id: string) => void;
   ensureSelection: (children: ReadonlyArray<{ id: string }>) => void;
+  clear: () => void;
 }
 
 export const useChildStore = create<ChildState>()(
@@ -49,6 +50,7 @@ export const useChildStore = create<ChildState>()(
         const isValid = current !== null && children.some((c) => c.id === current);
         if (!isValid) set({ selectedChildId: children[0].id });
       },
+      clear: () => set({ selectedChildId: null }),
     }),
     {
       name: 'child-store',

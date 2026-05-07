@@ -68,6 +68,21 @@ describe('useAuthStore', () => {
       expect(state.email).toBeNull();
       expect(state.displayName).toBeNull();
     });
+
+    it('resets isOnboarded so the onboarding flow re-runs after sign-out', () => {
+      useAuthStore.getState().login({
+        userId: 'user-1',
+        familyId: 'family-1',
+        email: 'test@example.com',
+        displayName: 'Test User',
+      });
+      useAuthStore.getState().setOnboarded(true);
+      expect(useAuthStore.getState().isOnboarded).toBe(true);
+
+      useAuthStore.getState().logout();
+
+      expect(useAuthStore.getState().isOnboarded).toBe(false);
+    });
   });
 
   describe('setOnboarded', () => {

@@ -16,7 +16,7 @@ import { exportChildData } from '@/src/lib/export';
 export default function SettingsScreen() {
   const router = useRouter();
   const { displayName, email, logout } = useAuthStore();
-  const { selectedChildId } = useChildStore();
+  const { selectedChildId, clear: clearChildSelection } = useChildStore();
   const { theme, feedingProfile, setTheme, setFeedingProfile } = useSettingsStore();
   const [exporting, setExporting] = useState(false);
 
@@ -44,7 +44,14 @@ export default function SettingsScreen() {
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: logout },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: () => {
+          clearChildSelection();
+          logout();
+        },
+      },
     ]);
   };
 
