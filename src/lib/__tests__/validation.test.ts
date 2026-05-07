@@ -530,3 +530,67 @@ describe('whitespace handling on required string fields', () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe('childSchema.dateOfBirth format validation', () => {
+  it('accepts undefined dateOfBirth (field is optional)', () => {
+    const result = childSchema.safeParse({ name: 'Emma' });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts empty string dateOfBirth (after trim)', () => {
+    const result = childSchema.safeParse({ name: 'Emma', dateOfBirth: '' });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts whitespace-only dateOfBirth (trims to empty, treated as optional)', () => {
+    const result = childSchema.safeParse({ name: 'Emma', dateOfBirth: '   ' });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts a valid YYYY-MM-DD date', () => {
+    const result = childSchema.safeParse({ name: 'Emma', dateOfBirth: '2020-01-15' });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.dateOfBirth).toBe('2020-01-15');
+  });
+
+  it('strips surrounding whitespace before validating the date', () => {
+    const result = childSchema.safeParse({ name: 'Emma', dateOfBirth: '  2020-01-15  ' });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.dateOfBirth).toBe('2020-01-15');
+  });
+
+  it('rejects US-style MM/DD/YYYY format', () => {
+    const result = childSchema.safeParse({ name: 'Emma', dateOfBirth: '12/05/2020' });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects free-form text', () => {
+    const result = childSchema.safeParse({ name: 'Emma', dateOfBirth: 'yesterday' });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects an invalid month (2020-13-01)', () => {
+    const result = childSchema.safeParse({ name: 'Emma', dateOfBirth: '2020-13-01' });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a date that does not exist due to month rollover (2020-02-30)', () => {
+    const result = childSchema.safeParse({ name: 'Emma', dateOfBirth: '2020-02-30' });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects an invalid day (2020-04-31)', () => {
+    const result = childSchema.safeParse({ name: 'Emma', dateOfBirth: '2020-04-31' });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts a leap-year Feb 29 (2020-02-29)', () => {
+    const result = childSchema.safeParse({ name: 'Emma', dateOfBirth: '2020-02-29' });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a non-leap-year Feb 29 (2021-02-29)', () => {
+    const result = childSchema.safeParse({ name: 'Emma', dateOfBirth: '2021-02-29' });
+    expect(result.success).toBe(false);
+  });
+});

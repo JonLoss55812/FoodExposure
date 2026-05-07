@@ -133,6 +133,7 @@ export default function AddChildOnboardingScreen() {
             />
           )}
         />
+        {errors.dateOfBirth && <Text style={styles.error}>{errors.dateOfBirth.message}</Text>}
       </View>
 
       {/* Notes */}

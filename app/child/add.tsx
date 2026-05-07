@@ -132,6 +132,7 @@ export default function AddChildScreen() {
             />
           )}
         />
+        {errors.dateOfBirth && <Text style={styles.error}>{errors.dateOfBirth.message}</Text>}
       </View>
 
       <View style={styles.section}>

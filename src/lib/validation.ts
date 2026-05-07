@@ -2,7 +2,19 @@ import { z } from 'zod';
 
 export const childSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(50, 'Name must be 50 characters or less'),
-  dateOfBirth: z.string().optional(),
+  dateOfBirth: z
+    .string()
+    .trim()
+    .optional()
+    .refine(
+      (val) => {
+        if (!val) return true;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(val)) return false;
+        const d = new Date(`${val}T00:00:00Z`);
+        return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(val);
+      },
+      { message: 'Date of birth must be a valid YYYY-MM-DD date' }
+    ),
   avatarEmoji: z.string().default('👶'),
   notes: z.string().max(500, 'Notes must be 500 characters or less').optional(),
 });
