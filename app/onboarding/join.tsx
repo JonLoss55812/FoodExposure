@@ -25,6 +25,11 @@ export default function JoinFamilyScreen() {
       return;
     }
 
+    if (trimmedCode.length !== 6) {
+      Alert.alert('Invalid Code', 'Invite code must be 6 characters.');
+      return;
+    }
+
     setLoading(true);
     try {
       const family = await db.select().from(schema.families)

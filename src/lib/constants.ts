@@ -32,7 +32,7 @@ export const RATING_CONFIG = [
 
 export const TARGET_EXPOSURES = 15;
 
-export const APP_VERSION = 'v0.5.80';
+export const APP_VERSION = 'v0.5.81';
 
 export const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 export const SETTINGS = ['home', 'school', 'restaurant', 'therapy'] as const;
