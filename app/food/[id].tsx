@@ -8,8 +8,8 @@ import * as schema from '@/src/db/schema';
 import { StageIndicator, ProgressBar, ExposureCard, EmptyState, Button } from '@/src/components';
 import { useChildStore } from '@/src/stores/child-store';
 import { useAuthStore } from '@/src/stores/auth-store';
-import { CATEGORY_CONFIG, STAGE_CONFIG, TARGET_EXPOSURES } from '@/src/lib/constants';
-import type { FoodCategory, ExposureStage } from '@/src/lib/constants';
+import { STAGE_CONFIG, TARGET_EXPOSURES, getCategoryConfig } from '@/src/lib/constants';
+import type { ExposureStage } from '@/src/lib/constants';
 import { getNextStage, canBumpStage, getHighestStage } from '@/src/lib/stage';
 import { generateId } from '@/src/lib/utils';
 
@@ -150,7 +150,7 @@ export default function FoodDetailScreen() {
     );
   }
 
-  const categoryConfig = CATEGORY_CONFIG[food.category as FoodCategory];
+  const categoryConfig = getCategoryConfig(food.category);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>

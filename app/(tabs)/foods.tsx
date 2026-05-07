@@ -10,7 +10,7 @@ import * as schema from '@/src/db/schema';
 import { FoodCard, EmptyState } from '@/src/components';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { useChildStore } from '@/src/stores/child-store';
-import { FOOD_CATEGORIES, CATEGORY_CONFIG } from '@/src/lib/constants';
+import { FOOD_CATEGORIES, CATEGORY_CONFIG, getCategoryConfig } from '@/src/lib/constants';
 import type { FoodCategory, ExposureStage } from '@/src/lib/constants';
 import { partitionSafeFoods, getEmptyStateKind, buildFoodsWithStats, filterFoods } from '@/src/lib/food-partition';
 
@@ -73,7 +73,7 @@ export default function FoodsScreen() {
     <View style={styles.cardWrapper}>
       <FoodCard
         name={item.name}
-        category={item.category as FoodCategory}
+        category={item.category}
         currentStage={item.highestStage}
         exposureCount={item.exposureCount}
         isSafeFood={!!item.isSafeFood}
@@ -101,7 +101,7 @@ export default function FoodsScreen() {
             accessibilityRole="button"
             accessibilityLabel={`Open ${item.name} details`}
           >
-            <Text style={styles.safeChipIcon}>{CATEGORY_CONFIG[item.category as FoodCategory].icon}</Text>
+            <Text style={styles.safeChipIcon}>{getCategoryConfig(item.category).icon}</Text>
             <Text style={styles.safeChipName} numberOfLines={1}>{item.name}</Text>
           </Pressable>
         ))}

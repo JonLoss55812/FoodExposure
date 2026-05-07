@@ -11,6 +11,7 @@ import {
   TEMPERATURES,
   TEXTURES,
   PREPARATIONS,
+  getCategoryConfig,
 } from '../constants';
 import { exposureSchema, foodSchema } from '../validation';
 
@@ -172,5 +173,24 @@ describe('constants align with validation schema enums', () => {
 
   it('FOOD_CATEGORIES matches foodSchema.category enum', () => {
     expect(getEnumValues(foodSchema, 'category')).toEqual([...FOOD_CATEGORIES].sort());
+  });
+});
+
+describe('getCategoryConfig', () => {
+  it('returns the matching config for every known category', () => {
+    for (const cat of FOOD_CATEGORIES) {
+      expect(getCategoryConfig(cat)).toBe(CATEGORY_CONFIG[cat]);
+    }
+  });
+
+  it('falls back to "other" for unknown category strings', () => {
+    expect(getCategoryConfig('legume')).toBe(CATEGORY_CONFIG.other);
+    expect(getCategoryConfig('PROTEIN')).toBe(CATEGORY_CONFIG.other);
+    expect(getCategoryConfig('')).toBe(CATEGORY_CONFIG.other);
+  });
+
+  it('falls back to "other" for null and undefined', () => {
+    expect(getCategoryConfig(null)).toBe(CATEGORY_CONFIG.other);
+    expect(getCategoryConfig(undefined)).toBe(CATEGORY_CONFIG.other);
   });
 });

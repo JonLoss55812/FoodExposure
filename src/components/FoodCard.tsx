@@ -1,11 +1,11 @@
 import { View, Text, Pressable } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
-import { CATEGORY_CONFIG, STAGE_CONFIG, type ExposureStage, type FoodCategory } from '../lib/constants';
+import { STAGE_CONFIG, getCategoryConfig, type ExposureStage } from '../lib/constants';
 import { ProgressBar } from './ProgressBar';
 
 interface FoodCardProps {
   name: string;
-  category: FoodCategory;
+  category: string;
   currentStage?: ExposureStage;
   exposureCount: number;
   isSafeFood: boolean;
@@ -20,7 +20,7 @@ export function FoodCard({
   isSafeFood,
   onPress,
 }: FoodCardProps) {
-  const categoryConfig = CATEGORY_CONFIG[category];
+  const categoryConfig = getCategoryConfig(category);
   const stageConfig = currentStage ? STAGE_CONFIG[currentStage] : null;
 
   return (

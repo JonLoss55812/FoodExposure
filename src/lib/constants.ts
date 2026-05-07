@@ -22,6 +22,13 @@ export const CATEGORY_CONFIG: Record<FoodCategory, { label: string; icon: string
   other: { label: 'Other', icon: '🍽️', color: '#6B7280' },
 };
 
+export function getCategoryConfig(value: string | null | undefined) {
+  if (value && (FOOD_CATEGORIES as readonly string[]).includes(value)) {
+    return CATEGORY_CONFIG[value as FoodCategory];
+  }
+  return CATEGORY_CONFIG.other;
+}
+
 export const RATING_CONFIG = [
   { value: 1, emoji: '😫', label: 'Refused' },
   { value: 2, emoji: '😕', label: 'Reluctant' },
@@ -32,7 +39,7 @@ export const RATING_CONFIG = [
 
 export const TARGET_EXPOSURES = 15;
 
-export const APP_VERSION = 'v0.5.83';
+export const APP_VERSION = 'v0.5.84';
 
 export const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 export const SETTINGS = ['home', 'school', 'restaurant', 'therapy'] as const;
