@@ -12,6 +12,7 @@ var mockRowsFromDb: Array<{
   rating: number | null;
   preparation: string | null;
   texture: string | null;
+  temperature: string | null;
   mealType: string | null;
   setting: string | null;
   notes: string | null;
@@ -70,6 +71,7 @@ describe('fetchExportRows', () => {
       rating: 4,
       preparation: 'sliced',
       texture: 'crunchy',
+      temperature: 'cold',
       mealType: 'snack',
       setting: 'home',
       notes: null,
@@ -92,6 +94,7 @@ describe('fetchExportRows', () => {
       rating: null,
       preparation: null,
       texture: null,
+      temperature: null,
       mealType: null,
       setting: null,
       notes: null,
@@ -122,6 +125,7 @@ describe('exportChildData', () => {
       rating: 5,
       preparation: 'sliced',
       texture: 'soft',
+      temperature: 'room',
       mealType: 'breakfast',
       setting: 'home',
       notes: 'liked it',
@@ -148,7 +152,7 @@ describe('exportChildData', () => {
 
     expect(shareSpy).toHaveBeenCalledTimes(1);
     const arg = shareSpy.mock.calls[0][0] as { title: string; message: string };
-    expect(arg.message.trim()).toBe('date,food,category,stage,rating,preparation,texture,meal,setting,notes');
+    expect(arg.message.trim()).toBe('date,food,category,stage,rating,preparation,texture,temperature,meal,setting,notes');
 
     shareSpy.mockRestore();
   });

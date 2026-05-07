@@ -11,6 +11,7 @@ export interface ExposureRow {
   rating: number | null;
   preparation: string | null;
   texture: string | null;
+  temperature: string | null;
   mealType: string | null;
   setting: string | null;
   notes: string | null;
@@ -24,6 +25,7 @@ const HEADER = [
   'rating',
   'preparation',
   'texture',
+  'temperature',
   'meal',
   'setting',
   'notes',
@@ -53,6 +55,7 @@ export function formatExposuresCsv(rows: ReadonlyArray<ExposureRow>): string {
       csvEscape(r.rating),
       csvEscape(r.preparation),
       csvEscape(r.texture),
+      csvEscape(r.temperature),
       csvEscape(r.mealType),
       csvEscape(r.setting),
       csvEscape(r.notes),
@@ -84,6 +87,7 @@ export async function fetchExportRows(childId: string): Promise<ExposureRow[]> {
       rating: schema.exposures.rating,
       preparation: schema.exposures.preparation,
       texture: schema.exposures.texture,
+      temperature: schema.exposures.temperature,
       mealType: schema.exposures.mealType,
       setting: schema.exposures.setting,
       notes: schema.exposures.notes,

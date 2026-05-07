@@ -11,6 +11,7 @@ const row = (over: Partial<ExposureRow> = {}): ExposureRow => ({
   rating: 4,
   preparation: 'sliced',
   texture: 'crunchy',
+  temperature: 'cold',
   mealType: 'snack',
   setting: 'home',
   notes: '',
@@ -46,7 +47,7 @@ describe('csvEscape', () => {
 });
 
 describe('formatExposuresCsv', () => {
-  const header = 'date,food,category,stage,rating,preparation,texture,meal,setting,notes';
+  const header = 'date,food,category,stage,rating,preparation,texture,temperature,meal,setting,notes';
 
   it('returns header only when rows are empty', () => {
     expect(formatExposuresCsv([])).toBe(header + '\n');
@@ -57,7 +58,7 @@ describe('formatExposuresCsv', () => {
     const lines = csv.trim().split('\n');
     expect(lines[0]).toBe(header);
     expect(lines[1]).toBe(
-      '2026-04-01T13:30:00.000Z,Apple,fruit,taste,4,sliced,crunchy,snack,home,'
+      '2026-04-01T13:30:00.000Z,Apple,fruit,taste,4,sliced,crunchy,cold,snack,home,'
     );
   });
 
@@ -73,12 +74,20 @@ describe('formatExposuresCsv', () => {
 
   it('leaves optional fields empty without an extra comma', () => {
     const csv = formatExposuresCsv([
-      row({ rating: null, preparation: null, texture: null, mealType: null, setting: null, notes: null }),
+      row({ rating: null, preparation: null, texture: null, temperature: null, mealType: null, setting: null, notes: null }),
     ]);
     const cols = csv.trim().split('\n')[1].split(',');
-    expect(cols).toHaveLength(10);
+    expect(cols).toHaveLength(11);
     expect(cols[4]).toBe(''); // rating
-    expect(cols[9]).toBe(''); // notes
+    expect(cols[7]).toBe(''); // temperature
+    expect(cols[10]).toBe(''); // notes
+  });
+
+  it('serializes temperature alongside texture for sensory dimension parity', () => {
+    const csv = formatExposuresCsv([row({ temperature: 'hot', texture: 'soft' })]);
+    const cols = csv.trim().split('\n')[1].split(',');
+    expect(cols[6]).toBe('soft');
+    expect(cols[7]).toBe('hot');
   });
 
   it('emits one line per row plus header', () => {
