@@ -1,5 +1,15 @@
 import { z } from 'zod';
 
+const optionalTrimmedText = (max: number, label: string) =>
+  z.string()
+    .optional()
+    .transform((val) => {
+      if (typeof val !== 'string') return undefined;
+      const trimmed = val.trim();
+      return trimmed.length === 0 ? undefined : trimmed;
+    })
+    .pipe(z.string().max(max, `${label} must be ${max} characters or less`).optional());
+
 export const childSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(50, 'Name must be 50 characters or less'),
   dateOfBirth: z
@@ -16,7 +26,7 @@ export const childSchema = z.object({
       { message: 'Date of birth must be a valid YYYY-MM-DD date' }
     ),
   avatarEmoji: z.string().default('👶'),
-  notes: z.string().max(500, 'Notes must be 500 characters or less').optional(),
+  notes: optionalTrimmedText(500, 'Notes'),
 });
 
 export type ChildFormData = z.infer<typeof childSchema>;
@@ -24,7 +34,7 @@ export type ChildFormData = z.infer<typeof childSchema>;
 export const foodSchema = z.object({
   name: z.string().trim().min(1, 'Food name is required').max(80, 'Food name must be 80 characters or less'),
   category: z.enum(['protein', 'vegetable', 'fruit', 'grain', 'dairy', 'other']),
-  defaultPreparation: z.string().max(50, 'Preparation must be 50 characters or less').optional(),
+  defaultPreparation: optionalTrimmedText(50, 'Preparation'),
   isSafeFood: z.boolean().default(false),
 });
 
@@ -35,12 +45,12 @@ export const exposureSchema = z.object({
   foodId: z.string().min(1, 'Select a food'),
   stage: z.enum(['tolerate', 'interact', 'smell', 'touch', 'taste', 'eat']),
   rating: z.number().int('Rating must be a whole number').min(1).max(5).optional(),
-  preparation: z.string().max(50, 'Preparation must be 50 characters or less').optional(),
+  preparation: optionalTrimmedText(50, 'Preparation'),
   temperature: z.enum(['hot', 'warm', 'room', 'cold']).optional(),
   texture: z.enum(['smooth', 'crunchy', 'soft', 'chewy', 'mixed']).optional(),
   mealType: z.enum(['breakfast', 'lunch', 'dinner', 'snack']).optional(),
   setting: z.enum(['home', 'school', 'restaurant', 'therapy']).optional(),
-  notes: z.string().max(500, 'Notes must be 500 characters or less').optional(),
+  notes: optionalTrimmedText(500, 'Notes'),
 });
 
 export type ExposureFormData = z.infer<typeof exposureSchema>;

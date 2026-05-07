@@ -612,3 +612,106 @@ describe('childSchema.dateOfBirth format validation', () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe('whitespace handling on optional string fields', () => {
+  describe('childSchema.notes', () => {
+    it('coerces whitespace-only notes to undefined', () => {
+      const result = childSchema.safeParse({ name: 'Emma', notes: '   ' });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.notes).toBeUndefined();
+    });
+
+    it('coerces empty string notes to undefined', () => {
+      const result = childSchema.safeParse({ name: 'Emma', notes: '' });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.notes).toBeUndefined();
+    });
+
+    it('strips surrounding whitespace from non-empty notes', () => {
+      const result = childSchema.safeParse({ name: 'Emma', notes: '  picky eater  ' });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.notes).toBe('picky eater');
+    });
+  });
+
+  describe('foodSchema.defaultPreparation', () => {
+    it('coerces whitespace-only defaultPreparation to undefined', () => {
+      const result = foodSchema.safeParse({
+        name: 'Broccoli',
+        category: 'vegetable',
+        defaultPreparation: '   ',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.defaultPreparation).toBeUndefined();
+    });
+
+    it('strips surrounding whitespace from non-empty defaultPreparation', () => {
+      const result = foodSchema.safeParse({
+        name: 'Broccoli',
+        category: 'vegetable',
+        defaultPreparation: '  steamed  ',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.defaultPreparation).toBe('steamed');
+    });
+  });
+
+  describe('exposureSchema.preparation', () => {
+    it('coerces whitespace-only preparation to undefined', () => {
+      const result = exposureSchema.safeParse({
+        childId: 'c1',
+        foodId: 'f1',
+        stage: 'taste',
+        preparation: '   ',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.preparation).toBeUndefined();
+    });
+
+    it('strips surrounding whitespace from non-empty preparation', () => {
+      const result = exposureSchema.safeParse({
+        childId: 'c1',
+        foodId: 'f1',
+        stage: 'taste',
+        preparation: '  roasted  ',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.preparation).toBe('roasted');
+    });
+  });
+
+  describe('exposureSchema.notes', () => {
+    it('coerces whitespace-only notes to undefined', () => {
+      const result = exposureSchema.safeParse({
+        childId: 'c1',
+        foodId: 'f1',
+        stage: 'taste',
+        notes: '   ',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.notes).toBeUndefined();
+    });
+
+    it('coerces empty string notes to undefined', () => {
+      const result = exposureSchema.safeParse({
+        childId: 'c1',
+        foodId: 'f1',
+        stage: 'taste',
+        notes: '',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.notes).toBeUndefined();
+    });
+
+    it('strips surrounding whitespace from non-empty notes', () => {
+      const result = exposureSchema.safeParse({
+        childId: 'c1',
+        foodId: 'f1',
+        stage: 'taste',
+        notes: '  spit it out  ',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.notes).toBe('spit it out');
+    });
+  });
+});
