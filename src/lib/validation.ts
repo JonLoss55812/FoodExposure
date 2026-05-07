@@ -34,7 +34,7 @@ export const exposureSchema = z.object({
   childId: z.string().min(1, 'Select a child'),
   foodId: z.string().min(1, 'Select a food'),
   stage: z.enum(['tolerate', 'interact', 'smell', 'touch', 'taste', 'eat']),
-  rating: z.number().min(1).max(5).optional(),
+  rating: z.number().int('Rating must be a whole number').min(1).max(5).optional(),
   preparation: z.string().max(50, 'Preparation must be 50 characters or less').optional(),
   temperature: z.enum(['hot', 'warm', 'room', 'cold']).optional(),
   texture: z.enum(['smooth', 'crunchy', 'soft', 'chewy', 'mixed']).optional(),

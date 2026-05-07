@@ -203,6 +203,24 @@ describe('exposureSchema', () => {
     ).toBe(true);
   });
 
+  it('rejects non-integer rating values', () => {
+    // RatingPicker only emits integers, but the schema is the contract for any
+    // future surface (CSV import, sync layer). A 3.7 is meaningless on a 1–5
+    // ordinal scale and would round-trip ambiguously through downstream readers.
+    expect(
+      exposureSchema.safeParse({ childId: 'c1', foodId: 'f1', stage: 'eat', rating: 3.7 }).success
+    ).toBe(false);
+    expect(
+      exposureSchema.safeParse({ childId: 'c1', foodId: 'f1', stage: 'eat', rating: 1.5 }).success
+    ).toBe(false);
+    // Boundary integers still accepted.
+    for (const v of [1, 2, 3, 4, 5]) {
+      expect(
+        exposureSchema.safeParse({ childId: 'c1', foodId: 'f1', stage: 'eat', rating: v }).success
+      ).toBe(true);
+    }
+  });
+
   it('accepts all optional fields', () => {
     const result = exposureSchema.safeParse({
       childId: 'c1',
