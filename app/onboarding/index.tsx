@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { View, Text, Pressable, Alert } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
@@ -10,8 +11,12 @@ import { Button } from '@/src/components';
 export default function OnboardingScreen() {
   const router = useRouter();
   const { login } = useAuthStore();
+  const [saving, setSaving] = useState(false);
 
   const handleGetStarted = async () => {
+    if (saving) return;
+    setSaving(true);
+
     const familyId = generateId();
     const userId = generateId();
     const inviteCode = generateInviteCode();
@@ -43,6 +48,7 @@ export default function OnboardingScreen() {
     } catch (err) {
       console.error('Failed to start onboarding:', err);
       Alert.alert('Error', 'Failed to start. Please try again.');
+      setSaving(false);
     }
   };
 
@@ -87,6 +93,8 @@ export default function OnboardingScreen() {
           onPress={handleGetStarted}
           size="lg"
           fullWidth
+          loading={saving}
+          disabled={saving}
         />
         <Pressable
           style={styles.joinLink}
