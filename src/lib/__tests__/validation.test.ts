@@ -549,6 +549,57 @@ describe('whitespace handling on required string fields', () => {
   });
 });
 
+describe('whitespace handling on email fields', () => {
+  it('loginSchema strips surrounding whitespace from email before format check', () => {
+    const result = loginSchema.safeParse({
+      email: '  test@example.com  ',
+      password: 'password123',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.email).toBe('test@example.com');
+  });
+
+  it('loginSchema rejects whitespace-only email (fails format check after trim)', () => {
+    const result = loginSchema.safeParse({
+      email: '   ',
+      password: 'password123',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('registerSchema inherits the email trim from loginSchema', () => {
+    const result = registerSchema.safeParse({
+      email: '  user@example.com  ',
+      password: 'password123',
+      displayName: 'Test',
+      familyName: 'Test Family',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.email).toBe('user@example.com');
+  });
+
+  it('joinFamilySchema strips surrounding whitespace from email before format check', () => {
+    const result = joinFamilySchema.safeParse({
+      inviteCode: 'ABC234',
+      displayName: 'Partner',
+      email: '  partner@example.com  ',
+      password: 'password123',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.email).toBe('partner@example.com');
+  });
+
+  it('joinFamilySchema rejects whitespace-only email (fails format check after trim)', () => {
+    const result = joinFamilySchema.safeParse({
+      inviteCode: 'ABC234',
+      displayName: 'Partner',
+      email: '   ',
+      password: 'password123',
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
 describe('childSchema.dateOfBirth format validation', () => {
   it('accepts undefined dateOfBirth (field is optional)', () => {
     const result = childSchema.safeParse({ name: 'Emma' });
