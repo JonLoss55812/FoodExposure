@@ -24,6 +24,16 @@ export const childSchema = z.object({
         return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(val);
       },
       { message: 'Date of birth must be a valid YYYY-MM-DD date' }
+    )
+    .refine(
+      (val) => {
+        if (!val) return true;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(val)) return true;
+        const d = new Date(`${val}T00:00:00Z`);
+        if (Number.isNaN(d.getTime())) return true;
+        return d.getTime() <= Date.now();
+      },
+      { message: 'Date of birth cannot be in the future' }
     ),
   avatarEmoji: z.string().default('👶'),
   notes: optionalTrimmedText(500, 'Notes'),

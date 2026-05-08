@@ -613,6 +613,46 @@ describe('childSchema.dateOfBirth format validation', () => {
   });
 });
 
+describe('childSchema.dateOfBirth future-date guard', () => {
+  const yyyymmdd = (d: Date): string => {
+    const yyyy = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(d.getUTCDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  it('accepts today as dateOfBirth', () => {
+    const today = yyyymmdd(new Date());
+    const result = childSchema.safeParse({ name: 'Emma', dateOfBirth: today });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects tomorrow as dateOfBirth with the future-date message', () => {
+    const tomorrow = yyyymmdd(new Date(Date.now() + 24 * 60 * 60 * 1000));
+    const result = childSchema.safeParse({ name: 'Emma', dateOfBirth: tomorrow });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe('Date of birth cannot be in the future');
+    }
+  });
+
+  it('rejects a far-future date (2099-05-07)', () => {
+    const result = childSchema.safeParse({ name: 'Emma', dateOfBirth: '2099-05-07' });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe('Date of birth cannot be in the future');
+    }
+  });
+
+  it('still surfaces the format error for malformed strings, not the future-date message', () => {
+    const result = childSchema.safeParse({ name: 'Emma', dateOfBirth: 'tomorrow' });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe('Date of birth must be a valid YYYY-MM-DD date');
+    }
+  });
+});
+
 describe('whitespace handling on optional string fields', () => {
   describe('childSchema.notes', () => {
     it('coerces whitespace-only notes to undefined', () => {
