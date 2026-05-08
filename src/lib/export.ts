@@ -7,6 +7,7 @@ export interface ExposureRow {
   occurredAt: Date;
   foodName: string;
   category: string;
+  isSafeFood: boolean;
   stage: string;
   rating: number | null;
   preparation: string | null;
@@ -21,6 +22,7 @@ const HEADER = [
   'date',
   'food',
   'category',
+  'safe_food',
   'stage',
   'rating',
   'preparation',
@@ -61,6 +63,7 @@ export function formatExposuresCsv(rows: ReadonlyArray<ExposureRow>): string {
       toIsoDate(r.occurredAt),
       csvEscape(r.foodName),
       csvEscape(r.category),
+      csvEscape(r.isSafeFood),
       csvEscape(r.stage),
       csvEscape(r.rating),
       csvEscape(r.preparation),
@@ -93,6 +96,7 @@ export async function fetchExportRows(childId: string): Promise<ExposureRow[]> {
       occurredAt: schema.exposures.occurredAt,
       foodName: schema.foods.name,
       category: schema.foods.category,
+      isSafeFood: schema.foods.isSafeFood,
       stage: schema.exposures.stage,
       rating: schema.exposures.rating,
       preparation: schema.exposures.preparation,

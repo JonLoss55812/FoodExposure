@@ -8,6 +8,7 @@ var mockRowsFromDb: Array<{
   occurredAt: Date | number;
   foodName: string;
   category: string;
+  isSafeFood: boolean;
   stage: string;
   rating: number | null;
   preparation: string | null;
@@ -67,6 +68,7 @@ describe('fetchExportRows', () => {
       occurredAt,
       foodName: 'Apple',
       category: 'fruit',
+      isSafeFood: false,
       stage: 'taste',
       rating: 4,
       preparation: 'sliced',
@@ -90,6 +92,7 @@ describe('fetchExportRows', () => {
       occurredAt: ts,
       foodName: 'Pear',
       category: 'fruit',
+      isSafeFood: true,
       stage: 'smell',
       rating: null,
       preparation: null,
@@ -121,6 +124,7 @@ describe('exportChildData', () => {
       occurredAt: new Date('2026-04-10T09:30:00.000Z'),
       foodName: 'Banana',
       category: 'fruit',
+      isSafeFood: true,
       stage: 'taste',
       rating: 5,
       preparation: 'sliced',
@@ -138,7 +142,7 @@ describe('exportChildData', () => {
     expect(shareSpy).toHaveBeenCalledTimes(1);
     const arg = shareSpy.mock.calls[0][0] as { title: string; message: string };
     expect(arg.title).toMatch(/^tonguetutor-ada-lovelace-\d{8}\.csv$/);
-    expect(arg.message).toContain('date,food,category,stage');
+    expect(arg.message).toContain('date,food,category,safe_food,stage');
     expect(arg.message).toContain('Banana');
     expect(arg.message).toContain('liked it');
 
@@ -152,7 +156,7 @@ describe('exportChildData', () => {
 
     expect(shareSpy).toHaveBeenCalledTimes(1);
     const arg = shareSpy.mock.calls[0][0] as { title: string; message: string };
-    expect(arg.message.trim()).toBe('date,food,category,stage,rating,preparation,texture,temperature,meal,setting,notes');
+    expect(arg.message.trim()).toBe('date,food,category,safe_food,stage,rating,preparation,texture,temperature,meal,setting,notes');
 
     shareSpy.mockRestore();
   });
