@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { createMMKV } from 'react-native-mmkv';
-import type { FeedingProfile } from '@/src/lib/thresholds';
+import { FEEDING_PROFILES, type FeedingProfile } from '@/src/lib/thresholds';
 
 const storage = createMMKV({ id: 'settings-storage' });
 
@@ -30,7 +30,8 @@ const mmkvStorage = {
   },
 };
 
-type ThemeMode = 'light' | 'dark' | 'system';
+const THEME_MODES = ['light', 'dark', 'system'] as const;
+type ThemeMode = typeof THEME_MODES[number];
 
 interface SettingsState {
   theme: ThemeMode;
@@ -38,6 +39,12 @@ interface SettingsState {
   setTheme: (theme: ThemeMode) => void;
   setFeedingProfile: (value: FeedingProfile) => void;
 }
+
+const isValidTheme = (value: unknown): value is ThemeMode =>
+  typeof value === 'string' && (THEME_MODES as readonly string[]).includes(value);
+
+const isValidFeedingProfile = (value: unknown): value is FeedingProfile =>
+  typeof value === 'string' && (FEEDING_PROFILES as readonly string[]).includes(value);
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
@@ -50,6 +57,16 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: 'settings-store',
       storage: createJSONStorage(() => mmkvStorage),
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<SettingsState>;
+        return {
+          ...current,
+          theme: isValidTheme(p.theme) ? p.theme : current.theme,
+          feedingProfile: isValidFeedingProfile(p.feedingProfile)
+            ? p.feedingProfile
+            : current.feedingProfile,
+        };
+      },
     }
   )
 );
