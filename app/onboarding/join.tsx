@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
 import { useAuthStore } from '@/src/stores/auth-store';
-import { generateId, deriveLocalEmailPart } from '@/src/lib/utils';
+import { generateId, deriveLocalEmailPart, isValidInviteCode } from '@/src/lib/utils';
 import { Button } from '@/src/components';
 
 export default function JoinFamilyScreen() {
@@ -25,8 +25,11 @@ export default function JoinFamilyScreen() {
       return;
     }
 
-    if (trimmedCode.length !== 6) {
-      Alert.alert('Invalid Code', 'Invite code must be 6 characters.');
+    if (!isValidInviteCode(trimmedCode)) {
+      Alert.alert(
+        'Invalid Code',
+        'Invite code must be 6 characters and use only A–Z (excluding I, O) and 2–9.'
+      );
       return;
     }
 

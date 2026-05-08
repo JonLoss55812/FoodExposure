@@ -4,13 +4,23 @@ export function generateId(): string {
   return uuidv4();
 }
 
+export const INVITE_CODE_CHARSET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+export const INVITE_CODE_LENGTH = 6;
+
 export function generateInviteCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
-  for (let i = 0; i < 6; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  for (let i = 0; i < INVITE_CODE_LENGTH; i++) {
+    code += INVITE_CODE_CHARSET.charAt(Math.floor(Math.random() * INVITE_CODE_CHARSET.length));
   }
   return code;
+}
+
+export function isValidInviteCode(code: string): boolean {
+  if (code.length !== INVITE_CODE_LENGTH) return false;
+  for (const ch of code) {
+    if (!INVITE_CODE_CHARSET.includes(ch)) return false;
+  }
+  return true;
 }
 
 export function formatDate(date: Date): string {

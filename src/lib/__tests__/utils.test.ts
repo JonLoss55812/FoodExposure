@@ -1,6 +1,7 @@
 import {
   generateId,
   generateInviteCode,
+  isValidInviteCode,
   formatDate,
   formatRelativeDate,
   getStartOfDay,
@@ -39,6 +40,51 @@ describe('generateInviteCode', () => {
   it('generates different codes', () => {
     const codes = new Set(Array.from({ length: 50 }, () => generateInviteCode()));
     expect(codes.size).toBeGreaterThan(1);
+  });
+});
+
+describe('isValidInviteCode', () => {
+  it('accepts a generated invite code', () => {
+    for (let i = 0; i < 50; i++) {
+      expect(isValidInviteCode(generateInviteCode())).toBe(true);
+    }
+  });
+
+  it('accepts a hand-crafted 6-char code using only allowed chars', () => {
+    expect(isValidInviteCode('ABC234')).toBe(true);
+    expect(isValidInviteCode('ZYXWVU')).toBe(true);
+    expect(isValidInviteCode('234567')).toBe(true);
+  });
+
+  it('rejects strings shorter than 6 chars', () => {
+    expect(isValidInviteCode('')).toBe(false);
+    expect(isValidInviteCode('A')).toBe(false);
+    expect(isValidInviteCode('ABC23')).toBe(false);
+  });
+
+  it('rejects strings longer than 6 chars', () => {
+    expect(isValidInviteCode('ABC2345')).toBe(false);
+    expect(isValidInviteCode('ABCDEFGH')).toBe(false);
+  });
+
+  it('rejects codes containing the visually-ambiguous letters O and I', () => {
+    expect(isValidInviteCode('ABCO23')).toBe(false);
+    expect(isValidInviteCode('ABCI23')).toBe(false);
+  });
+
+  it('rejects codes containing the visually-ambiguous digits 0 and 1', () => {
+    expect(isValidInviteCode('ABC023')).toBe(false);
+    expect(isValidInviteCode('ABC123')).toBe(false);
+  });
+
+  it('rejects lowercase letters (caller is responsible for uppercasing first)', () => {
+    expect(isValidInviteCode('abc234')).toBe(false);
+  });
+
+  it('rejects punctuation and whitespace', () => {
+    expect(isValidInviteCode('ABC-23')).toBe(false);
+    expect(isValidInviteCode('ABC 23')).toBe(false);
+    expect(isValidInviteCode('ABC.23')).toBe(false);
   });
 });
 
