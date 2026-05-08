@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, TextInput, Alert } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
 import { useAuthStore } from '@/src/stores/auth-store';
@@ -44,8 +44,20 @@ export default function JoinFamilyScreen() {
         return;
       }
 
-      const userId = generateId();
       const email = `${deriveLocalEmailPart(trimmedName)}@tonguetutor.app`;
+      const existingUser = await db.select().from(schema.users)
+        .where(and(eq(schema.users.familyId, family.id), eq(schema.users.email, email)))
+        .then(rows => rows[0]);
+
+      if (existingUser) {
+        Alert.alert(
+          'Name Already Taken',
+          'A family member is already using this name. Please choose a different display name.'
+        );
+        return;
+      }
+
+      const userId = generateId();
       await db.insert(schema.users).values({
         id: userId,
         familyId: family.id,
