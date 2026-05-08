@@ -44,6 +44,51 @@ describe('csvEscape', () => {
     expect(csvEscape(5)).toBe('5');
     expect(csvEscape(0)).toBe('0');
   });
+
+  // CSV injection defense (OWASP CWE-1236): a therapist opening the export
+  // in Excel/Sheets must not have notes starting with =/+/-/@/tab/CR
+  // evaluated as formulas. The guard prefixes such strings with a single
+  // quote inside the quoted field.
+  describe('formula injection guard', () => {
+    it('prefixes leading = with a single quote inside quotes', () => {
+      expect(csvEscape('=SUM(A1:A10)')).toBe(`"'=SUM(A1:A10)"`);
+    });
+
+    it('prefixes leading + with a single quote', () => {
+      expect(csvEscape('+1234567890')).toBe(`"'+1234567890"`);
+    });
+
+    it('prefixes leading - with a single quote', () => {
+      expect(csvEscape('-cmd|/c calc')).toBe(`"'-cmd|/c calc"`);
+    });
+
+    it('prefixes leading @ with a single quote', () => {
+      expect(csvEscape('@SUM(1,2)')).toBe(`"'@SUM(1,2)"`);
+    });
+
+    it('prefixes leading tab with a single quote', () => {
+      expect(csvEscape('\t=evil')).toBe(`"'\t=evil"`);
+    });
+
+    it('prefixes leading CR with a single quote', () => {
+      expect(csvEscape('\r=evil')).toBe(`"'\r=evil"`);
+    });
+
+    it('does not prefix when trigger char appears later in the value', () => {
+      expect(csvEscape('total = 5')).toBe('total = 5');
+    });
+
+    it('escapes embedded quotes after applying formula prefix', () => {
+      expect(csvEscape('=said "no"')).toBe(`"'=said ""no"""`);
+    });
+
+    it('does not prefix numbers that stringify with leading minus', () => {
+      // numeric values are coerced via String(); formula-trigger logic
+      // only fires on string inputs (rating/numeric columns are bounded
+      // by schema, so this is a future-proofing guarantee, not a real case).
+      expect(csvEscape(-5)).toBe('-5');
+    });
+  });
 });
 
 describe('formatExposuresCsv', () => {

@@ -31,11 +31,21 @@ const HEADER = [
   'notes',
 ].join(',');
 
+// CSV injection guard: Excel/Sheets/Numbers treat cells starting with
+// `=`, `+`, `-`, `@`, tab, or carriage return as formulas. A note like
+// `=cmd|'/c calc'!A0` could execute when a therapist opens the export.
+// Per OWASP CSV Injection: prefix such cells with a single quote so the
+// receiving spreadsheet renders the literal text without evaluating.
+const FORMULA_TRIGGERS = /^[=+\-@\t\r]/;
+
 export function csvEscape(value: unknown): string {
   if (value === null || value === undefined) return '';
   const str = typeof value === 'string' ? value : String(value);
-  if (/[",\n\r]/.test(str)) {
-    return `"${str.replace(/"/g, '""')}"`;
+  const needsQuotes = /[",\n\r]/.test(str);
+  const needsFormulaGuard = typeof value === 'string' && FORMULA_TRIGGERS.test(str);
+  if (needsQuotes || needsFormulaGuard) {
+    const guarded = needsFormulaGuard ? `'${str}` : str;
+    return `"${guarded.replace(/"/g, '""')}"`;
   }
   return str;
 }
