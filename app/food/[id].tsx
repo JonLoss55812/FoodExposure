@@ -8,9 +8,11 @@ import * as schema from '@/src/db/schema';
 import { StageIndicator, ProgressBar, ExposureCard, EmptyState, Button } from '@/src/components';
 import { useChildStore } from '@/src/stores/child-store';
 import { useAuthStore } from '@/src/stores/auth-store';
-import { STAGE_CONFIG, TARGET_EXPOSURES, getCategoryConfig } from '@/src/lib/constants';
+import { useSettingsStore } from '@/src/stores/settings-store';
+import { STAGE_CONFIG, getCategoryConfig } from '@/src/lib/constants';
 import type { ExposureStage } from '@/src/lib/constants';
 import { getNextStage, canBumpStage, getHighestStage } from '@/src/lib/stage';
+import { getThresholdForProfile } from '@/src/lib/thresholds';
 import { generateId } from '@/src/lib/utils';
 
 type ExposureRow = Pick<
@@ -23,6 +25,7 @@ export default function FoodDetailScreen() {
   const router = useRouter();
   const { selectedChildId } = useChildStore();
   const { userId } = useAuthStore();
+  const { feedingProfile } = useSettingsStore();
   const [food, setFood] = useState<typeof schema.foods.$inferSelect | null>(null);
   const [exposuresList, setExposuresList] = useState<ExposureRow[]>([]);
   const [highestStage, setHighestStage] = useState<ExposureStage | null>(null);
@@ -189,7 +192,7 @@ export default function FoodDetailScreen() {
           <StageIndicator currentStage={highestStage ?? undefined} size="md" />
           <ProgressBar
             current={exposuresList.length}
-            target={TARGET_EXPOSURES}
+            target={getThresholdForProfile(feedingProfile)}
             color={highestStage ? STAGE_CONFIG[highestStage].color : '#F97316'}
             accessibilityLabel={`${food.name} exposures progress`}
           />

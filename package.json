@@ -14,6 +14,7 @@
   "dependencies": {
     "@expo/metro-runtime": "~55.0.6",
     "@hookform/resolvers": "^5.2.2",
+    "@jest/globals": "^30.4.1",
     "@sentry/react-native": "~7.11.0",
     "@shopify/flash-list": "2.0.2",
     "@tanstack/react-query": "^5.95.2",
@@ -31,6 +32,7 @@
     "expo-status-bar": "~55.0.4",
     "expo-system-ui": "~55.0.10",
     "expo-web-browser": "~55.0.10",
+    "jest-environment-jsdom": "^30.4.1",
     "posthog-react-native": "^4.37.6",
     "react": "19.2.0",
     "react-dom": "19.2.0",
