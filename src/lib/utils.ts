@@ -45,6 +45,10 @@ export function getStartOfDay(date: Date = new Date()): Date {
 }
 
 export function deriveLocalEmailPart(displayName: string): string {
-  const sanitized = displayName.toLowerCase().replace(/[^a-z0-9.+-]/g, '');
+  const sanitized = displayName
+    .toLowerCase()
+    .replace(/[^a-z0-9.+-]/g, '')
+    .replace(/\.{2,}/g, '.')
+    .replace(/^\.+|\.+$/g, '');
   return sanitized.length > 0 ? sanitized : 'user';
 }

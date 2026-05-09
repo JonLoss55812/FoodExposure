@@ -212,5 +212,29 @@ describe('deriveLocalEmailPart', () => {
   it("falls back to 'user' on empty string", () => {
     expect(deriveLocalEmailPart('')).toBe('user');
   });
+
+  it('collapses consecutive periods to a single period', () => {
+    expect(deriveLocalEmailPart('Mr.. Anne')).toBe('mr.anne');
+    expect(deriveLocalEmailPart('jane...doe')).toBe('jane.doe');
+  });
+
+  it('strips leading periods', () => {
+    expect(deriveLocalEmailPart('.Anne')).toBe('anne');
+    expect(deriveLocalEmailPart('...jane')).toBe('jane');
+  });
+
+  it('strips trailing periods', () => {
+    expect(deriveLocalEmailPart('Anne.')).toBe('anne');
+    expect(deriveLocalEmailPart('jane...')).toBe('jane');
+  });
+
+  it("falls back to 'user' on dot-only input", () => {
+    expect(deriveLocalEmailPart('...')).toBe('user');
+    expect(deriveLocalEmailPart('.')).toBe('user');
+  });
+
+  it('preserves periods in the middle of a name', () => {
+    expect(deriveLocalEmailPart('jane.doe')).toBe('jane.doe');
+  });
 });
 
