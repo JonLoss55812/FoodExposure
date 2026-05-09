@@ -80,6 +80,41 @@ describe('calcExposureProgress', () => {
     expect(result.reached).toBe(false);
   });
 
+  it('coerces NaN to 0 defensively', () => {
+    const result = calcExposureProgress(NaN, 'typical');
+    expect(result.current).toBe(0);
+    expect(result.pct).toBe(0);
+    expect(result.reached).toBe(false);
+  });
+
+  it('coerces Infinity to 0 defensively', () => {
+    const result = calcExposureProgress(Infinity, 'typical');
+    expect(result.current).toBe(0);
+    expect(result.pct).toBe(0);
+    expect(result.reached).toBe(false);
+  });
+
+  it('coerces -Infinity to 0 defensively', () => {
+    const result = calcExposureProgress(-Infinity, 'typical');
+    expect(result.current).toBe(0);
+    expect(result.pct).toBe(0);
+    expect(result.reached).toBe(false);
+  });
+
+  it('floors fractional exposure counts to whole numbers', () => {
+    const result = calcExposureProgress(7.9, 'typical');
+    expect(result.current).toBe(7);
+    expect(result.pct).toBeCloseTo(7 / 15, 5);
+    expect(result.reached).toBe(false);
+  });
+
+  it('floors fractional counts at exactly threshold boundary', () => {
+    const result = calcExposureProgress(15.5, 'typical');
+    expect(result.current).toBe(15);
+    expect(result.pct).toBe(1);
+    expect(result.reached).toBe(true);
+  });
+
   it('accepts FeedingProfile type safely', () => {
     const profile: FeedingProfile = 'typical';
     expect(getThresholdForProfile(profile)).toBe(15);

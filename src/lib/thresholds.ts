@@ -31,7 +31,8 @@ export function calcExposureProgress(
   exposureCount: number,
   profile: FeedingProfile
 ): ExposureProgress {
-  const current = Math.max(0, exposureCount);
+  const safeCount = Number.isFinite(exposureCount) ? Math.floor(exposureCount) : 0;
+  const current = Math.max(0, safeCount);
   const threshold = getThresholdForProfile(profile);
   const rawPct = current / threshold;
   const pct = Math.min(1, rawPct);
