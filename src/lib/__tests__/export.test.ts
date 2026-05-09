@@ -159,6 +159,43 @@ describe('formatExposuresCsv', () => {
     const csv = formatExposuresCsv([row({ occurredAt: ts as unknown as Date })]);
     expect(csv).toContain('2026-03-15T08:00:00.000Z');
   });
+
+  // Defensive: a single corrupted occurredAt cell must not throw and abort
+  // the entire export. A therapist needs the rest of the data more than
+  // they need the one bad timestamp.
+  it('emits an empty date column when occurredAt is an invalid Date', () => {
+    const bad = new Date('not-a-real-date');
+    const csv = formatExposuresCsv([row({ occurredAt: bad })]);
+    const cols = csv.trim().split('\n')[1].split(',');
+    expect(cols[0]).toBe('');
+    expect(cols[1]).toBe('Apple');
+  });
+
+  it('emits an empty date column when occurredAt is NaN', () => {
+    const csv = formatExposuresCsv([row({ occurredAt: NaN as unknown as Date })]);
+    const cols = csv.trim().split('\n')[1].split(',');
+    expect(cols[0]).toBe('');
+  });
+
+  it('emits an empty date column when occurredAt is an unparseable string', () => {
+    const csv = formatExposuresCsv([
+      row({ occurredAt: 'totally bogus' as unknown as Date }),
+    ]);
+    const cols = csv.trim().split('\n')[1].split(',');
+    expect(cols[0]).toBe('');
+  });
+
+  it('continues exporting subsequent rows when one row has a bad date', () => {
+    const csv = formatExposuresCsv([
+      row({ occurredAt: new Date('invalid'), foodName: 'BadDateApple' }),
+      row({ foodName: 'GoodPear' }),
+    ]);
+    const lines = csv.trim().split('\n');
+    expect(lines).toHaveLength(3);
+    expect(lines[1].startsWith(',BadDateApple,')).toBe(true);
+    expect(lines[2]).toContain('2026-04-01T13:30:00.000Z');
+    expect(lines[2]).toContain('GoodPear');
+  });
 });
 
 describe('buildExportFilename', () => {

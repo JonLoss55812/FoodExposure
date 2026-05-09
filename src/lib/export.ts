@@ -53,8 +53,9 @@ export function csvEscape(value: unknown): string {
 }
 
 function toIsoDate(value: Date | number | string): string {
-  if (value instanceof Date) return value.toISOString();
-  return new Date(value).toISOString();
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toISOString();
 }
 
 export function formatExposuresCsv(rows: ReadonlyArray<ExposureRow>): string {
