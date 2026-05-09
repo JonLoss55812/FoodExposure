@@ -34,6 +34,18 @@ export const childSchema = z.object({
         return d.getTime() <= Date.now();
       },
       { message: 'Date of birth cannot be in the future' }
+    )
+    .refine(
+      (val) => {
+        if (!val) return true;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(val)) return true;
+        const d = new Date(`${val}T00:00:00Z`);
+        if (Number.isNaN(d.getTime())) return true;
+        const earliest = new Date();
+        earliest.setUTCFullYear(earliest.getUTCFullYear() - 130);
+        return d.getTime() >= earliest.getTime();
+      },
+      { message: 'Date of birth is too far in the past' }
     ),
   avatarEmoji: z.string().default('👶'),
   notes: optionalTrimmedText(500, 'Notes'),

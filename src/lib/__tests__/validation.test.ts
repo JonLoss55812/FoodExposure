@@ -704,6 +704,63 @@ describe('childSchema.dateOfBirth future-date guard', () => {
   });
 });
 
+describe('childSchema.dateOfBirth past-date guard', () => {
+  const yyyymmdd = (d: Date): string => {
+    const yyyy = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(d.getUTCDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  it('accepts a date 1 year ago', () => {
+    const oneYearAgo = new Date();
+    oneYearAgo.setUTCFullYear(oneYearAgo.getUTCFullYear() - 1);
+    const result = childSchema.safeParse({ name: 'Emma', dateOfBirth: yyyymmdd(oneYearAgo) });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts a date 100 years ago (within 130-year limit)', () => {
+    const hundredYearsAgo = new Date();
+    hundredYearsAgo.setUTCFullYear(hundredYearsAgo.getUTCFullYear() - 100);
+    const result = childSchema.safeParse({ name: 'Emma', dateOfBirth: yyyymmdd(hundredYearsAgo) });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a date 150 years ago with the past-date message', () => {
+    const tooOld = new Date();
+    tooOld.setUTCFullYear(tooOld.getUTCFullYear() - 150);
+    const result = childSchema.safeParse({ name: 'Emma', dateOfBirth: yyyymmdd(tooOld) });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe('Date of birth is too far in the past');
+    }
+  });
+
+  it('rejects a far-past year typo (1925-05-07, off-by-100 fat-finger)', () => {
+    const result = childSchema.safeParse({ name: 'Emma', dateOfBirth: '1825-05-07' });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe('Date of birth is too far in the past');
+    }
+  });
+
+  it('rejects year 0001-01-01', () => {
+    const result = childSchema.safeParse({ name: 'Emma', dateOfBirth: '0001-01-01' });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe('Date of birth is too far in the past');
+    }
+  });
+
+  it('still surfaces the format error for malformed strings, not the past-date message', () => {
+    const result = childSchema.safeParse({ name: 'Emma', dateOfBirth: '99-99-99' });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe('Date of birth must be a valid YYYY-MM-DD date');
+    }
+  });
+});
+
 describe('whitespace handling on optional string fields', () => {
   describe('childSchema.notes', () => {
     it('coerces whitespace-only notes to undefined', () => {
