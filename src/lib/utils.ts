@@ -28,6 +28,7 @@ export function formatDate(date: Date): string {
 }
 
 export function formatRelativeDate(date: Date): string {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
   const startOfToday = getStartOfDay(new Date()).getTime();
   const startOfDate = getStartOfDay(date).getTime();
   const days = Math.round((startOfToday - startOfDate) / (1000 * 60 * 60 * 24));

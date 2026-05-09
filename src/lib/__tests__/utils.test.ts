@@ -151,6 +151,23 @@ describe('formatRelativeDate', () => {
     expect(formatRelativeDate(slightlyFuture)).toBe('Today');
     jest.useRealTimers();
   });
+
+  it('returns empty string for an invalid Date (defensive guard)', () => {
+    // A row whose occurredAt was constructed from a corrupt timestamp
+    // (e.g. `new Date(undefined)` or `new Date('not a date')`) would
+    // previously fall through to formatDate and surface "Invalid Date"
+    // verbatim in the dashboard / food detail / ExposureCard meta row.
+    expect(formatRelativeDate(new Date('not a date'))).toBe('');
+    expect(formatRelativeDate(new Date(NaN))).toBe('');
+  });
+
+  it('returns empty string when called with a non-Date value', () => {
+    // Defensive check matches v0.5.96's CSV-export Date guard — the
+    // shape of occurredAt at the boundary between SQLite's INTEGER
+    // column and the React render tree isn't always a Date instance.
+    expect(formatRelativeDate(undefined as unknown as Date)).toBe('');
+    expect(formatRelativeDate(null as unknown as Date)).toBe('');
+  });
 });
 
 describe('getStartOfDay', () => {
