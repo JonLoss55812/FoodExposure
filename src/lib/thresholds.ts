@@ -16,8 +16,14 @@ export const FEEDING_PROFILE_CONFIG: Record<
   arfid: { label: 'ARFID', description: '20–30+ exposures to acceptance' },
 };
 
+const DEFAULT_PROFILE: FeedingProfile = 'typical';
+
+function isValidProfile(value: unknown): value is FeedingProfile {
+  return typeof value === 'string' && (FEEDING_PROFILES as readonly string[]).includes(value);
+}
+
 export function getThresholdForProfile(profile: FeedingProfile): number {
-  return EXPOSURE_THRESHOLDS[profile];
+  return EXPOSURE_THRESHOLDS[isValidProfile(profile) ? profile : DEFAULT_PROFILE];
 }
 
 export interface ExposureProgress {

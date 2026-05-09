@@ -25,6 +25,23 @@ describe('getThresholdForProfile', () => {
     expect(getThresholdForProfile('picky')).toBe(20);
     expect(getThresholdForProfile('arfid')).toBe(30);
   });
+
+  it('falls back to typical (15) for invalid profile string', () => {
+    expect(getThresholdForProfile('restrictive' as FeedingProfile)).toBe(15);
+  });
+
+  it('falls back to typical (15) for undefined profile', () => {
+    expect(getThresholdForProfile(undefined as unknown as FeedingProfile)).toBe(15);
+  });
+
+  it('falls back to typical (15) for null profile', () => {
+    expect(getThresholdForProfile(null as unknown as FeedingProfile)).toBe(15);
+  });
+
+  it('falls back to typical (15) for non-string profile', () => {
+    expect(getThresholdForProfile(15 as unknown as FeedingProfile)).toBe(15);
+    expect(getThresholdForProfile({} as unknown as FeedingProfile)).toBe(15);
+  });
 });
 
 describe('calcExposureProgress', () => {
@@ -118,6 +135,15 @@ describe('calcExposureProgress', () => {
   it('accepts FeedingProfile type safely', () => {
     const profile: FeedingProfile = 'typical';
     expect(getThresholdForProfile(profile)).toBe(15);
+  });
+
+  it('falls back to typical threshold (15) when profile is invalid, returning sane progress', () => {
+    const result = calcExposureProgress(7, 'restrictive' as FeedingProfile);
+    expect(result.threshold).toBe(15);
+    expect(result.current).toBe(7);
+    expect(result.pct).toBeCloseTo(7 / 15, 5);
+    expect(Number.isNaN(result.pct)).toBe(false);
+    expect(result.reached).toBe(false);
   });
 });
 
