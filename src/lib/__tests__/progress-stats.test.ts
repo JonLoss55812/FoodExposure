@@ -150,6 +150,27 @@ describe('calcProgressStats', () => {
     expect(stats.stageCounts).toEqual({ eat: 1 });
   });
 
+  it('buckets unknown food categories under "other" instead of leaking phantom keys', () => {
+    // Same defensive-shield class as v0.5.84 (getCategoryConfig fallback): the
+    // foods.category SQLite column has no enum constraint at the DB layer, so
+    // a row with category 'legume' (CSV import, dev-DB hand-edit, future
+    // Convex sync drift) would previously land as categoryCounts.legume = 1
+    // — invisible at render time because the Progress tab iterates over
+    // FOOD_CATEGORIES, silently dropping the food from the category grid.
+    // The 'other' bucket is the canonical "I don't know" slot already in the
+    // enum, so unknown categories collapse there and stay visible.
+    const foods = [
+      food({ id: 'a', name: 'Apple', category: 'fruit' }),
+      food({ id: 'b', name: 'Lentils', category: 'legume' }),
+      food({ id: 'c', name: 'Quinoa', category: 'pseudograin' }),
+      food({ id: 'd', name: 'Other thing', category: 'other' }),
+    ];
+    const stats = calcProgressStats(foods, [], 'typical', NOW);
+    expect(stats.categoryCounts).toEqual({ fruit: 1, other: 3 });
+    expect(stats.categoryCounts.legume).toBeUndefined();
+    expect(stats.categoryCounts.pseudograin).toBeUndefined();
+  });
+
   it('respects the picky profile threshold (20)', () => {
     const foods = [food({ id: 'a', name: 'Apple', category: 'fruit' })];
     const exposures: StatsExposure[] = [];

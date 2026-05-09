@@ -1,4 +1,4 @@
-import { type ExposureStage } from './constants';
+import { type ExposureStage, FOOD_CATEGORIES } from './constants';
 import { calcExposureProgress, getThresholdForProfile, type FeedingProfile } from './thresholds';
 import { getHighestStage } from './stage';
 
@@ -81,7 +81,10 @@ export function calcProgressStats(
 
   const categoryCounts: Record<string, number> = {};
   for (const food of foods) {
-    categoryCounts[food.category] = (categoryCounts[food.category] || 0) + 1;
+    const bucket = (FOOD_CATEGORIES as readonly string[]).includes(food.category)
+      ? food.category
+      : 'other';
+    categoryCounts[bucket] = (categoryCounts[bucket] || 0) + 1;
   }
 
   const weekAgo = now - WEEK_MS;
