@@ -24,6 +24,7 @@ export function isValidInviteCode(code: string): boolean {
 }
 
 export function formatDate(date: Date): string {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 

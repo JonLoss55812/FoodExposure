@@ -96,6 +96,20 @@ describe('formatDate', () => {
     expect(result).toContain('26');
     expect(result).toContain('2026');
   });
+
+  it('returns empty string for an invalid Date (defensive guard)', () => {
+    // A row whose occurredAt was constructed from a corrupt timestamp
+    // would previously surface "Invalid Date" verbatim through any direct
+    // formatDate caller (the formatRelativeDate guard at v0.5.98 already
+    // prevents that path; this closes the gap for direct callers).
+    expect(formatDate(new Date('not a date'))).toBe('');
+    expect(formatDate(new Date(NaN))).toBe('');
+  });
+
+  it('returns empty string when called with a non-Date value', () => {
+    expect(formatDate(undefined as unknown as Date)).toBe('');
+    expect(formatDate(null as unknown as Date)).toBe('');
+  });
 });
 
 describe('formatRelativeDate', () => {
