@@ -42,6 +42,11 @@ interface AuthState {
   setFamilyId: (familyId: string) => void;
 }
 
+const isValidStringOrNull = (value: unknown): value is string | null =>
+  value === null || typeof value === 'string';
+
+const isValidBoolean = (value: unknown): value is boolean => typeof value === 'boolean';
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -59,6 +64,31 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'auth-store',
       storage: createJSONStorage(() => mmkvStorage),
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<AuthState>;
+        const userId = isValidStringOrNull(p.userId) ? p.userId : current.userId;
+        const familyId = isValidStringOrNull(p.familyId) ? p.familyId : current.familyId;
+        const email = isValidStringOrNull(p.email) ? p.email : current.email;
+        const displayName = isValidStringOrNull(p.displayName) ? p.displayName : current.displayName;
+        const persistedAuth = isValidBoolean(p.isAuthenticated) ? p.isAuthenticated : current.isAuthenticated;
+        const isOnboarded = isValidBoolean(p.isOnboarded) ? p.isOnboarded : current.isOnboarded;
+        // Cross-field consistency: isAuthenticated is only true when the full
+        // auth tuple is non-null. A corrupt blob with isAuthenticated=true but
+        // any of (userId, familyId, email, displayName) null would otherwise
+        // pass downstream gates that assume the tuple is complete.
+        const tupleComplete =
+          userId !== null && familyId !== null && email !== null && displayName !== null;
+        const isAuthenticated = persistedAuth && tupleComplete;
+        return {
+          ...current,
+          userId,
+          familyId,
+          email,
+          displayName,
+          isAuthenticated,
+          isOnboarded,
+        };
+      },
     }
   )
 );
