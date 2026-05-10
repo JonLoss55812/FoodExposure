@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isValidInviteCode } from './utils';
 
 const optionalTrimmedText = (max: number, label: string) =>
   z.string()
@@ -92,7 +93,12 @@ export const registerSchema = loginSchema.extend({
 export type RegisterFormData = z.infer<typeof registerSchema>;
 
 export const joinFamilySchema = z.object({
-  inviteCode: z.string().trim().length(6, 'Invite code must be 6 characters'),
+  inviteCode: z
+    .string()
+    .trim()
+    .refine(isValidInviteCode, {
+      message: 'Invite code must be 6 characters and use only A–Z (excluding I, O) and 2–9.',
+    }),
   displayName: z.string().trim().min(1, 'Name is required').max(50, 'Name must be 50 characters or less'),
   email: z.string().trim().email('Invalid email').max(254, 'Email must be 254 characters or less'),
   password: z.string().min(8, 'Password must be at least 8 characters').max(128, 'Password must be 128 characters or less'),

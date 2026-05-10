@@ -425,7 +425,7 @@ describe('registerSchema', () => {
 describe('joinFamilySchema', () => {
   it('accepts valid join data', () => {
     const result = joinFamilySchema.safeParse({
-      inviteCode: 'ABC123',
+      inviteCode: 'ABC234',
       displayName: 'Partner',
       email: 'partner@example.com',
       password: 'password123',
@@ -456,7 +456,7 @@ describe('joinFamilySchema', () => {
   it('rejects invalid email', () => {
     expect(
       joinFamilySchema.safeParse({
-        inviteCode: 'ABC123',
+        inviteCode: 'ABC234',
         displayName: 'Partner',
         email: 'not-an-email',
         password: 'password123',
@@ -467,10 +467,70 @@ describe('joinFamilySchema', () => {
   it('rejects short password', () => {
     expect(
       joinFamilySchema.safeParse({
-        inviteCode: 'ABC123',
+        inviteCode: 'ABC234',
         displayName: 'Partner',
         email: 'p@e.com',
         password: 'short',
+      }).success
+    ).toBe(false);
+  });
+
+  it('rejects invite codes containing visually-ambiguous letters O or I', () => {
+    expect(
+      joinFamilySchema.safeParse({
+        inviteCode: 'ABCO23',
+        displayName: 'Partner',
+        email: 'p@e.com',
+        password: 'password123',
+      }).success
+    ).toBe(false);
+
+    expect(
+      joinFamilySchema.safeParse({
+        inviteCode: 'ABCI23',
+        displayName: 'Partner',
+        email: 'p@e.com',
+        password: 'password123',
+      }).success
+    ).toBe(false);
+  });
+
+  it('rejects invite codes containing visually-ambiguous digits 0 or 1', () => {
+    expect(
+      joinFamilySchema.safeParse({
+        inviteCode: 'ABC023',
+        displayName: 'Partner',
+        email: 'p@e.com',
+        password: 'password123',
+      }).success
+    ).toBe(false);
+
+    expect(
+      joinFamilySchema.safeParse({
+        inviteCode: 'ABC123',
+        displayName: 'Partner',
+        email: 'p@e.com',
+        password: 'password123',
+      }).success
+    ).toBe(false);
+  });
+
+  it('rejects invite codes with lowercase letters or punctuation', () => {
+    expect(
+      joinFamilySchema.safeParse({
+        inviteCode: 'abc234',
+        displayName: 'Partner',
+        email: 'p@e.com',
+        password: 'password123',
+      }).success
+    ).toBe(false);
+
+    expect(
+      joinFamilySchema.safeParse({
+        inviteCode: 'ABC-23',
+        displayName: 'Partner',
+        email: 'p@e.com',
+        password: 'password123',
       }).success
     ).toBe(false);
   });
@@ -519,7 +579,7 @@ describe('whitespace handling on required string fields', () => {
 
   it('joinFamilySchema rejects whitespace-only displayName', () => {
     const result = joinFamilySchema.safeParse({
-      inviteCode: 'ABC123',
+      inviteCode: 'ABC234',
       displayName: '   ',
       email: 'p@e.com',
       password: 'password123',
@@ -529,13 +589,13 @@ describe('whitespace handling on required string fields', () => {
 
   it('joinFamilySchema strips surrounding whitespace from inviteCode before length check', () => {
     const result = joinFamilySchema.safeParse({
-      inviteCode: '  ABC123  ',
+      inviteCode: '  ABC234  ',
       displayName: 'Partner',
       email: 'p@e.com',
       password: 'password123',
     });
     expect(result.success).toBe(true);
-    if (result.success) expect(result.data.inviteCode).toBe('ABC123');
+    if (result.success) expect(result.data.inviteCode).toBe('ABC234');
   });
 
   it('joinFamilySchema rejects pure-whitespace inviteCode', () => {
