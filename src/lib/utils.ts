@@ -46,11 +46,19 @@ export function getStartOfDay(date: Date = new Date()): Date {
   return d;
 }
 
+// RFC 5321 § 4.5.3.1.1 caps the email local-part at 64 octets. The cap is
+// applied AFTER sanitization so a future caller passing a longer string
+// (or a relaxation of the upstream displayName max) still produces an
+// RFC-valid local-part rather than a chopped-off invalid char near the
+// boundary.
+const RFC_5321_LOCAL_PART_MAX = 64;
+
 export function deriveLocalEmailPart(displayName: string): string {
   const sanitized = displayName
     .toLowerCase()
     .replace(/[^a-z0-9.+-]/g, '')
     .replace(/\.{2,}/g, '.')
-    .replace(/^\.+|\.+$/g, '');
+    .replace(/^\.+|\.+$/g, '')
+    .slice(0, RFC_5321_LOCAL_PART_MAX);
   return sanitized.length > 0 ? sanitized : 'user';
 }

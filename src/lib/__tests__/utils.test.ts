@@ -267,5 +267,29 @@ describe('deriveLocalEmailPart', () => {
   it('preserves periods in the middle of a name', () => {
     expect(deriveLocalEmailPart('jane.doe')).toBe('jane.doe');
   });
+
+  // RFC 5321 § 4.5.3.1.1 caps the email local-part at 64 octets. The
+  // upstream displayName schema currently caps at 50 chars so the cap is
+  // not load-bearing today — but the helper is exported, and any future
+  // caller (a longer schema, a CSV import, a sync layer) that bypasses
+  // the schema cap would otherwise produce an RFC-invalid local-part.
+  it('caps sanitized output at 64 characters per RFC 5321', () => {
+    const result = deriveLocalEmailPart('a'.repeat(100));
+    expect(result.length).toBe(64);
+    expect(result).toBe('a'.repeat(64));
+  });
+
+  // Regression lock: the cap must apply AFTER sanitization. A 65-char
+  // input where char 65 is a stripped character (e.g. emoji, '!', '(')
+  // should produce a 64-char output, not a chopped-off invalid-char
+  // boundary case. A future contributor moving the .slice() before the
+  // sanitize chain would silently break this.
+  it('applies the cap after sanitization, not before', () => {
+    // 64 valid chars + 1 stripped char ('!') at the end. Pre-sanitize
+    // length is 65; post-sanitize is 64; .slice(0, 64) is a no-op.
+    const result = deriveLocalEmailPart('a'.repeat(64) + '!');
+    expect(result.length).toBe(64);
+    expect(result).toBe('a'.repeat(64));
+  });
 });
 
