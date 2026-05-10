@@ -96,7 +96,26 @@ describe('formatExposuresCsv', () => {
   const header = 'date,food,category,safe_food,stage,rating,preparation,texture,temperature,meal,setting,notes';
 
   it('returns header only when rows are empty', () => {
-    expect(formatExposuresCsv([])).toBe(header + '\n');
+    expect(formatExposuresCsv([])).toBe('\uFEFF' + header + '\n');
+  });
+
+  // Excel on Windows defaults to ANSI/Windows-1252 unless a UTF-8 BOM
+  // (\uFEFF) hints otherwise. A parent who logged "Crème brûlée" or
+  // "café" would see mangled chars when their feeding therapist opens
+  // the export in Excel. Prepending the BOM is the canonical one-byte
+  // fix per https://stackoverflow.com/q/6002256.
+  it('starts with a UTF-8 BOM so Excel auto-detects UTF-8', () => {
+    const csv = formatExposuresCsv([]);
+    expect(csv.charCodeAt(0)).toBe(0xfeff);
+    expect(csv.startsWith('\uFEFF')).toBe(true);
+  });
+
+  it('preserves non-ASCII food names verbatim after the BOM', () => {
+    const csv = formatExposuresCsv([row({ foodName: 'Crème brûlée' })]);
+    // BOM precedes the header; the header precedes the body line.
+    expect(csv.startsWith('\uFEFF' + header)).toBe(true);
+    // Round-trip the food name through to make sure encoding is intact.
+    expect(csv).toContain('Crème brûlée');
   });
 
   it('serializes a simple row with ISO date', () => {

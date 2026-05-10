@@ -75,7 +75,10 @@ export function formatExposuresCsv(rows: ReadonlyArray<ExposureRow>): string {
       csvEscape(r.notes),
     ].join(',')
   );
-  return [HEADER, ...body].join('\n') + '\n';
+  // Prepend UTF-8 BOM (\uFEFF) so Excel on Windows opens with the correct
+  // codepage. Without it, Excel defaults to ANSI/Windows-1252 and mangles
+  // non-ASCII food names like "café" / "Crème brûlée" / "Schäl".
+  return '\uFEFF' + [HEADER, ...body].join('\n') + '\n';
 }
 
 export function buildExportFilename(childName: string, at: Date = new Date()): string {
