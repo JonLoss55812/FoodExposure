@@ -26,6 +26,10 @@ export function getThresholdForProfile(profile: FeedingProfile): number {
   return EXPOSURE_THRESHOLDS[isValidProfile(profile) ? profile : DEFAULT_PROFILE];
 }
 
+export function getFeedingProfileConfig(profile: unknown) {
+  return FEEDING_PROFILE_CONFIG[isValidProfile(profile) ? profile : DEFAULT_PROFILE];
+}
+
 export interface ExposureProgress {
   current: number;
   threshold: number;

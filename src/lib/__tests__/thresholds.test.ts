@@ -2,6 +2,7 @@ import {
   EXPOSURE_THRESHOLDS,
   FEEDING_PROFILES,
   FEEDING_PROFILE_CONFIG,
+  getFeedingProfileConfig,
   getThresholdForProfile,
   calcExposureProgress,
   type FeedingProfile,
@@ -144,6 +145,40 @@ describe('calcExposureProgress', () => {
     expect(result.pct).toBeCloseTo(7 / 15, 5);
     expect(Number.isNaN(result.pct)).toBe(false);
     expect(result.reached).toBe(false);
+  });
+});
+
+describe('getFeedingProfileConfig', () => {
+  it('returns the matching config for each valid profile', () => {
+    expect(getFeedingProfileConfig('typical')).toBe(FEEDING_PROFILE_CONFIG.typical);
+    expect(getFeedingProfileConfig('picky')).toBe(FEEDING_PROFILE_CONFIG.picky);
+    expect(getFeedingProfileConfig('arfid')).toBe(FEEDING_PROFILE_CONFIG.arfid);
+  });
+
+  it('falls back to typical config for an unknown profile string', () => {
+    expect(getFeedingProfileConfig('restrictive')).toBe(FEEDING_PROFILE_CONFIG.typical);
+  });
+
+  it('falls back to typical config for undefined', () => {
+    expect(getFeedingProfileConfig(undefined)).toBe(FEEDING_PROFILE_CONFIG.typical);
+  });
+
+  it('falls back to typical config for null', () => {
+    expect(getFeedingProfileConfig(null)).toBe(FEEDING_PROFILE_CONFIG.typical);
+  });
+
+  it('falls back to typical config for non-string values', () => {
+    expect(getFeedingProfileConfig(15)).toBe(FEEDING_PROFILE_CONFIG.typical);
+    expect(getFeedingProfileConfig({})).toBe(FEEDING_PROFILE_CONFIG.typical);
+    expect(getFeedingProfileConfig([])).toBe(FEEDING_PROFILE_CONFIG.typical);
+  });
+
+  it('returns a label and description string for the fallback', () => {
+    const config = getFeedingProfileConfig('definitely-not-a-profile');
+    expect(typeof config.label).toBe('string');
+    expect(config.label.length).toBeGreaterThan(0);
+    expect(typeof config.description).toBe('string');
+    expect(config.description.length).toBeGreaterThan(0);
   });
 });
 

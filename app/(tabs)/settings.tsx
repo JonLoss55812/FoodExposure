@@ -9,7 +9,7 @@ import * as schema from '@/src/db/schema';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { useChildStore } from '@/src/stores/child-store';
 import { useSettingsStore } from '@/src/stores/settings-store';
-import { FEEDING_PROFILES, FEEDING_PROFILE_CONFIG } from '@/src/lib/thresholds';
+import { FEEDING_PROFILES, FEEDING_PROFILE_CONFIG, getFeedingProfileConfig } from '@/src/lib/thresholds';
 import { APP_VERSION } from '@/src/lib/constants';
 import { exportChildData } from '@/src/lib/export';
 
@@ -152,7 +152,7 @@ export default function SettingsScreen() {
           <View style={styles.divider} />
           <View style={styles.profileDescription}>
             <Text style={styles.profileDescriptionText}>
-              {FEEDING_PROFILE_CONFIG[feedingProfile].description}
+              {getFeedingProfileConfig(feedingProfile).description}
             </Text>
           </View>
         </View>
