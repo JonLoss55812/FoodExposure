@@ -36,6 +36,9 @@ interface ChildState {
   clear: () => void;
 }
 
+const isValidSelectedChildId = (value: unknown): value is string | null =>
+  value === null || typeof value === 'string';
+
 export const useChildStore = create<ChildState>()(
   persist(
     (set, get) => ({
@@ -55,6 +58,15 @@ export const useChildStore = create<ChildState>()(
     {
       name: 'child-store',
       storage: createJSONStorage(() => mmkvStorage),
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<ChildState>;
+        return {
+          ...current,
+          selectedChildId: isValidSelectedChildId(p.selectedChildId)
+            ? p.selectedChildId
+            : current.selectedChildId,
+        };
+      },
     }
   )
 );
