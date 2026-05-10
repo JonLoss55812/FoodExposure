@@ -85,9 +85,10 @@ export function buildExportFilename(childName: string, at: Date = new Date()): s
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
   const safeSlug = slug.length > 0 ? slug : 'child';
-  const yyyy = at.getUTCFullYear();
-  const mm = String(at.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(at.getUTCDate()).padStart(2, '0');
+  const safeAt = at instanceof Date && !Number.isNaN(at.getTime()) ? at : new Date();
+  const yyyy = safeAt.getUTCFullYear();
+  const mm = String(safeAt.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(safeAt.getUTCDate()).padStart(2, '0');
   return `tonguetutor-${safeSlug}-${yyyy}${mm}${dd}.csv`;
 }
 

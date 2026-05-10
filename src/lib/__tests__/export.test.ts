@@ -213,4 +213,38 @@ describe('buildExportFilename', () => {
     const name = buildExportFilename('   ', iso('2026-07-04T00:00:00.000Z'));
     expect(name).toBe('tonguetutor-child-20260704.csv');
   });
+
+  // Defensive: a corrupt Date instance (`new Date('invalid')`) would
+  // otherwise produce `tonguetutor-emma-NaNNaNNaN.csv` — semantically
+  // broken filename that's unsearchable in Files app and won't sort
+  // chronologically alongside other valid exports. Same drift class as
+  // v0.5.96 (CSV occurredAt guard), v0.5.98 (formatRelativeDate guard),
+  // v0.5.102 (formatDate guard).
+  it('falls back to current date when given an invalid Date', () => {
+    const before = Date.now();
+    const name = buildExportFilename('Emma', new Date('not-a-real-date'));
+    const after = Date.now();
+    // Should NOT contain the literal "NaN" anywhere.
+    expect(name).not.toContain('NaN');
+    // Should match the YYYYMMDD pattern (uses current date as fallback).
+    expect(name).toMatch(/^tonguetutor-emma-\d{8}\.csv$/);
+    // Sanity-check the digits represent a real date in the [before, after] window.
+    const match = name.match(/(\d{4})(\d{2})(\d{2})/);
+    expect(match).not.toBeNull();
+    const [, yyyy, mm, dd] = match!;
+    const parsed = new Date(`${yyyy}-${mm}-${dd}T00:00:00Z`);
+    expect(Number.isNaN(parsed.getTime())).toBe(false);
+    // Window check: the fallback was taken within the test span.
+    const beforeUtc = new Date(before);
+    const afterUtc = new Date(after);
+    const beforeYmd = `${beforeUtc.getUTCFullYear()}${String(beforeUtc.getUTCMonth() + 1).padStart(2, '0')}${String(beforeUtc.getUTCDate()).padStart(2, '0')}`;
+    const afterYmd = `${afterUtc.getUTCFullYear()}${String(afterUtc.getUTCMonth() + 1).padStart(2, '0')}${String(afterUtc.getUTCDate()).padStart(2, '0')}`;
+    const filenameYmd = `${yyyy}${mm}${dd}`;
+    expect(filenameYmd >= beforeYmd && filenameYmd <= afterYmd).toBe(true);
+  });
+
+  it('passes through a valid Date unchanged (regression lock for the happy path)', () => {
+    const name = buildExportFilename('Emma', iso('2026-05-10T00:00:00.000Z'));
+    expect(name).toBe('tonguetutor-emma-20260510.csv');
+  });
 });
