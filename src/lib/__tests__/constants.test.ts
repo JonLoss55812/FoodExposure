@@ -12,6 +12,7 @@ import {
   TEXTURES,
   PREPARATIONS,
   getCategoryConfig,
+  getStageConfig,
 } from '../constants';
 import { exposureSchema, foodSchema } from '../validation';
 
@@ -192,5 +193,32 @@ describe('getCategoryConfig', () => {
   it('falls back to "other" for null and undefined', () => {
     expect(getCategoryConfig(null)).toBe(CATEGORY_CONFIG.other);
     expect(getCategoryConfig(undefined)).toBe(CATEGORY_CONFIG.other);
+  });
+});
+
+describe('getStageConfig', () => {
+  it('returns the matching config for every known stage', () => {
+    for (const stage of STAGE_ORDER) {
+      expect(getStageConfig(stage)).toBe(STAGE_CONFIG[stage]);
+    }
+  });
+
+  it('falls back to "tolerate" for unknown stage strings', () => {
+    expect(getStageConfig('mystery')).toBe(STAGE_CONFIG.tolerate);
+    expect(getStageConfig('TOLERATE')).toBe(STAGE_CONFIG.tolerate);
+    expect(getStageConfig('')).toBe(STAGE_CONFIG.tolerate);
+  });
+
+  it('falls back to "tolerate" for null and undefined', () => {
+    expect(getStageConfig(null)).toBe(STAGE_CONFIG.tolerate);
+    expect(getStageConfig(undefined)).toBe(STAGE_CONFIG.tolerate);
+  });
+
+  it('returned config carries non-empty label, icon, color, and description', () => {
+    const config = getStageConfig('not-a-stage');
+    expect(config.label).toBeTruthy();
+    expect(config.icon).toBeTruthy();
+    expect(config.color).toMatch(/^#[0-9A-Fa-f]{6}$/);
+    expect(config.description).toBeTruthy();
   });
 });

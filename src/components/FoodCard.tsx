@@ -1,6 +1,6 @@
 import { View, Text, Pressable } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
-import { STAGE_CONFIG, getCategoryConfig, type ExposureStage } from '../lib/constants';
+import { getCategoryConfig, getStageConfig, type ExposureStage } from '../lib/constants';
 import { ProgressBar } from './ProgressBar';
 
 interface FoodCardProps {
@@ -21,7 +21,7 @@ export function FoodCard({
   onPress,
 }: FoodCardProps) {
   const categoryConfig = getCategoryConfig(category);
-  const stageConfig = currentStage ? STAGE_CONFIG[currentStage] : null;
+  const stageConfig = currentStage ? getStageConfig(currentStage) : null;
 
   return (
     <Pressable

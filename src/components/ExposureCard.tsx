@@ -1,12 +1,12 @@
 import { View, Text, Pressable } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
-import { STAGE_CONFIG, RATING_CONFIG, type ExposureStage } from '../lib/constants';
+import { getStageConfig, RATING_CONFIG } from '../lib/constants';
 import { formatRelativeDate } from '../lib/utils';
 
 interface ExposureCardProps {
   foodName: string;
   childName: string;
-  stage: ExposureStage;
+  stage: string;
   rating?: number;
   notes?: string;
   occurredAt: Date;
@@ -37,7 +37,7 @@ export function ExposureCard({
   setting,
   onPress,
 }: ExposureCardProps) {
-  const stageConfig = STAGE_CONFIG[stage];
+  const stageConfig = getStageConfig(stage);
   const ratingConfig = rating ? RATING_CONFIG.find((r) => r.value === rating) : null;
   const hasMeta = !!(mealType || temperature || texture || setting);
 
