@@ -98,6 +98,35 @@ describe('calcProgressStats', () => {
     expect(stats.avgRating).toBe(0);
   });
 
+  it('ignores non-finite ratings (NaN, Infinity) so a corrupt row does not poison avgRating', () => {
+    // Same defensive-shield class as v0.5.95 (calcExposureProgress NaN guard) and
+    // v0.5.101 (profile fallback): the exposures.rating SQLite column has no
+    // numeric-range constraint at the DB layer (zod's .int().min(1).max(5)
+    // gates form input but a future Convex sync drift / hand-edited dev DB /
+    // CSV import could persist NaN or Infinity). Previously `if (rating != null)`
+    // accepted both, then `totalRating += NaN` poisoned the entire average.
+    const foods = [food({ id: 'a', name: 'Apple', category: 'fruit' })];
+    const exposures = [
+      expo({ foodId: 'a', stage: 'eat', occurredAt: NOW, rating: 4 }),
+      expo({ foodId: 'a', stage: 'eat', occurredAt: NOW, rating: NaN }),
+      expo({ foodId: 'a', stage: 'eat', occurredAt: NOW, rating: Infinity }),
+      expo({ foodId: 'a', stage: 'eat', occurredAt: NOW, rating: -Infinity }),
+      expo({ foodId: 'a', stage: 'eat', occurredAt: NOW, rating: 2 }),
+    ];
+    const stats = calcProgressStats(foods, exposures, 'typical', NOW);
+    expect(stats.avgRating).toBe(3); // (4 + 2) / 2, not NaN
+  });
+
+  it('returns avgRating === 0 when every rating is non-finite (no surviving samples)', () => {
+    const foods = [food({ id: 'a', name: 'Apple', category: 'fruit' })];
+    const exposures = [
+      expo({ foodId: 'a', stage: 'eat', occurredAt: NOW, rating: NaN }),
+      expo({ foodId: 'a', stage: 'eat', occurredAt: NOW, rating: Infinity }),
+    ];
+    const stats = calcProgressStats(foods, exposures, 'typical', NOW);
+    expect(stats.avgRating).toBe(0);
+  });
+
   it('builds per-food progress sorted by pct descending then count descending, dropping zero-exposure foods', () => {
     const foods = [
       food({ id: 'a', name: 'Apple', category: 'fruit' }),       // 6 → pct 0.4

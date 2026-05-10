@@ -64,8 +64,8 @@ export function calcProgressStats(
     if (bucket) bucket.push(exp);
     else exposuresByFood.set(foodId, [exp]);
 
-    if (exp.rating != null) {
-      totalRating += exp.rating;
+    if (Number.isFinite(exp.rating)) {
+      totalRating += exp.rating as number;
       ratingCount++;
     }
   }
