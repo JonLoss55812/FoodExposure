@@ -320,5 +320,21 @@ describe('deriveLocalEmailPart', () => {
     expect(result.length).toBe(64);
     expect(result).toBe('a'.repeat(64));
   });
+
+  it('falls back to "user" when displayName is null', () => {
+    expect(deriveLocalEmailPart(null as unknown as string)).toBe('user');
+  });
+
+  it('falls back to "user" when displayName is undefined', () => {
+    expect(deriveLocalEmailPart(undefined as unknown as string)).toBe('user');
+  });
+
+  it('falls back to "user" when displayName is a number', () => {
+    expect(deriveLocalEmailPart(42 as unknown as string)).toBe('user');
+  });
+
+  it('falls back to "user" when displayName is an object', () => {
+    expect(deriveLocalEmailPart({} as unknown as string)).toBe('user');
+  });
 });
 

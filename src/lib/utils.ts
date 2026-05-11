@@ -55,7 +55,8 @@ export function getStartOfDay(date: Date = new Date()): Date {
 const RFC_5321_LOCAL_PART_MAX = 64;
 
 export function deriveLocalEmailPart(displayName: string): string {
-  const sanitized = displayName
+  const safeName = typeof displayName === 'string' ? displayName : '';
+  const sanitized = safeName
     .toLowerCase()
     .replace(/[^a-z0-9.+-]/g, '')
     .replace(/\.{2,}/g, '.')
