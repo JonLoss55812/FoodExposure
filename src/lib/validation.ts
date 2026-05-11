@@ -48,7 +48,12 @@ export const childSchema = z.object({
       },
       { message: 'Date of birth is too far in the past' }
     ),
-  avatarEmoji: z.string().default('👶'),
+  avatarEmoji: z
+    .string()
+    .trim()
+    .min(1, 'Avatar is required')
+    .max(8, 'Avatar emoji must be 8 characters or less')
+    .default('👶'),
   notes: optionalTrimmedText(500, 'Notes'),
 });
 

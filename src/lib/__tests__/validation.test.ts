@@ -61,6 +61,41 @@ describe('childSchema', () => {
       expect(result.data.avatarEmoji).toBe('👶');
     }
   });
+
+  describe('avatarEmoji length and trim handling', () => {
+    it('accepts a single 2-unit emoji', () => {
+      const result = childSchema.safeParse({ name: 'Emma', avatarEmoji: '👧' });
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts a 5-unit ZWJ sequence (cook chef)', () => {
+      const result = childSchema.safeParse({ name: 'Emma', avatarEmoji: '🧑‍🍳' });
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts an 8-character avatar (boundary)', () => {
+      const result = childSchema.safeParse({ name: 'Emma', avatarEmoji: 'a'.repeat(8) });
+      expect(result.success).toBe(true);
+    });
+
+    it('rejects a 9-character avatar (boundary +1)', () => {
+      const result = childSchema.safeParse({ name: 'Emma', avatarEmoji: 'a'.repeat(9) });
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects whitespace-only avatarEmoji', () => {
+      const result = childSchema.safeParse({ name: 'Emma', avatarEmoji: '   ' });
+      expect(result.success).toBe(false);
+    });
+
+    it('strips surrounding whitespace from avatarEmoji', () => {
+      const result = childSchema.safeParse({ name: 'Emma', avatarEmoji: '  👧  ' });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.avatarEmoji).toBe('👧');
+      }
+    });
+  });
 });
 
 describe('foodSchema', () => {
