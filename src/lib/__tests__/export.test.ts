@@ -301,4 +301,33 @@ describe('buildExportFilename', () => {
     const name = buildExportFilename('a'.repeat(50), iso('2026-05-10T00:00:00.000Z'));
     expect(name).toBe(`tonguetutor-${'a'.repeat(50)}-20260510.csv`);
   });
+
+  // Defensive: childSchema enforces `name: trim().min(1).max(50)` at insert
+  // (`src/lib/validation.ts:15`), but SQLite has no DB-level type constraint
+  // on the `children.name` column. A corrupted row (future Convex sync drift,
+  // hand-edited dev DB, CSV import that bypasses the schema) carrying a
+  // non-string value would otherwise crash the export at `childName.toLowerCase()`
+  // with a TypeError — taking down the entire Settings → Export Data flow.
+  // Same defense-in-depth class as v0.5.111 (deriveLocalEmailPart cap) and
+  // v0.5.113 (slug length cap): every present and future caller of
+  // buildExportFilename is provably safe regardless of input type.
+  it('falls back to "child" when childName is null', () => {
+    const name = buildExportFilename(null as unknown as string, iso('2026-05-10T00:00:00.000Z'));
+    expect(name).toBe('tonguetutor-child-20260510.csv');
+  });
+
+  it('falls back to "child" when childName is undefined', () => {
+    const name = buildExportFilename(undefined as unknown as string, iso('2026-05-10T00:00:00.000Z'));
+    expect(name).toBe('tonguetutor-child-20260510.csv');
+  });
+
+  it('falls back to "child" when childName is a number', () => {
+    const name = buildExportFilename(42 as unknown as string, iso('2026-05-10T00:00:00.000Z'));
+    expect(name).toBe('tonguetutor-child-20260510.csv');
+  });
+
+  it('falls back to "child" when childName is an object', () => {
+    const name = buildExportFilename({} as unknown as string, iso('2026-05-10T00:00:00.000Z'));
+    expect(name).toBe('tonguetutor-child-20260510.csv');
+  });
 });

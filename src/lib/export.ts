@@ -90,7 +90,8 @@ export function formatExposuresCsv(rows: ReadonlyArray<ExposureRow>): string {
 const EXPORT_FILENAME_SLUG_MAX = 50;
 
 export function buildExportFilename(childName: string, at: Date = new Date()): string {
-  const slug = childName
+  const safeName = typeof childName === 'string' ? childName : '';
+  const slug = safeName
     .toLowerCase()
     .replace(/['']/g, '')
     .replace(/[^a-z0-9]+/g, '-')
