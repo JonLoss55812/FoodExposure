@@ -79,7 +79,7 @@ export const exposureSchema = z.object({
 export type ExposureFormData = z.infer<typeof exposureSchema>;
 
 export const loginSchema = z.object({
-  email: z.string().trim().email('Invalid email').max(254, 'Email must be 254 characters or less'),
+  email: z.string().trim().toLowerCase().email('Invalid email').max(254, 'Email must be 254 characters or less'),
   password: z.string().min(8, 'Password must be at least 8 characters').max(128, 'Password must be 128 characters or less'),
 });
 
@@ -100,7 +100,7 @@ export const joinFamilySchema = z.object({
       message: 'Invite code must be 6 characters and use only A–Z (excluding I, O) and 2–9.',
     }),
   displayName: z.string().trim().min(1, 'Name is required').max(50, 'Name must be 50 characters or less'),
-  email: z.string().trim().email('Invalid email').max(254, 'Email must be 254 characters or less'),
+  email: z.string().trim().toLowerCase().email('Invalid email').max(254, 'Email must be 254 characters or less'),
   password: z.string().min(8, 'Password must be at least 8 characters').max(128, 'Password must be 128 characters or less'),
 });
 

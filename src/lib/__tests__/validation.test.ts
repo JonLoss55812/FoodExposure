@@ -660,6 +660,62 @@ describe('whitespace handling on email fields', () => {
   });
 });
 
+// Email local-part case-sensitivity is RFC-permissible but no real-world
+// provider treats `John@Example.com` and `john@example.com` as different
+// inboxes. Normalizing to lowercase prevents duplicate-account-by-case
+// bugs at the future Convex sync boundary. Same shape as the v0.5.75
+// `.trim()` work — normalize at the schema, single source of truth.
+describe('email lowercasing on auth schemas', () => {
+  it('loginSchema lowercases mixed-case email', () => {
+    const result = loginSchema.safeParse({
+      email: 'John@Example.COM',
+      password: 'password123',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.email).toBe('john@example.com');
+  });
+
+  it('loginSchema combines trim + lowercase', () => {
+    const result = loginSchema.safeParse({
+      email: '  John@Example.COM  ',
+      password: 'password123',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.email).toBe('john@example.com');
+  });
+
+  it('registerSchema inherits lowercasing from loginSchema', () => {
+    const result = registerSchema.safeParse({
+      email: 'USER@EXAMPLE.COM',
+      password: 'password123',
+      displayName: 'Test',
+      familyName: 'Test Family',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.email).toBe('user@example.com');
+  });
+
+  it('joinFamilySchema lowercases mixed-case email', () => {
+    const result = joinFamilySchema.safeParse({
+      inviteCode: 'ABC234',
+      displayName: 'Partner',
+      email: 'Partner@Example.com',
+      password: 'password123',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.email).toBe('partner@example.com');
+  });
+
+  it('loginSchema preserves already-lowercase email unchanged', () => {
+    const result = loginSchema.safeParse({
+      email: 'already@lower.com',
+      password: 'password123',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.email).toBe('already@lower.com');
+  });
+});
+
 describe('childSchema.dateOfBirth format validation', () => {
   it('accepts undefined dateOfBirth (field is optional)', () => {
     const result = childSchema.safeParse({ name: 'Emma' });
