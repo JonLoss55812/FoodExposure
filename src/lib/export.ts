@@ -53,6 +53,14 @@ export function csvEscape(value: unknown): string {
 }
 
 function toIsoDate(value: Date | number | string): string {
+  // `new Date(null)` coerces null to 0 and returns the Unix epoch
+  // (1970-01-01T00:00:00.000Z), which has a valid .getTime() of 0 — so
+  // the NaN guard below would let a corrupt exposures.occurredAt row
+  // with a null value emit a date "before computers existed" into the
+  // therapist-facing CSV. Early-return on null/undefined before the
+  // Date constructor runs. Matches v0.5.96/v0.5.107/v0.5.114 invalid-
+  // Date guard pattern.
+  if (value === null || value === undefined) return '';
   const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return '';
   return d.toISOString();

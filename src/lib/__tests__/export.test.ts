@@ -204,6 +204,28 @@ describe('formatExposuresCsv', () => {
     expect(cols[0]).toBe('');
   });
 
+  // v0.5.120: `new Date(null)` coerces null to 0 and returns the Unix
+  // epoch (1970-01-01T00:00:00.000Z), whose .getTime() is 0 (NOT NaN) —
+  // so the existing Number.isNaN guard would let it through and emit
+  // the epoch as the date column on a corrupt occurredAt=null row. A
+  // therapist reading the export would see exposures dated 1970, a
+  // clinically nonsensical date. The fix early-returns on null before
+  // the Date constructor runs.
+  it('emits an empty date column when occurredAt is null (regression: epoch coercion)', () => {
+    const csv = formatExposuresCsv([row({ occurredAt: null as unknown as Date })]);
+    const cols = csv.trim().split('\n')[1].split(',');
+    expect(cols[0]).toBe('');
+    // Defensive: must NOT emit the Unix epoch, which is what
+    // `new Date(null).toISOString()` would produce.
+    expect(cols[0]).not.toBe('1970-01-01T00:00:00.000Z');
+  });
+
+  it('emits an empty date column when occurredAt is undefined', () => {
+    const csv = formatExposuresCsv([row({ occurredAt: undefined as unknown as Date })]);
+    const cols = csv.trim().split('\n')[1].split(',');
+    expect(cols[0]).toBe('');
+  });
+
   it('continues exporting subsequent rows when one row has a bad date', () => {
     const csv = formatExposuresCsv([
       row({ occurredAt: new Date('invalid'), foodName: 'BadDateApple' }),
