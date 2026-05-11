@@ -14,9 +14,11 @@ export async function initPostHog() {
 }
 
 export function captureEvent(event: string, properties?: Record<string, any>) {
+  if (typeof event !== 'string' || event.trim().length === 0) return;
   posthog?.capture(event, properties);
 }
 
 export function identifyUser(userId: string, properties?: Record<string, any>) {
+  if (typeof userId !== 'string' || userId.trim().length === 0) return;
   posthog?.identify(userId, properties);
 }

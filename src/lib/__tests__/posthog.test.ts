@@ -110,4 +110,57 @@ describe('lib/posthog', () => {
       expect(mockIdentify).not.toHaveBeenCalled();
     });
   });
+
+  describe('empty/whitespace input guards', () => {
+    it('captureEvent is a no-op when event is empty string', async () => {
+      process.env.EXPO_PUBLIC_POSTHOG_API_KEY = 'phc_test_key';
+      await jest.isolateModulesAsync(async () => {
+        const mod = require('../posthog');
+        await mod.initPostHog();
+        mod.captureEvent('', { stage: 'taste' });
+        expect(mockCapture).not.toHaveBeenCalled();
+      });
+    });
+
+    it('captureEvent is a no-op when event is whitespace-only', async () => {
+      process.env.EXPO_PUBLIC_POSTHOG_API_KEY = 'phc_test_key';
+      await jest.isolateModulesAsync(async () => {
+        const mod = require('../posthog');
+        await mod.initPostHog();
+        mod.captureEvent('   ', { stage: 'taste' });
+        expect(mockCapture).not.toHaveBeenCalled();
+      });
+    });
+
+    it('identifyUser is a no-op when userId is empty string', async () => {
+      process.env.EXPO_PUBLIC_POSTHOG_API_KEY = 'phc_test_key';
+      await jest.isolateModulesAsync(async () => {
+        const mod = require('../posthog');
+        await mod.initPostHog();
+        mod.identifyUser('', { plan: 'free' });
+        expect(mockIdentify).not.toHaveBeenCalled();
+      });
+    });
+
+    it('identifyUser is a no-op when userId is whitespace-only', async () => {
+      process.env.EXPO_PUBLIC_POSTHOG_API_KEY = 'phc_test_key';
+      await jest.isolateModulesAsync(async () => {
+        const mod = require('../posthog');
+        await mod.initPostHog();
+        mod.identifyUser('   ', { plan: 'free' });
+        expect(mockIdentify).not.toHaveBeenCalled();
+      });
+    });
+
+    it('captureEvent still fires when event is a single non-whitespace char', async () => {
+      process.env.EXPO_PUBLIC_POSTHOG_API_KEY = 'phc_test_key';
+      await jest.isolateModulesAsync(async () => {
+        const mod = require('../posthog');
+        await mod.initPostHog();
+        mod.captureEvent('x');
+        expect(mockCapture).toHaveBeenCalledTimes(1);
+        expect(mockCapture).toHaveBeenCalledWith('x', undefined);
+      });
+    });
+  });
 });
