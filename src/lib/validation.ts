@@ -101,6 +101,7 @@ export const joinFamilySchema = z.object({
   inviteCode: z
     .string()
     .trim()
+    .toUpperCase()
     .refine(isValidInviteCode, {
       message: 'Invite code must be 6 characters and use only A–Z (excluding I, O) and 2–9.',
     }),

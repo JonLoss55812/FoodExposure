@@ -550,10 +550,32 @@ describe('joinFamilySchema', () => {
     ).toBe(false);
   });
 
-  it('rejects invite codes with lowercase letters or punctuation', () => {
+  it('normalizes lowercase inviteCode to uppercase before validating', () => {
+    const result = joinFamilySchema.safeParse({
+      inviteCode: 'abc234',
+      displayName: 'Partner',
+      email: 'p@e.com',
+      password: 'password123',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.inviteCode).toBe('ABC234');
+  });
+
+  it('normalizes mixed-case inviteCode after trimming surrounding whitespace', () => {
+    const result = joinFamilySchema.safeParse({
+      inviteCode: '  AbC234  ',
+      displayName: 'Partner',
+      email: 'p@e.com',
+      password: 'password123',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.inviteCode).toBe('ABC234');
+  });
+
+  it('rejects invite codes with punctuation even after case normalization', () => {
     expect(
       joinFamilySchema.safeParse({
-        inviteCode: 'abc234',
+        inviteCode: 'ABC-23',
         displayName: 'Partner',
         email: 'p@e.com',
         password: 'password123',
@@ -562,7 +584,7 @@ describe('joinFamilySchema', () => {
 
     expect(
       joinFamilySchema.safeParse({
-        inviteCode: 'ABC-23',
+        inviteCode: 'abc-23',
         displayName: 'Partner',
         email: 'p@e.com',
         password: 'password123',
