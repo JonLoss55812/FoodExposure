@@ -41,7 +41,8 @@ export function formatRelativeDate(date: Date): string {
 }
 
 export function getStartOfDay(date: Date = new Date()): Date {
-  const d = new Date(date);
+  const safeDate = date instanceof Date && !Number.isNaN(date.getTime()) ? date : new Date();
+  const d = new Date(safeDate);
   d.setHours(0, 0, 0, 0);
   return d;
 }

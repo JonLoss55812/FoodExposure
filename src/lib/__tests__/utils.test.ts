@@ -213,6 +213,35 @@ describe('getStartOfDay', () => {
     getStartOfDay(date);
     expect(date.getHours()).toBe(14);
   });
+
+  // Defense-in-depth: parameter is typed `Date` so the type system blocks
+  // most callers, but a Date can drift to invalid at runtime
+  // (`new Date('not a date')`, `new Date(undefined)`, a Date constructed
+  // from a SQLite INTEGER column whose value briefly read as null). The
+  // unguarded `new Date(invalidDate)` returns another invalid Date,
+  // setHours mutates it to NaN, and downstream `.getTime()` returns NaN
+  // — which poisons formatRelativeDate's day-delta computation.
+  it('falls back to today when given an invalid Date', () => {
+    const before = Date.now();
+    const start = getStartOfDay(new Date('not a date'));
+    const after = Date.now();
+    expect(Number.isNaN(start.getTime())).toBe(false);
+    // Start-of-today should be on or before now and within the test window.
+    expect(start.getTime()).toBeGreaterThanOrEqual(new Date(before).setHours(0, 0, 0, 0));
+    expect(start.getTime()).toBeLessThanOrEqual(after);
+    expect(start.getHours()).toBe(0);
+  });
+
+  it('falls back to today when given NaN-time Date', () => {
+    const start = getStartOfDay(new Date(NaN));
+    expect(Number.isNaN(start.getTime())).toBe(false);
+    expect(start.getHours()).toBe(0);
+    // Pin the fallback uses today's calendar date, not some other constant.
+    const today = new Date();
+    expect(start.getDate()).toBe(today.getDate());
+    expect(start.getMonth()).toBe(today.getMonth());
+    expect(start.getFullYear()).toBe(today.getFullYear());
+  });
 });
 
 describe('deriveLocalEmailPart', () => {
