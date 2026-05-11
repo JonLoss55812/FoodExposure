@@ -266,4 +266,39 @@ describe('buildExportFilename', () => {
     const name = buildExportFilename('Emma', iso('2026-05-10T00:00:00.000Z'));
     expect(name).toBe('tonguetutor-emma-20260510.csv');
   });
+
+  // childSchema caps name at 50 chars on insert, but SQLite has no
+  // DB-level length constraint — a corrupted row (Convex sync drift,
+  // hand-edited dev DB, CSV import) carrying a 200-char name would
+  // otherwise produce a 200-char filename that may overflow 255-byte
+  // filesystem limits or trip share-sheet preview truncation. Cap is
+  // applied AFTER sanitize so the slug is provably valid by construction.
+  it('caps slug at 50 chars when given a long childName', () => {
+    const longName = 'a'.repeat(200);
+    const name = buildExportFilename(longName, iso('2026-05-10T00:00:00.000Z'));
+    // tonguetutor-<50 chars>-20260510.csv
+    expect(name).toBe(`tonguetutor-${'a'.repeat(50)}-20260510.csv`);
+  });
+
+  it('truncates mid-word when slice falls within an alphanumeric run', () => {
+    // 'a'*48 + ' suffix' (55 chars) → sanitized to 'aaaa…aaaa-suffix'
+    // → sliced to 50 chars → 'aaaa…aaaa-s' (48 a's + '-' + 's').
+    // Trailing 's' is not a hyphen so the sweep is a no-op here.
+    const name = buildExportFilename('a'.repeat(48) + ' suffix', iso('2026-05-10T00:00:00.000Z'));
+    expect(name).toBe(`tonguetutor-${'a'.repeat(48)}-s-20260510.csv`);
+  });
+
+  it('does not produce a trailing hyphen when slice ends exactly at hyphen boundary', () => {
+    // 'a'*49 + ' ' + 'b' → 'aaaa…aaaa-b' (51 chars). Slice(0,50) leaves
+    // 'aaaa…aaaa-' (50 chars ending in hyphen). The trailing-hyphen sweep
+    // strips it so the filename never has a dangling -.
+    const name = buildExportFilename('a'.repeat(49) + ' b', iso('2026-05-10T00:00:00.000Z'));
+    expect(name).toBe(`tonguetutor-${'a'.repeat(49)}-20260510.csv`);
+    expect(name).not.toContain('--');
+  });
+
+  it('preserves names at exactly the cap (boundary)', () => {
+    const name = buildExportFilename('a'.repeat(50), iso('2026-05-10T00:00:00.000Z'));
+    expect(name).toBe(`tonguetutor-${'a'.repeat(50)}-20260510.csv`);
+  });
 });

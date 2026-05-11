@@ -81,12 +81,22 @@ export function formatExposuresCsv(rows: ReadonlyArray<ExposureRow>): string {
   return '\uFEFF' + [HEADER, ...body].join('\n') + '\n';
 }
 
+// Cap the slug at 50 chars so a corrupt childName row (no DB-level
+// length constraint; the 50-char schema cap is enforced only on insert)
+// can't produce a filename that overflows the 255-byte POSIX/HFS+ limit
+// or trips share-sheet preview truncation. Applied AFTER sanitization
+// so the cap doesn't leave the slug ending mid-stripped-char or with a
+// trailing hyphen — matches the v0.5.111 deriveLocalEmailPart pattern.
+const EXPORT_FILENAME_SLUG_MAX = 50;
+
 export function buildExportFilename(childName: string, at: Date = new Date()): string {
   const slug = childName
     .toLowerCase()
     .replace(/['']/g, '')
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/^-+|-+$/g, '')
+    .slice(0, EXPORT_FILENAME_SLUG_MAX)
+    .replace(/-+$/, '');
   const safeSlug = slug.length > 0 ? slug : 'child';
   const safeAt = at instanceof Date && !Number.isNaN(at.getTime()) ? at : new Date();
   const yyyy = safeAt.getUTCFullYear();
