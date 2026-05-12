@@ -64,8 +64,19 @@ export function calcProgressStats(
     if (bucket) bucket.push(exp);
     else exposuresByFood.set(foodId, [exp]);
 
-    if (Number.isFinite(exp.rating)) {
-      totalRating += exp.rating as number;
+    // Range-gate rating accumulation to the v0.5.82 schema contract
+    // ([1, 5] integer). Same drift class as v0.5.106 (which closed the
+    // NaN/Infinity half via Number.isFinite): a corrupted exposures.rating
+    // SQLite row (future Convex sync drift, hand-edited dev DB, CSV import)
+    // carrying rating=0 would drag avgRating toward zero (3+0)/2=1.5 instead
+    // of dropping the row, and rating=7 would push avgRating above the
+    // 5-cap, making the Progress-tab gauge render past full. The typeof+
+    // range check subsumes the NaN/Infinity guard (NaN >= 1 is false,
+    // Infinity <= 5 is false), so the contract is now uniform with the
+    // schema boundary.
+    const rating = exp.rating;
+    if (typeof rating === 'number' && rating >= 1 && rating <= 5) {
+      totalRating += rating;
       ratingCount++;
     }
   }

@@ -127,6 +127,42 @@ describe('calcProgressStats', () => {
     expect(stats.avgRating).toBe(0);
   });
 
+  it('ignores out-of-range ratings (< 1 or > 5) so a corrupt row does not skew avgRating', () => {
+    // Same defensive-shield class as v0.5.106 (NaN/Infinity rating guard):
+    // the v0.5.82 schema validates rating ∈ {1..5} at the form boundary, but
+    // the exposures.rating SQLite column has no range CHECK on legacy rows,
+    // and a future Convex sync / hand-edited dev DB / CSV import could
+    // persist rating=0 (drags avgRating toward 0) or rating=7 (inflates
+    // past the 5-cap gauge). Previously `Number.isFinite(rating)` accepted
+    // both. Now the gate is typeof + [1, 5] range — uniform with the schema
+    // contract.
+    const foods = [food({ id: 'a', name: 'Apple', category: 'fruit' })];
+    const exposures = [
+      expo({ foodId: 'a', stage: 'eat', occurredAt: NOW, rating: 4 }),
+      expo({ foodId: 'a', stage: 'eat', occurredAt: NOW, rating: 0 }),    // below 1 — skip
+      expo({ foodId: 'a', stage: 'eat', occurredAt: NOW, rating: -1 }),   // negative — skip
+      expo({ foodId: 'a', stage: 'eat', occurredAt: NOW, rating: 6 }),    // above 5 — skip
+      expo({ foodId: 'a', stage: 'eat', occurredAt: NOW, rating: 100 }),  // far above — skip
+      expo({ foodId: 'a', stage: 'eat', occurredAt: NOW, rating: 2 }),
+    ];
+    const stats = calcProgressStats(foods, exposures, 'typical', NOW);
+    expect(stats.avgRating).toBe(3); // (4 + 2) / 2, not skewed by 0/-1/6/100
+  });
+
+  it('accepts boundary ratings (1 and 5) so a future contributor tightening the range fails loudly', () => {
+    // Regression lock for the inclusive [1, 5] contract. A future "simplification"
+    // changing the gate to rating > 1 && rating < 5 (or rating >= 2 && rating <= 4)
+    // would silently drop the most clinically-meaningful endpoints — Refused (1) and
+    // Enjoyed (5) — from every avg. This test fails on either narrowing.
+    const foods = [food({ id: 'a', name: 'Apple', category: 'fruit' })];
+    const exposures = [
+      expo({ foodId: 'a', stage: 'eat', occurredAt: NOW, rating: 1 }),
+      expo({ foodId: 'a', stage: 'eat', occurredAt: NOW, rating: 5 }),
+    ];
+    const stats = calcProgressStats(foods, exposures, 'typical', NOW);
+    expect(stats.avgRating).toBe(3); // (1 + 5) / 2 — both ends contributed
+  });
+
   it('builds per-food progress sorted by pct descending then count descending, dropping zero-exposure foods', () => {
     const foods = [
       food({ id: 'a', name: 'Apple', category: 'fruit' }),       // 6 → pct 0.4
