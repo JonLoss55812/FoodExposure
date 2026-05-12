@@ -65,7 +65,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
             setting TEXT CHECK(setting IN ('home','school','restaurant','therapy')),
             notes TEXT,
             logged_by TEXT REFERENCES users(id),
-            occurred_at INTEGER NOT NULL,
+            occurred_at INTEGER NOT NULL CHECK(occurred_at > 0),
             created_at INTEGER NOT NULL,
             synced_at INTEGER
           );
