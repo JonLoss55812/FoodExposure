@@ -1,13 +1,19 @@
 import { STAGE_ORDER, type ExposureStage } from './constants';
 
-export function getNextStage(current: ExposureStage | null): ExposureStage | null {
-  if (current === null) return STAGE_ORDER[0];
-  const idx = STAGE_ORDER.indexOf(current);
-  if (idx < 0 || idx >= STAGE_ORDER.length - 1) return null;
+export function getNextStage(
+  current: ExposureStage | string | null | undefined,
+): ExposureStage | null {
+  if (current === null || current === undefined) return STAGE_ORDER[0];
+  if (typeof current !== 'string') return null;
+  if (!(STAGE_ORDER as readonly string[]).includes(current)) return null;
+  const idx = STAGE_ORDER.indexOf(current as ExposureStage);
+  if (idx >= STAGE_ORDER.length - 1) return null;
   return STAGE_ORDER[idx + 1];
 }
 
-export function canBumpStage(current: ExposureStage | null): boolean {
+export function canBumpStage(
+  current: ExposureStage | string | null | undefined,
+): boolean {
   return getNextStage(current) !== null;
 }
 
