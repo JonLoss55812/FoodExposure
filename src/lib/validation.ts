@@ -69,8 +69,8 @@ export const foodSchema = z.object({
 export type FoodFormData = z.infer<typeof foodSchema>;
 
 export const exposureSchema = z.object({
-  childId: z.string().min(1, 'Select a child'),
-  foodId: z.string().min(1, 'Select a food'),
+  childId: z.string().min(1, 'Select a child').max(64, 'Child id must be 64 characters or less'),
+  foodId: z.string().min(1, 'Select a food').max(64, 'Food id must be 64 characters or less'),
   stage: z.enum(['tolerate', 'interact', 'smell', 'touch', 'taste', 'eat']),
   rating: z.number().int('Rating must be a whole number').min(1).max(5).optional(),
   preparation: optionalTrimmedText(50, 'Preparation'),

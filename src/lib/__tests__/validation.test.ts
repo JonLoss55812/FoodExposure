@@ -205,6 +205,42 @@ describe('exposureSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it('accepts a 64-character childId (boundary — conservative cap above 36-char uuid)', () => {
+    const result = exposureSchema.safeParse({
+      childId: 'a'.repeat(64),
+      foodId: 'f1',
+      stage: 'taste',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a 65-character childId (boundary +1)', () => {
+    const result = exposureSchema.safeParse({
+      childId: 'a'.repeat(65),
+      foodId: 'f1',
+      stage: 'taste',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts a 64-character foodId (boundary)', () => {
+    const result = exposureSchema.safeParse({
+      childId: 'c1',
+      foodId: 'a'.repeat(64),
+      stage: 'taste',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a 65-character foodId (boundary +1)', () => {
+    const result = exposureSchema.safeParse({
+      childId: 'c1',
+      foodId: 'a'.repeat(65),
+      stage: 'taste',
+    });
+    expect(result.success).toBe(false);
+  });
+
   it('validates stage enum', () => {
     const result = exposureSchema.safeParse({
       childId: 'child-123',
