@@ -15,7 +15,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
             invite_code TEXT NOT NULL CHECK(length(invite_code) = 6),
-            created_at INTEGER NOT NULL,
+            created_at INTEGER NOT NULL CHECK(created_at > 0),
             synced_at INTEGER
           );
 
@@ -25,7 +25,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
             email TEXT NOT NULL,
             display_name TEXT NOT NULL,
             avatar_url TEXT,
-            created_at INTEGER NOT NULL,
+            created_at INTEGER NOT NULL CHECK(created_at > 0),
             synced_at INTEGER
           );
 
@@ -36,7 +36,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
             date_of_birth TEXT,
             avatar_emoji TEXT NOT NULL DEFAULT '👶',
             notes TEXT,
-            created_at INTEGER NOT NULL,
+            created_at INTEGER NOT NULL CHECK(created_at > 0),
             synced_at INTEGER
           );
 
@@ -48,7 +48,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
             default_preparation TEXT,
             image_url TEXT,
             is_safe_food INTEGER NOT NULL DEFAULT 0 CHECK(is_safe_food IN (0, 1)),
-            created_at INTEGER NOT NULL,
+            created_at INTEGER NOT NULL CHECK(created_at > 0),
             synced_at INTEGER
           );
 
@@ -66,7 +66,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
             notes TEXT,
             logged_by TEXT REFERENCES users(id),
             occurred_at INTEGER NOT NULL CHECK(occurred_at > 0),
-            created_at INTEGER NOT NULL,
+            created_at INTEGER NOT NULL CHECK(created_at > 0),
             synced_at INTEGER
           );
 
@@ -76,7 +76,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
             source_food_id TEXT NOT NULL REFERENCES foods(id),
             target_food_id TEXT NOT NULL REFERENCES foods(id),
             similarity_note TEXT,
-            created_at INTEGER NOT NULL,
+            created_at INTEGER NOT NULL CHECK(created_at > 0),
             synced_at INTEGER
           );
         `);
