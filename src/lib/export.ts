@@ -42,6 +42,13 @@ const FORMULA_TRIGGERS = /^[=+\-@\t\r]/;
 
 export function csvEscape(value: unknown): string {
   if (value === null || value === undefined) return '';
+  // Reject non-finite numbers (NaN, ±Infinity) — String(NaN) emits the
+  // literal "NaN" / "Infinity" text into the therapist-facing CSV.
+  // Excel/Sheets render those as opaque strings that look identical to a
+  // legitimate sample at a glance but break every downstream computation
+  // (avg, sort, filter). Same drift class as v0.5.106 (Number.isFinite
+  // guard on rating accumulation) and v0.5.120 (toIsoDate null guard).
+  if (typeof value === 'number' && !Number.isFinite(value)) return '';
   const str = typeof value === 'string' ? value : String(value);
   const needsQuotes = /[",\n\r]/.test(str);
   const needsFormulaGuard = typeof value === 'string' && FORMULA_TRIGGERS.test(str);

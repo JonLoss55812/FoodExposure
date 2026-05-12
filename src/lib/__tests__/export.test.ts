@@ -46,6 +46,34 @@ describe('csvEscape', () => {
     expect(csvEscape(0)).toBe('0');
   });
 
+  // Non-finite number guard: same drift class as v0.5.106 (rating
+  // accumulation) and v0.5.120 (toIsoDate null guard). A corrupt
+  // rating: NaN row that bypassed the schema's int/min/max validation
+  // would otherwise emit the literal text "NaN" into the
+  // therapist-facing CSV — a value indistinguishable from a real rating
+  // at a glance but poisoning every downstream sort/filter/avg.
+  describe('non-finite number guard', () => {
+    it('returns empty string for NaN', () => {
+      expect(csvEscape(NaN)).toBe('');
+    });
+
+    it('returns empty string for Infinity', () => {
+      expect(csvEscape(Infinity)).toBe('');
+    });
+
+    it('returns empty string for -Infinity', () => {
+      expect(csvEscape(-Infinity)).toBe('');
+    });
+
+    it('still emits finite numbers (regression lock)', () => {
+      // Pins the happy path so a contributor "simplifying" the guard
+      // (e.g. dropping the typeof check) would fail loudly on 0/-1.
+      expect(csvEscape(0)).toBe('0');
+      expect(csvEscape(-1)).toBe('-1');
+      expect(csvEscape(3.14)).toBe('3.14');
+    });
+  });
+
   // CSV injection defense (OWASP CWE-1236): a therapist opening the export
   // in Excel/Sheets must not have notes starting with =/+/-/@/tab/CR
   // evaluated as formulas. The guard prefixes such strings with a single
