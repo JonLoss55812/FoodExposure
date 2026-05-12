@@ -14,7 +14,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
           CREATE TABLE IF NOT EXISTS families (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
-            invite_code TEXT NOT NULL,
+            invite_code TEXT NOT NULL CHECK(length(invite_code) = 6),
             created_at INTEGER NOT NULL,
             synced_at INTEGER
           );
