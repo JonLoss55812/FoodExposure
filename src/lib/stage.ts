@@ -18,14 +18,18 @@ export function canBumpStage(
 }
 
 export function getHighestStage(
-  exposures: readonly { stage: string }[],
+  exposures: readonly { stage: ExposureStage | string | null | undefined }[],
 ): ExposureStage | null {
   let highest: ExposureStage | null = null;
+  let highestIdx = -1;
   for (const exp of exposures) {
-    const stage = exp.stage as ExposureStage;
-    if (STAGE_ORDER.indexOf(stage) < 0) continue;
-    if (!highest || STAGE_ORDER.indexOf(stage) > STAGE_ORDER.indexOf(highest)) {
-      highest = stage;
+    const stage = exp.stage;
+    if (typeof stage !== 'string') continue;
+    if (!(STAGE_ORDER as readonly string[]).includes(stage)) continue;
+    const idx = STAGE_ORDER.indexOf(stage as ExposureStage);
+    if (idx > highestIdx) {
+      highest = stage as ExposureStage;
+      highestIdx = idx;
     }
   }
   return highest;

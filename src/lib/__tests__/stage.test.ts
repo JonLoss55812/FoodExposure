@@ -98,4 +98,38 @@ describe('getHighestStage', () => {
   it('returns null when only unknown stages are present', () => {
     expect(getHighestStage([{ stage: 'bogus' }, { stage: 'fake' }])).toBeNull();
   });
+
+  it('skips rows where stage is null or undefined', () => {
+    expect(
+      getHighestStage([
+        { stage: null },
+        { stage: undefined },
+        { stage: 'smell' },
+      ]),
+    ).toBe('smell');
+  });
+
+  it('returns null when every row has a non-string stage', () => {
+    expect(
+      getHighestStage([
+        { stage: null },
+        { stage: undefined },
+      ]),
+    ).toBeNull();
+  });
+
+  it('skips rows with non-string stage values (number, object, array)', () => {
+    expect(
+      getHighestStage([
+        { stage: 42 as unknown as string },
+        { stage: {} as unknown as string },
+        { stage: [] as unknown as string },
+        { stage: 'interact' },
+      ]),
+    ).toBe('interact');
+  });
+
+  it('does not pick a casing-drifted stage like TOLERATE', () => {
+    expect(getHighestStage([{ stage: 'TOLERATE' }, { stage: 'smell' }])).toBe('smell');
+  });
 });
