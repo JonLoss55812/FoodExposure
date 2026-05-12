@@ -47,7 +47,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
             category TEXT NOT NULL CHECK(category IN ('protein','vegetable','fruit','grain','dairy','other')),
             default_preparation TEXT,
             image_url TEXT,
-            is_safe_food INTEGER NOT NULL DEFAULT 0,
+            is_safe_food INTEGER NOT NULL DEFAULT 0 CHECK(is_safe_food IN (0, 1)),
             created_at INTEGER NOT NULL,
             synced_at INTEGER
           );
