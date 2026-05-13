@@ -86,6 +86,31 @@ describe('isValidInviteCode', () => {
     expect(isValidInviteCode('ABC 23')).toBe(false);
     expect(isValidInviteCode('ABC.23')).toBe(false);
   });
+
+  describe('non-string drift defense', () => {
+    // Helper is typed (code: string | null | undefined) so the type system
+    // blocks most direct callers, but the schema's .refine(isValidInviteCode)
+    // contract and any future surface that bypasses .string().trim() upstream
+    // (CSV import, JSON-RPC ingest, future Convex sync) could deliver a
+    // non-string value. Without the typeof guard, code.length throws on
+    // null/undefined. Matches the v0.5.124 (getNextStage/canBumpStage) and
+    // v0.5.128 (getHighestStage) defensive-shield pattern.
+    it('returns false for null', () => {
+      expect(isValidInviteCode(null as unknown as string)).toBe(false);
+    });
+
+    it('returns false for undefined', () => {
+      expect(isValidInviteCode(undefined as unknown as string)).toBe(false);
+    });
+
+    it('returns false for a number', () => {
+      expect(isValidInviteCode(123456 as unknown as string)).toBe(false);
+    });
+
+    it('returns false for an object', () => {
+      expect(isValidInviteCode({} as unknown as string)).toBe(false);
+    });
+  });
 });
 
 describe('formatDate', () => {

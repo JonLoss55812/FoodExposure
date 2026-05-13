@@ -15,7 +15,8 @@ export function generateInviteCode(): string {
   return code;
 }
 
-export function isValidInviteCode(code: string): boolean {
+export function isValidInviteCode(code: string | null | undefined): boolean {
+  if (typeof code !== 'string') return false;
   if (code.length !== INVITE_CODE_LENGTH) return false;
   for (const ch of code) {
     if (!INVITE_CODE_CHARSET.includes(ch)) return false;
