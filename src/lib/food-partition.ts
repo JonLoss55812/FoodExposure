@@ -33,15 +33,26 @@ type FoodFilterable = { name: string; category: string };
 
 export function filterFoods<T extends FoodFilterable>(
   foods: readonly T[],
-  search: string,
-  category: string,
+  search: string | null | undefined,
+  category: string | null | undefined,
 ): T[] {
-  const needle = search.trim().toLowerCase();
-  const all = category === 'all';
+  // Defensive coercion at the helper boundary: the form-state callers
+  // (foods.tsx searchQuery + selectedCategory) provably pass strings
+  // today, but the helper is exported and a future caller — a deep-link
+  // query-param parser, a CSV import path, a rehydrated MMKV blob whose
+  // schema drifted — could deliver null/undefined/number. Without the
+  // guard, `search.trim()` throws TypeError and crashes the Foods tab
+  // render. Same defense-in-depth class as v0.5.118/v0.5.119 (non-string
+  // displayName/childName guards) — every public helper boundary is
+  // provably safe regardless of upstream gating.
+  const safeSearch = typeof search === 'string' ? search : '';
+  const safeCategory = typeof category === 'string' ? category : 'all';
+  const needle = safeSearch.trim().toLowerCase();
+  const all = safeCategory === 'all';
   if (!needle && all) return foods.slice();
   return foods.filter((food) => {
     const matchesSearch = !needle || food.name.toLowerCase().includes(needle);
-    const matchesCategory = all || food.category === category;
+    const matchesCategory = all || food.category === safeCategory;
     return matchesSearch && matchesCategory;
   });
 }

@@ -228,4 +228,42 @@ describe('filterFoods', () => {
   it('returns empty for an empty input list', () => {
     expect(filterFoods([], 'apple', 'all')).toEqual([]);
   });
+
+  describe('non-string drift defense', () => {
+    // Pin the defensive coercion at the helper boundary. Form-state
+    // callers always pass strings today, but the helper is exported and
+    // a future caller (deep-link param, CSV import, rehydrated MMKV)
+    // could deliver null/undefined/number. Without the guard,
+    // `search.trim()` throws TypeError and crashes the Foods tab.
+    it('treats null search as empty (no narrowing, no throw)', () => {
+      expect(filterFoods(list, null as unknown as string, 'all')).toEqual(list);
+    });
+
+    it('treats undefined search as empty (no narrowing, no throw)', () => {
+      expect(filterFoods(list, undefined as unknown as string, 'all')).toEqual(list);
+    });
+
+    it('treats numeric search as empty (regression lock for typeof gate)', () => {
+      expect(filterFoods(list, 42 as unknown as string, 'all')).toEqual(list);
+    });
+
+    it('treats null category as "all" (no false-empty result)', () => {
+      expect(filterFoods(list, '', null as unknown as string)).toEqual(list);
+    });
+
+    it('treats undefined category as "all" (no false-empty result)', () => {
+      expect(filterFoods(list, '', undefined as unknown as string)).toEqual(list);
+    });
+
+    it('treats numeric category as "all" (regression lock for typeof gate)', () => {
+      expect(filterFoods(list, '', 42 as unknown as string)).toEqual(list);
+    });
+
+    it('combines non-string search with valid category cleanly', () => {
+      // null search collapses to empty (no narrowing); category still
+      // filters to 'fruit'. Pins that the two guards operate independently.
+      expect(filterFoods(list, null as unknown as string, 'fruit').map((f) => f.id))
+        .toEqual(['1', '4']);
+    });
+  });
 });
