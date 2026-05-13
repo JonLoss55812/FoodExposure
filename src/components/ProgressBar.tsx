@@ -18,18 +18,31 @@ export function ProgressBar({
   height = 8,
   accessibilityLabel,
 }: ProgressBarProps) {
-  const progress = Math.min(current / target, 1);
+  // Defensive coercion: callers today pass validated numbers, but the
+  // component is on the hot path (dashboard, food detail, every Progress
+  // tab row) and the bracket-deref `current / target` produces Infinity
+  // (target=0), NaN (NaN/anything), or negative percentages (current<0)
+  // that flow into width: `${pct*100}%` — an invalid CSS value silently
+  // drops the bar's visual fill. Same defense-in-depth class as v0.5.106
+  // (Number.isFinite rating guard) and v0.5.95 (calcExposureProgress NaN
+  // coercion): every numeric input crossing the component boundary is
+  // gated to a renderable shape.
+  const safeCurrent =
+    typeof current === 'number' && Number.isFinite(current) ? Math.max(0, current) : 0;
+  const safeTarget =
+    typeof target === 'number' && Number.isFinite(target) && target > 0 ? target : 1;
+  const progress = Math.min(safeCurrent / safeTarget, 1);
 
   return (
     <View
       style={styles.container}
       accessibilityRole="progressbar"
       accessibilityLabel={accessibilityLabel}
-      accessibilityValue={{ now: current, min: 0, max: target }}
+      accessibilityValue={{ now: safeCurrent, min: 0, max: safeTarget }}
     >
       {showLabel && (
         <Text style={styles.label}>
-          {current}/{target}
+          {safeCurrent}/{safeTarget}
         </Text>
       )}
       <View style={[styles.track, { height }]}>

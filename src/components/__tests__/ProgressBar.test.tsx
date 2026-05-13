@@ -75,4 +75,49 @@ describe('ProgressBar', () => {
     const bar = container.querySelector('[role="progressbar"]');
     expect(bar?.getAttribute('aria-label')).toBeNull();
   });
+
+  describe('pathological numeric input defense', () => {
+    // Pin the defensive coercion: callers today pass validated numbers,
+    // but the bracket-deref `current / target` would produce Infinity
+    // (target=0), NaN (NaN inputs), or negative widths (negative current)
+    // that flow verbatim into `width: ${pct * 100}%` — invalid CSS that
+    // silently drops the bar's visual fill. Each test pins one drift
+    // surface so a future contributor dropping the guard fails loudly.
+    it('coerces target=0 to a renderable progressbar (no division by zero)', () => {
+      const { container } = render(<ProgressBar current={5} target={0} />);
+      // Fallback target is 1 — current=5 clamps visually to 100%
+      expect(screen.getByText('5/1')).toBeTruthy();
+      expect(container).toBeTruthy();
+    });
+
+    it('coerces NaN current to 0', () => {
+      const { container } = render(<ProgressBar current={NaN} target={15} />);
+      expect(screen.getByText('0/15')).toBeTruthy();
+      expect(container).toBeTruthy();
+    });
+
+    it('coerces Infinity current to 0', () => {
+      const { container } = render(<ProgressBar current={Infinity} target={15} />);
+      expect(screen.getByText('0/15')).toBeTruthy();
+      expect(container).toBeTruthy();
+    });
+
+    it('coerces negative current to 0', () => {
+      const { container } = render(<ProgressBar current={-7} target={15} />);
+      expect(screen.getByText('0/15')).toBeTruthy();
+      expect(container).toBeTruthy();
+    });
+
+    it('coerces negative target to fallback 1', () => {
+      const { container } = render(<ProgressBar current={3} target={-5} />);
+      expect(screen.getByText('3/1')).toBeTruthy();
+      expect(container).toBeTruthy();
+    });
+
+    it('coerces NaN target to fallback 1', () => {
+      const { container } = render(<ProgressBar current={3} target={NaN} />);
+      expect(screen.getByText('3/1')).toBeTruthy();
+      expect(container).toBeTruthy();
+    });
+  });
 });
