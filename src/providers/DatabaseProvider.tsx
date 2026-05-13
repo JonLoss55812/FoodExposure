@@ -32,7 +32,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
           CREATE TABLE IF NOT EXISTS children (
             id TEXT PRIMARY KEY,
             family_id TEXT NOT NULL REFERENCES families(id),
-            name TEXT NOT NULL,
+            name TEXT NOT NULL CHECK(length(name) BETWEEN 1 AND 50),
             date_of_birth TEXT,
             avatar_emoji TEXT NOT NULL DEFAULT '👶',
             notes TEXT,
