@@ -43,7 +43,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
           CREATE TABLE IF NOT EXISTS foods (
             id TEXT PRIMARY KEY,
             family_id TEXT NOT NULL REFERENCES families(id),
-            name TEXT NOT NULL,
+            name TEXT NOT NULL CHECK(length(name) BETWEEN 1 AND 80),
             category TEXT NOT NULL CHECK(category IN ('protein','vegetable','fruit','grain','dairy','other')),
             default_preparation TEXT,
             image_url TEXT,
