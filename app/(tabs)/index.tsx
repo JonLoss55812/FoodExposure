@@ -11,6 +11,7 @@ import { useChildStore } from '@/src/stores/child-store';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { STAGE_ORDER, STAGE_CONFIG } from '@/src/lib/constants';
 import { computeStageCounts } from '@/src/lib/food-partition';
+import { getStartOfDay } from '@/src/lib/utils';
 
 type RecentExposure = {
   id: string;
@@ -49,9 +50,11 @@ export default function DashboardScreen() {
       const childId = useChildStore.getState().selectedChildId;
       if (!childId) return;
 
-      // Load today's exposure count
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
+      // Load today's exposure count. Route through canonical getStartOfDay
+      // helper so the dashboard's "today" boundary stays consistent with the
+      // formatRelativeDate "Today" label (which uses the same helper since
+      // v0.5.49) and inherits the v0.5.114 invalid-Date defense automatically.
+      const startOfDay = getStartOfDay();
       const todayExposures = await db.select().from(schema.exposures)
         .where(and(
           eq(schema.exposures.childId, childId),
