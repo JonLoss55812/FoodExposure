@@ -4,7 +4,10 @@ import { RATING_CONFIG } from '../lib/constants';
 
 interface RatingPickerProps {
   value?: number;
-  onChange: (rating: number) => void;
+  // Receives undefined when the selected chip is tapped again — rating
+  // is an optional dimension, so a mis-tap must be clearable back to
+  // "no rating recorded".
+  onChange: (rating: number | undefined) => void;
 }
 
 export function RatingPicker({ value, onChange }: RatingPickerProps) {
@@ -16,7 +19,7 @@ export function RatingPicker({ value, onChange }: RatingPickerProps) {
           <Pressable
             key={config.value}
             style={[styles.button, isSelected && styles.selected]}
-            onPress={() => onChange(config.value)}
+            onPress={() => onChange(isSelected ? undefined : config.value)}
             accessibilityRole="button"
             accessibilityLabel={`Rating: ${config.label}`}
             accessibilityState={{ selected: isSelected }}

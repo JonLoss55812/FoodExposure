@@ -227,7 +227,7 @@ export default function LogExposureScreen() {
                       <Pressable
                         key={meal}
                         style={[styles.chip, value === meal && styles.chipSelected]}
-                        onPress={() => onChange(meal)}
+                        onPress={() => onChange(value === meal ? undefined : meal)}
                         accessibilityRole="button"
                         accessibilityLabel={`Meal: ${label}`}
                         accessibilityState={{ selected: value === meal }}
@@ -257,7 +257,7 @@ export default function LogExposureScreen() {
                       <Pressable
                         key={temp}
                         style={[styles.chip, value === temp && styles.chipSelected]}
-                        onPress={() => onChange(temp)}
+                        onPress={() => onChange(value === temp ? undefined : temp)}
                         accessibilityRole="button"
                         accessibilityLabel={`Temperature: ${label}`}
                         accessibilityState={{ selected: value === temp }}
@@ -288,7 +288,7 @@ export default function LogExposureScreen() {
                       <Pressable
                         key={tex}
                         style={[styles.chip, isSelected && styles.chipSelected]}
-                        onPress={() => onChange(tex)}
+                        onPress={() => onChange(isSelected ? undefined : tex)}
                         accessibilityRole="button"
                         accessibilityLabel={`Texture: ${label}`}
                         accessibilityState={{ selected: isSelected }}
@@ -319,7 +319,7 @@ export default function LogExposureScreen() {
                       <Pressable
                         key={setting}
                         style={[styles.chip, isSelected && styles.chipSelected]}
-                        onPress={() => onChange(setting)}
+                        onPress={() => onChange(isSelected ? undefined : setting)}
                         accessibilityRole="button"
                         accessibilityLabel={`Setting: ${label}`}
                         accessibilityState={{ selected: isSelected }}

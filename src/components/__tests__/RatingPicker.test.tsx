@@ -71,4 +71,33 @@ describe('RatingPicker', () => {
     fireEvent.click(screen.getByLabelText('Rating: Reluctant'));
     expect(onChange).toHaveBeenCalledWith(2);
   });
+
+  describe('deselect on re-tap (optional-field clearing)', () => {
+    it('clears the rating when the selected chip is tapped again', () => {
+      // Rating is optional in exposureSchema — a mis-tap must be
+      // reversible back to "no rating recorded", not permanently
+      // attached ("Refused" reads very differently to a therapist
+      // than an absent rating).
+      const onChange = jest.fn();
+      render(<RatingPicker value={4} onChange={onChange} />);
+      fireEvent.click(screen.getByText('Willing'));
+      expect(onChange).toHaveBeenCalledWith(undefined);
+    });
+
+    it('still sets a different rating when an unselected chip is tapped', () => {
+      // Regression lock: the toggle must only fire on the selected
+      // chip — switching between ratings stays a single tap.
+      const onChange = jest.fn();
+      render(<RatingPicker value={4} onChange={onChange} />);
+      fireEvent.click(screen.getByText('Refused'));
+      expect(onChange).toHaveBeenCalledWith(1);
+    });
+
+    it('sets normally when no rating is selected yet', () => {
+      const onChange = jest.fn();
+      render(<RatingPicker onChange={onChange} />);
+      fireEvent.click(screen.getByText('Neutral'));
+      expect(onChange).toHaveBeenCalledWith(3);
+    });
+  });
 });

@@ -161,7 +161,7 @@ export default function AddFoodScreen() {
                   <Pressable
                     key={prep}
                     style={[styles.chip, value === prep && styles.chipSelected]}
-                    onPress={() => onChange(prep)}
+                    onPress={() => onChange(value === prep ? undefined : prep)}
                     accessibilityRole="button"
                     accessibilityLabel={`Preparation: ${label}`}
                     accessibilityState={{ selected: value === prep }}
