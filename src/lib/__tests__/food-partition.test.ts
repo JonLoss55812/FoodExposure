@@ -4,6 +4,7 @@ import {
   buildFoodsWithStats,
   filterFoods,
   computeStageCounts,
+  findDuplicateFood,
 } from '../food-partition';
 
 type F = { id: string; name: string; isSafeFood: boolean };
@@ -265,5 +266,67 @@ describe('filterFoods', () => {
       expect(filterFoods(list, null as unknown as string, 'fruit').map((f) => f.id))
         .toEqual(['1', '4']);
     });
+  });
+});
+
+describe('findDuplicateFood', () => {
+  const foods = [
+    { id: '1', name: 'Apple' },
+    { id: '2', name: 'Chicken Nuggets' },
+    { id: '3', name: '  Pear  ' },
+  ];
+
+  it('finds an exact-name duplicate', () => {
+    expect(findDuplicateFood(foods, 'Apple')?.id).toBe('1');
+  });
+
+  it('finds a duplicate case-insensitively', () => {
+    // "apple" vs "Apple" is the realistic double-add: autoCapitalize on the
+    // form makes casing inconsistent across entry points.
+    expect(findDuplicateFood(foods, 'apple')?.id).toBe('1');
+    expect(findDuplicateFood(foods, 'CHICKEN nuggets')?.id).toBe('2');
+  });
+
+  it('ignores surrounding whitespace on both the candidate and existing rows', () => {
+    expect(findDuplicateFood(foods, '  Apple ')?.id).toBe('1');
+    expect(findDuplicateFood(foods, 'pear')?.id).toBe('3');
+  });
+
+  it('returns undefined when no food matches', () => {
+    expect(findDuplicateFood(foods, 'Broccoli')).toBeUndefined();
+  });
+
+  it('returns undefined for empty and whitespace-only candidates', () => {
+    // A blank name never counts as a duplicate — the schema's .min(1)
+    // owns that rejection; this helper must not mask it by matching a
+    // hypothetical blank-named row.
+    expect(findDuplicateFood(foods, '')).toBeUndefined();
+    expect(findDuplicateFood(foods, '   ')).toBeUndefined();
+  });
+
+  it('returns undefined for non-string candidates (drift defense)', () => {
+    expect(findDuplicateFood(foods, null as unknown as string)).toBeUndefined();
+    expect(findDuplicateFood(foods, undefined as unknown as string)).toBeUndefined();
+    expect(findDuplicateFood(foods, 42 as unknown as string)).toBeUndefined();
+  });
+
+  it('skips rows whose name is not a string and still matches the rest', () => {
+    const drifted = [
+      { id: 'x', name: null as unknown as string },
+      { id: '1', name: 'Apple' },
+    ];
+    expect(findDuplicateFood(drifted, 'apple')?.id).toBe('1');
+  });
+
+  it('returns the first match when multiple rows already collide', () => {
+    const dupes = [
+      { id: 'a', name: 'Apple' },
+      { id: 'b', name: 'apple' },
+    ];
+    expect(findDuplicateFood(dupes, 'APPLE')?.id).toBe('a');
+  });
+
+  it('returns undefined on an empty food list', () => {
+    expect(findDuplicateFood([], 'Apple')).toBeUndefined();
   });
 });

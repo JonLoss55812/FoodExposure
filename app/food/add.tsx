@@ -5,11 +5,13 @@ import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { eq } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { foodSchema, type FoodFormData } from '@/src/lib/validation';
 import { generateId } from '@/src/lib/utils';
+import { findDuplicateFood } from '@/src/lib/food-partition';
 import { FOOD_CATEGORIES, CATEGORY_CONFIG, PREPARATIONS } from '@/src/lib/constants';
 import { Button } from '@/src/components';
 
@@ -40,6 +42,19 @@ export default function AddFoodScreen() {
 
     setSaving(true);
     try {
+      const existingFoods = await db
+        .select({ id: schema.foods.id, name: schema.foods.name })
+        .from(schema.foods)
+        .where(eq(schema.foods.familyId, familyId));
+      const duplicate = findDuplicateFood(existingFoods, data.name);
+      if (duplicate) {
+        Alert.alert(
+          'Already Added',
+          `"${duplicate.name}" is already in your food library. Open it from the Foods tab to log an exposure.`,
+        );
+        return;
+      }
+
       await db.insert(schema.foods).values({
         id: generateId(),
         familyId,

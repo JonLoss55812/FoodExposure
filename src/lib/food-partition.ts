@@ -57,6 +57,31 @@ export function filterFoods<T extends FoodFilterable>(
   });
 }
 
+type FoodNameable = { name: string };
+
+/**
+ * Case-insensitive, whitespace-trimmed duplicate lookup for the Add Food
+ * flow. Adding "apple" when "Apple" already exists creates a second food
+ * row, and every per-food stat (exposure count vs. threshold, highest
+ * stage, safe-food pinning) silently splits across the duplicates — the
+ * exposure-count-toward-acceptance metric undercounts on both rows.
+ * Same intra-family-uniqueness defect class v0.5.91 closed for users.
+ * Blank/whitespace-only candidates never match: the schema's .min(1)
+ * owns that rejection. Returns the first colliding row so the caller
+ * can name it in the alert.
+ */
+export function findDuplicateFood<T extends FoodNameable>(
+  foods: readonly T[],
+  name: string | null | undefined,
+): T | undefined {
+  if (typeof name !== 'string') return undefined;
+  const needle = name.trim().toLowerCase();
+  if (!needle) return undefined;
+  return foods.find(
+    (food) => typeof food.name === 'string' && food.name.trim().toLowerCase() === needle,
+  );
+}
+
 export type FoodStats = {
   exposureCount: number;
   highestStage?: ExposureStage;
