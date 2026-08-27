@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, or, desc } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
 import { StageIndicator, ProgressBar, ExposureCard, EmptyState, Button } from '@/src/components';
@@ -30,6 +30,7 @@ export default function FoodDetailScreen() {
   const [exposuresList, setExposuresList] = useState<ExposureRow[]>([]);
   const [highestStage, setHighestStage] = useState<ExposureStage | null>(null);
   const [bumping, setBumping] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
@@ -120,6 +121,37 @@ export default function FoodDetailScreen() {
       console.error('Failed to toggle safe food:', err);
       Alert.alert('Error', 'Failed to update safe-food status.');
     }
+  };
+
+  const handleDeleteFood = () => {
+    if (!food || deleting) return;
+    Alert.alert(
+      'Delete Food?',
+      `"${food.name}" and all of its logged exposures for every child will be permanently deleted. This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await db.delete(schema.foodChains).where(or(
+                eq(schema.foodChains.sourceFoodId, food.id),
+                eq(schema.foodChains.targetFoodId, food.id)
+              ));
+              await db.delete(schema.exposures).where(eq(schema.exposures.foodId, food.id));
+              await db.delete(schema.foods).where(eq(schema.foods.id, food.id));
+              router.replace('/(tabs)/foods' as any);
+            } catch (err) {
+              console.error('Failed to delete food:', err);
+              Alert.alert('Error', 'Failed to delete food. Please try again.');
+              setDeleting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loading) {
@@ -269,6 +301,20 @@ export default function FoodDetailScreen() {
           ))
         )}
       </View>
+
+      {/* Delete Food */}
+      <View style={styles.section}>
+        <Pressable
+          style={styles.deleteButton}
+          onPress={handleDeleteFood}
+          disabled={deleting}
+          accessibilityRole="button"
+          accessibilityLabel={`Delete ${food.name}`}
+          accessibilityState={{ disabled: deleting, busy: deleting }}
+        >
+          <Text style={styles.deleteText}>{deleting ? 'Deleting…' : 'Delete Food'}</Text>
+        </Pressable>
+      </View>
     </ScrollView>
   );
 }
@@ -380,5 +426,16 @@ const styles = StyleSheet.create((theme) => ({
   safeToggleDesc: {
     fontSize: theme.fontSize.sm,
     color: theme.colors.textSecondary,
+  },
+  deleteButton: {
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
+    backgroundColor: theme.colors.error + '15',
+    alignItems: 'center',
+  },
+  deleteText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: theme.colors.error,
   },
 }));
