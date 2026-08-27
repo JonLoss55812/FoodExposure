@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { eq } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
@@ -13,12 +13,73 @@ import { FEEDING_PROFILES, FEEDING_PROFILE_CONFIG, getFeedingProfileConfig } fro
 import { APP_VERSION } from '@/src/lib/constants';
 import { exportChildData } from '@/src/lib/export';
 
+type ChildRow = Pick<typeof schema.children.$inferSelect, 'id' | 'name' | 'avatarEmoji'>;
+
 export default function SettingsScreen() {
   const router = useRouter();
-  const { displayName, email, logout } = useAuthStore();
-  const { selectedChildId, clear: clearChildSelection } = useChildStore();
+  const { displayName, email, familyId, logout } = useAuthStore();
+  const { selectedChildId, ensureSelection, clear: clearChildSelection } = useChildStore();
   const { theme, feedingProfile, setTheme, setFeedingProfile } = useSettingsStore();
   const [exporting, setExporting] = useState(false);
+  const [childrenList, setChildrenList] = useState<ChildRow[]>([]);
+  const [deletingChildId, setDeletingChildId] = useState<string | null>(null);
+
+  const loadChildren = useCallback(async () => {
+    if (!familyId) {
+      setChildrenList([]);
+      return;
+    }
+    try {
+      const rows = await db
+        .select({
+          id: schema.children.id,
+          name: schema.children.name,
+          avatarEmoji: schema.children.avatarEmoji,
+        })
+        .from(schema.children)
+        .where(eq(schema.children.familyId, familyId));
+      setChildrenList(rows);
+    } catch (err) {
+      console.error('Failed to load children:', err);
+    }
+  }, [familyId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadChildren();
+    }, [loadChildren])
+  );
+
+  const handleDeleteChild = (child: ChildRow) => {
+    if (deletingChildId) return;
+    Alert.alert(
+      'Delete Child?',
+      `${child.name} and all of their logged exposures will be permanently deleted. This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingChildId(child.id);
+            try {
+              await db.delete(schema.foodChains).where(eq(schema.foodChains.childId, child.id));
+              await db.delete(schema.exposures).where(eq(schema.exposures.childId, child.id));
+              await db.delete(schema.children).where(eq(schema.children.id, child.id));
+              const remaining = childrenList.filter((c) => c.id !== child.id);
+              setChildrenList(remaining);
+              ensureSelection(remaining);
+            } catch (err) {
+              console.error('Failed to delete child:', err);
+              Alert.alert('Error', 'Failed to delete child. Please try again.');
+            } finally {
+              setDeletingChildId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const handleExport = async () => {
     if (!selectedChildId) {
@@ -82,6 +143,30 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Family</Text>
         <View style={styles.card}>
+          {childrenList.map((child) => {
+            const isDeleting = deletingChildId === child.id;
+            return (
+              <View key={child.id}>
+                <View style={styles.row}>
+                  <Text style={styles.label}>
+                    {child.avatarEmoji} {child.name}
+                  </Text>
+                  <Pressable
+                    onPress={() => handleDeleteChild(child)}
+                    disabled={!!deletingChildId}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Delete ${child.name}`}
+                    accessibilityState={{ disabled: !!deletingChildId, busy: isDeleting }}
+                  >
+                    <Text style={styles.deleteChildText}>
+                      {isDeleting ? 'Deleting…' : 'Delete'}
+                    </Text>
+                  </Pressable>
+                </View>
+                <View style={styles.divider} />
+              </View>
+            );
+          })}
           <Pressable
             style={styles.row}
             onPress={() => router.push('/child/add')}
@@ -267,6 +352,11 @@ const styles = StyleSheet.create((theme) => ({
   arrow: {
     fontSize: theme.fontSize.md,
     color: theme.colors.textTertiary,
+  },
+  deleteChildText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.error,
   },
   themeRow: {
     flexDirection: 'row',
