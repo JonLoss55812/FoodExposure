@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.137 — 557 tests passing across 27 suites, TypeScript clean.
+Reviewed at: v0.5.139 — 557 tests passing across 27 suites, TypeScript clean.
 
 ## Status of the original plan (v0.1.0 review)
 
@@ -14,12 +14,17 @@ All five priorities from the original review have shipped:
 - **P6 Coverage uplift** — ongoing; v0.5.1–v0.5.137 hardened validation schemas, stores,
   helpers, a11y, and DB CHECK constraints extensively. See CLAUDE.md changelog.
 
-## Recently shipped (this session, 2026-08-25)
+## Recently shipped (last two sessions, 2026-08-25/26)
 
 - v0.5.136 — duplicate food-name guard on Add Food (`findDuplicateFood` helper,
   family-scoped, case-insensitive + trimmed, pre-insert Alert).
 - v0.5.137 — optional chip dimensions (rating/meal/temperature/texture/setting/
   preparation) deselect on re-tap; previously unclearable once tapped.
+- v0.5.138 — Delete Food on the food detail page (confirm Alert, cascades
+  food_chains + exposures dependents-first, replaces to Foods tab).
+- v0.5.139 — Delete Child rows in Settings → Family (confirm Alert, cascades
+  food_chains + exposures, `ensureSelection` repairs selection; list loads via
+  `useFocusEffect` — the first focus-based reload in the codebase).
 
 ## Known gaps worth doing next (discovered, deliberately not done)
 
@@ -30,18 +35,25 @@ All five priorities from the original review have shipped:
    reason. Setting up one working screen test (e.g. `app/onboarding/join.tsx`
    with mocked db/stores) would unlock testing the largest untested surface.
    Budget a full session; the mocking is the hard part, not the assertions.
+   The two delete flows (v0.5.138/v0.5.139) are prime first candidates once a
+   harness exists — destructive cascades with only manual verification today.
 2. **Legacy duplicate foods are not deduped.** v0.5.136 guards new adds only.
-   If a dev DB already contains "Apple"/"apple" twins, they persist. A merge
-   migration (reassign exposures to the surviving row) is the fix if it ever
-   matters; not worth it while there is no production data.
+   With v0.5.138 a parent can now delete a twin manually, but that discards the
+   twin's exposures; a merge migration (reassign exposures to the surviving row)
+   is still the lossless fix if it ever matters. Not worth it pre-production.
 3. **No food rename/edit UI.** If a rename path ever ships, route the new name
    through `findDuplicateFood` too, or the v0.5.136 guard is bypassable.
-4. **No food/child delete UI.** Schema and stores tolerate deletion
-   (`ensureSelection` self-heals), but there is no way to remove a mistyped
-   food; combined with (2), typos accumulate forever.
+4. **Tab lists are stale after cross-screen writes.** No tab uses focus-based
+   reloading — Foods/Progress/dashboard load on mount + pull-to-refresh only,
+   so e.g. a food deleted via v0.5.138 lingers on the Foods tab until refresh.
+   Settings (v0.5.139) now demonstrates the `useFocusEffect` reload pattern;
+   applying it to the three data tabs is a small, high-clarity follow-up.
 5. **Tooling gotcha:** plain `bun test` invokes bun's *built-in* test runner,
    which hangs on this jest-expo suite. Use `bun run test` or `npx jest`.
-   (CLAUDE.md's "How to Run" section still says `bun test`.)
+   (CLAUDE.md's "How to Run" section still says `bun test`.) Also: in a fresh
+   worktree/CI environment `bun install --frozen-lockfile` fails under newer
+   bun versions ("lockfile had changes"); plain `bun install` works — discard
+   the resulting `bun.lock` churn rather than committing it.
 
 ## NOT in scope (unchanged from original review)
 
