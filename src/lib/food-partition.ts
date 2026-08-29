@@ -125,3 +125,24 @@ export function computeStageCounts(
   }
   return counts;
 }
+
+/**
+ * Repair a form's selected food id against a freshly-loaded food list.
+ *
+ * The Log Exposure form holds `foodId` in react-hook-form state, which
+ * outlives a focus reload of the food list. If the selected food was deleted
+ * from another screen (the v0.5.138 Delete Food flow), the id would survive in
+ * the form with no matching chip rendered — and submitting would insert an
+ * exposure row pointing at a food that no longer exists.
+ *
+ * Returns the id unchanged when it still resolves, and `''` (the form's
+ * "nothing selected" default) when it does not. A blank/non-string id is
+ * already "nothing selected", so it normalizes to `''` too.
+ */
+export function resolveSelectedFoodId<T extends FoodIdentifiable>(
+  foods: readonly T[],
+  selectedFoodId: string | null | undefined,
+): string {
+  if (typeof selectedFoodId !== 'string' || selectedFoodId.length === 0) return '';
+  return foods.some((food) => food.id === selectedFoodId) ? selectedFoodId : '';
+}

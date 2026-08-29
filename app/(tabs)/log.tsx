@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TextInput, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -14,6 +14,7 @@ import { useChildStore } from '@/src/stores/child-store';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { exposureSchema, type ExposureFormData } from '@/src/lib/validation';
 import { generateId } from '@/src/lib/utils';
+import { resolveSelectedFoodId } from '@/src/lib/food-partition';
 import { STAGE_CONFIG, MEAL_TYPES, TEMPERATURES, TEXTURES, SETTINGS } from '@/src/lib/constants';
 
 export default function LogExposureScreen() {
@@ -25,7 +26,7 @@ export default function LogExposureScreen() {
   const [showDetails, setShowDetails] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const { control, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<
+  const { control, handleSubmit, setValue, getValues, watch, reset, formState: { errors } } = useForm<
     z.input<typeof exposureSchema>,
     unknown,
     ExposureFormData
@@ -52,23 +53,31 @@ export default function LogExposureScreen() {
     setValue('childId', selectedChildId || '');
   }, [selectedChildId, setValue]);
 
-  useEffect(() => {
-    if (!familyId) return;
-    loadData();
-  }, [familyId]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!familyId) return;
     try {
       const kids = await db.select().from(schema.children).where(eq(schema.children.familyId, familyId));
       setChildrenList(kids);
       const allFoods = await db.select().from(schema.foods).where(eq(schema.foods.familyId, familyId)).orderBy(asc(schema.foods.name));
       setFoodsList(allFoods);
+      // A food selected before the reload may no longer exist (added then
+      // deleted elsewhere). The form outlives the list, so repair the
+      // selection here rather than letting Save insert an orphan exposure.
+      setValue('foodId', resolveSelectedFoodId(allFoods, getValues('foodId')));
     } catch (err) {
       console.error('Failed to load log data:', err);
       Alert.alert('Error', 'Failed to load data. Please try again.');
     }
-  };
+  }, [familyId, setValue, getValues]);
+
+  // Reload on focus, not just on mount: the form's own "+ Add New" link pushes
+  // the Add Food screen, and returning to a chip row that does not contain the
+  // just-added food reads as the add having failed. Matches the v0.5.140 tabs.
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData]),
+  );
 
   const onSubmit = async (data: ExposureFormData) => {
     setSaving(true);

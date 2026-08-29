@@ -3,6 +3,7 @@ import {
   getEmptyStateKind,
   buildFoodsWithStats,
   filterFoods,
+  resolveSelectedFoodId,
   computeStageCounts,
   findDuplicateFood,
 } from '../food-partition';
@@ -328,5 +329,40 @@ describe('findDuplicateFood', () => {
 
   it('returns undefined on an empty food list', () => {
     expect(findDuplicateFood([], 'Apple')).toBeUndefined();
+  });
+});
+
+describe('resolveSelectedFoodId', () => {
+  const foods = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+
+  it('keeps the selection when the food is still in the list', () => {
+    expect(resolveSelectedFoodId(foods, 'b')).toBe('b');
+  });
+
+  it('clears the selection when the food was deleted from the list', () => {
+    expect(resolveSelectedFoodId(foods, 'gone')).toBe('');
+  });
+
+  it('clears the selection when the list is empty', () => {
+    expect(resolveSelectedFoodId([], 'a')).toBe('');
+  });
+
+  it("normalizes an empty selection to ''", () => {
+    expect(resolveSelectedFoodId(foods, '')).toBe('');
+  });
+
+  it("normalizes null/undefined selections to ''", () => {
+    expect(resolveSelectedFoodId(foods, null)).toBe('');
+    expect(resolveSelectedFoodId(foods, undefined)).toBe('');
+  });
+
+  it("normalizes non-string selections to '' without matching a row", () => {
+    expect(resolveSelectedFoodId(foods, 42 as unknown as string)).toBe('');
+    expect(resolveSelectedFoodId(foods, {} as unknown as string)).toBe('');
+  });
+
+  it('matches ids exactly rather than by prefix or case', () => {
+    expect(resolveSelectedFoodId(foods, 'A')).toBe('');
+    expect(resolveSelectedFoodId([{ id: 'abc' }], 'ab')).toBe('');
   });
 });
