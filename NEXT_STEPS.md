@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.141 — 565 tests passing across 28 suites, TypeScript clean.
+Reviewed at: v0.5.143 — 572 tests passing across 28 suites, TypeScript clean.
 
 ## Status of the original plan (v0.1.0 review)
 
@@ -31,6 +31,13 @@ All five priorities from the original review have shipped:
 - v0.5.141 — the two destructive cascades extracted to
   `src/lib/cascade-delete.ts` and covered by 8 tests (ordering, per-step
   predicates, mid-sequence failure, blank/non-string id guard).
+- v0.5.142 — the Log Exposure form reloads on focus (closes gap #5) and
+  repairs a `foodId` naming a food deleted since the last load, via a new
+  pure `resolveSelectedFoodId` helper (+7 tests).
+- v0.5.143 — plain `npm install` works from a wiped tree (closes gap #6):
+  dropped the deprecated unused `@testing-library/jest-native`, pinned
+  `react-test-renderer` to 19.2.0, added `babel-preset-expo` as an explicit
+  devDependency. CLAUDE.md's `bun test` corrected to `bun run test`.
 
 ## Known gaps worth doing next (discovered, deliberately not done)
 
@@ -57,23 +64,22 @@ All five priorities from the original review have shipped:
    time. Fine at current data volumes (a handful of foods/exposures per
    family); if a family ever accumulates thousands of exposures, gate the
    reload on a store-level "data changed" counter instead.
-5. **`app/(tabs)/log.tsx` still loads on mount only.** It was out of scope for
-   v0.5.140 (it is a form, not a data list), but its child/food selector chips
-   have the same staleness: add a food from the form's "+ Add New" link and the
-   new food does not appear in the chip row until remount. Same one-line
-   `useFocusEffect` swap — but check the interaction with the form's
-   `reset`/`watch` state before doing it blind.
-6. **Tooling gotcha:** plain `bun test` invokes bun's *built-in* test runner,
-   which hangs on this jest-expo suite. Use `bun run test` or `npx jest`.
-   (CLAUDE.md's "How to Run" section still says `bun test`.) Also: in a fresh
-   worktree/CI environment `bun install --frozen-lockfile` fails under newer
-   bun versions ("lockfile had changes"); plain `bun install` works — discard
-   the resulting `bun.lock` churn rather than committing it. Also: `bun` may
-   not be installed at all in a fresh worktree — `npm install --legacy-peer-deps`
-   works (plain `npm install` fails ERESOLVE: `react-test-renderer@19.2.8`
-   peer-wants `react@^19.2.8` but the project pins `react@19.2.0`). Both
-   `node_modules/` and `package-lock.json` are gitignored, so this leaves no
-   trace; consider realigning the `react-test-renderer` pin so plain npm works.
+5. **~~`app/(tabs)/log.tsx` still loads on mount only.~~** Done in v0.5.142.
+   Two follow-ups worth knowing: (a) the same "selection outlives the list"
+   problem exists for `childId` — the store's `ensureSelection` repairs it
+   for the tabs, but the Log form mirrors `selectedChildId` into form state
+   via a `useEffect`, so a child deleted mid-session is repaired only because
+   `ensureSelection` moves the store value. Worth confirming once a harness
+   exists. (b) The focus reload is unconditional here too — see gap #4.
+
+6. **~~Tooling gotcha.~~** Mostly resolved in v0.5.143 — plain
+   `npm install` now works and CLAUDE.md documents `bun run test`. Two
+   residual items: (a) `bun.lock` was NOT regenerated for the v0.5.143
+   `package.json` delta (three devDependency lines) because Bun is not
+   installed in the worktree that made the change; the next Bun-equipped
+   session should run plain `bun install` and commit the resulting lockfile
+   churn deliberately. (b) `bun install --frozen-lockfile` still fails under
+   newer Bun versions ("lockfile had changes"); plain `bun install` works.
 
 ## NOT in scope (unchanged from original review)
 
