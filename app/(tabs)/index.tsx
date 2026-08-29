@@ -1,8 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { eq, desc, and, sql } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
@@ -35,11 +35,12 @@ export default function DashboardScreen() {
   const [foodsTrackedCount, setFoodsTrackedCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const hasLoadedRef = useRef(false);
 
   const loadData = useCallback(async () => {
     if (!familyId) return;
 
-    setLoading(true);
+    if (!hasLoadedRef.current) setLoading(true);
     try {
       // Load children
       const kids = await db.select().from(schema.children)
@@ -97,6 +98,7 @@ export default function DashboardScreen() {
       console.error('Failed to load dashboard data:', err);
       Alert.alert('Error', 'Failed to load dashboard data. Please try again.');
     } finally {
+      hasLoadedRef.current = true;
       setLoading(false);
     }
   }, [familyId, selectedChildId]);
@@ -104,10 +106,15 @@ export default function DashboardScreen() {
   useEffect(() => {
     if (!isAuthenticated || !isOnboarded) {
       router.replace('/onboarding');
-      return;
     }
-    loadData();
-  }, [isAuthenticated, isOnboarded, loadData]);
+  }, [isAuthenticated, isOnboarded, router]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!isAuthenticated || !isOnboarded) return;
+      loadData();
+    }, [isAuthenticated, isOnboarded, loadData])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { eq } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
@@ -34,14 +34,16 @@ export default function ProgressScreen() {
   const [stats, setStats] = useState<ProgressStats>(EMPTY_STATS);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const hasLoadedRef = useRef(false);
 
   const loadStats = useCallback(async () => {
     if (!familyId || !selectedChildId) {
+      hasLoadedRef.current = true;
       setLoading(false);
       return;
     }
 
-    setLoading(true);
+    if (!hasLoadedRef.current) setLoading(true);
     try {
       const allFoods = await db.select().from(schema.foods)
         .where(eq(schema.foods.familyId, familyId));
@@ -54,13 +56,16 @@ export default function ProgressScreen() {
       console.error('Failed to load progress stats:', err);
       Alert.alert('Error', 'Failed to load progress data. Please try again.');
     } finally {
+      hasLoadedRef.current = true;
       setLoading(false);
     }
   }, [familyId, selectedChildId, feedingProfile]);
 
-  useEffect(() => {
-    loadStats();
-  }, [loadStats]);
+  useFocusEffect(
+    useCallback(() => {
+      loadStats();
+    }, [loadStats])
+  );
 
   if (loading) {
     return (

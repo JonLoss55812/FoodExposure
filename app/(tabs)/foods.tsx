@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { View, Text, TextInput, Pressable, ActivityIndicator, Alert, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
 import { FlashList } from '@shopify/flash-list';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { eq, asc } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
@@ -28,11 +28,12 @@ export default function FoodsScreen() {
   const [selectedCategory, setSelectedCategory] = useState<FoodCategory | 'all'>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const hasLoadedRef = useRef(false);
 
   const loadFoods = useCallback(async () => {
     if (!familyId) return;
 
-    setLoading(true);
+    if (!hasLoadedRef.current) setLoading(true);
     try {
       // Load all foods
       const allFoods = await db.select().from(schema.foods)
@@ -51,13 +52,16 @@ export default function FoodsScreen() {
       console.error('Failed to load foods:', err);
       Alert.alert('Error', 'Failed to load foods. Please try again.');
     } finally {
+      hasLoadedRef.current = true;
       setLoading(false);
     }
   }, [familyId, selectedChildId]);
 
-  useEffect(() => {
-    loadFoods();
-  }, [loadFoods]);
+  useFocusEffect(
+    useCallback(() => {
+      loadFoods();
+    }, [loadFoods])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
