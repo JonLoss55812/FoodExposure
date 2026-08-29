@@ -12,6 +12,7 @@ import { useSettingsStore } from '@/src/stores/settings-store';
 import { FEEDING_PROFILES, FEEDING_PROFILE_CONFIG, getFeedingProfileConfig } from '@/src/lib/thresholds';
 import { APP_VERSION } from '@/src/lib/constants';
 import { exportChildData } from '@/src/lib/export';
+import { deleteChildCascade } from '@/src/lib/cascade-delete';
 
 type ChildRow = Pick<typeof schema.children.$inferSelect, 'id' | 'name' | 'avatarEmoji'>;
 
@@ -63,9 +64,7 @@ export default function SettingsScreen() {
           onPress: async () => {
             setDeletingChildId(child.id);
             try {
-              await db.delete(schema.foodChains).where(eq(schema.foodChains.childId, child.id));
-              await db.delete(schema.exposures).where(eq(schema.exposures.childId, child.id));
-              await db.delete(schema.children).where(eq(schema.children.id, child.id));
+              await deleteChildCascade(db, child.id);
               const remaining = childrenList.filter((c) => c.id !== child.id);
               setChildrenList(remaining);
               ensureSelection(remaining);

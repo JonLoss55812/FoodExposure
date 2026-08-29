@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { eq, and, or, desc } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
 import { StageIndicator, ProgressBar, ExposureCard, EmptyState, Button } from '@/src/components';
@@ -14,6 +14,7 @@ import type { ExposureStage } from '@/src/lib/constants';
 import { getNextStage, canBumpStage, getHighestStage } from '@/src/lib/stage';
 import { getThresholdForProfile } from '@/src/lib/thresholds';
 import { generateId } from '@/src/lib/utils';
+import { deleteFoodCascade } from '@/src/lib/cascade-delete';
 
 type ExposureRow = Pick<
   typeof schema.exposures.$inferSelect,
@@ -136,12 +137,7 @@ export default function FoodDetailScreen() {
           onPress: async () => {
             setDeleting(true);
             try {
-              await db.delete(schema.foodChains).where(or(
-                eq(schema.foodChains.sourceFoodId, food.id),
-                eq(schema.foodChains.targetFoodId, food.id)
-              ));
-              await db.delete(schema.exposures).where(eq(schema.exposures.foodId, food.id));
-              await db.delete(schema.foods).where(eq(schema.foods.id, food.id));
+              await deleteFoodCascade(db, food.id);
               router.replace('/(tabs)/foods' as any);
             } catch (err) {
               console.error('Failed to delete food:', err);
