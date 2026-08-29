@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.139 — 557 tests passing across 27 suites, TypeScript clean.
+Reviewed at: v0.5.141 — 565 tests passing across 28 suites, TypeScript clean.
 
 ## Status of the original plan (v0.1.0 review)
 
@@ -25,6 +25,12 @@ All five priorities from the original review have shipped:
 - v0.5.139 — Delete Child rows in Settings → Family (confirm Alert, cascades
   food_chains + exposures, `ensureSelection` repairs selection; list loads via
   `useFocusEffect` — the first focus-based reload in the codebase).
+- v0.5.140 — dashboard / Foods / Progress now reload on focus (closes the
+  stale-tab gap below). Spinner is gated to the first load via a `hasLoadedRef`
+  so tab switches refresh silently instead of flashing the ActivityIndicator.
+- v0.5.141 — the two destructive cascades extracted to
+  `src/lib/cascade-delete.ts` and covered by 8 tests (ordering, per-step
+  predicates, mid-sequence failure, blank/non-string id guard).
 
 ## Known gaps worth doing next (discovered, deliberately not done)
 
@@ -35,25 +41,39 @@ All five priorities from the original review have shipped:
    reason. Setting up one working screen test (e.g. `app/onboarding/join.tsx`
    with mocked db/stores) would unlock testing the largest untested surface.
    Budget a full session; the mocking is the hard part, not the assertions.
-   The two delete flows (v0.5.138/v0.5.139) are prime first candidates once a
-   harness exists — destructive cascades with only manual verification today.
+   The delete flows' *cascade logic* is now covered by unit tests (v0.5.141),
+   so the remaining untested part of them is only the screen glue: the confirm
+   Alert wiring, the in-flight double-tap guard, and the post-delete navigation
+   / `ensureSelection` repair. Still prime first candidates for a harness.
 2. **Legacy duplicate foods are not deduped.** v0.5.136 guards new adds only.
    With v0.5.138 a parent can now delete a twin manually, but that discards the
    twin's exposures; a merge migration (reassign exposures to the surviving row)
    is still the lossless fix if it ever matters. Not worth it pre-production.
 3. **No food rename/edit UI.** If a rename path ever ships, route the new name
    through `findDuplicateFood` too, or the v0.5.136 guard is bypassable.
-4. **Tab lists are stale after cross-screen writes.** No tab uses focus-based
-   reloading — Foods/Progress/dashboard load on mount + pull-to-refresh only,
-   so e.g. a food deleted via v0.5.138 lingers on the Foods tab until refresh.
-   Settings (v0.5.139) now demonstrates the `useFocusEffect` reload pattern;
-   applying it to the three data tabs is a small, high-clarity follow-up.
-5. **Tooling gotcha:** plain `bun test` invokes bun's *built-in* test runner,
+4. **~~Tab lists are stale after cross-screen writes.~~** Done in v0.5.140 —
+   all four tabs now reload on focus. Follow-up worth knowing about: the
+   focus reload is unconditional, so switching tabs re-runs the queries every
+   time. Fine at current data volumes (a handful of foods/exposures per
+   family); if a family ever accumulates thousands of exposures, gate the
+   reload on a store-level "data changed" counter instead.
+5. **`app/(tabs)/log.tsx` still loads on mount only.** It was out of scope for
+   v0.5.140 (it is a form, not a data list), but its child/food selector chips
+   have the same staleness: add a food from the form's "+ Add New" link and the
+   new food does not appear in the chip row until remount. Same one-line
+   `useFocusEffect` swap — but check the interaction with the form's
+   `reset`/`watch` state before doing it blind.
+6. **Tooling gotcha:** plain `bun test` invokes bun's *built-in* test runner,
    which hangs on this jest-expo suite. Use `bun run test` or `npx jest`.
    (CLAUDE.md's "How to Run" section still says `bun test`.) Also: in a fresh
    worktree/CI environment `bun install --frozen-lockfile` fails under newer
    bun versions ("lockfile had changes"); plain `bun install` works — discard
-   the resulting `bun.lock` churn rather than committing it.
+   the resulting `bun.lock` churn rather than committing it. Also: `bun` may
+   not be installed at all in a fresh worktree — `npm install --legacy-peer-deps`
+   works (plain `npm install` fails ERESOLVE: `react-test-renderer@19.2.8`
+   peer-wants `react@^19.2.8` but the project pins `react@19.2.0`). Both
+   `node_modules/` and `package-lock.json` are gitignored, so this leaves no
+   trace; consider realigning the `react-test-renderer` pin so plain npm works.
 
 ## NOT in scope (unchanged from original review)
 
