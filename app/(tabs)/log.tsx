@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TextInput, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
@@ -15,6 +15,7 @@ import { useAuthStore } from '@/src/stores/auth-store';
 import { exposureSchema, type ExposureFormData } from '@/src/lib/validation';
 import { generateId } from '@/src/lib/utils';
 import { resolveSelectedFoodId } from '@/src/lib/food-partition';
+import { createInFlightLatch } from '@/src/lib/in-flight';
 import { STAGE_CONFIG, MEAL_TYPES, TEMPERATURES, TEXTURES, SETTINGS } from '@/src/lib/constants';
 
 export default function LogExposureScreen() {
@@ -25,6 +26,10 @@ export default function LogExposureScreen() {
   const [foodsList, setFoodsList] = useState<(typeof schema.foods.$inferSelect)[]>([]);
   const [showDetails, setShowDetails] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Synchronous re-entry guard: a double-tap on Save would otherwise insert
+  // the same exposure twice, double-counting it toward the acceptance
+  // threshold that is the app's core clinical metric.
+  const submitLatch = useRef(createInFlightLatch()).current;
 
   const { control, handleSubmit, setValue, getValues, watch, reset, formState: { errors } } = useForm<
     z.input<typeof exposureSchema>,
@@ -80,6 +85,7 @@ export default function LogExposureScreen() {
   );
 
   const onSubmit = async (data: ExposureFormData) => {
+    if (!submitLatch.tryAcquire()) return;
     setSaving(true);
     try {
       const id = generateId();
@@ -113,6 +119,7 @@ export default function LogExposureScreen() {
       console.error('Failed to save exposure:', err);
       Alert.alert('Error', 'Failed to save exposure. Please try again.');
     } finally {
+      submitLatch.release();
       setSaving(false);
     }
   };
@@ -374,6 +381,7 @@ export default function LogExposureScreen() {
           label="Save Exposure"
           onPress={handleSubmit(onSubmit)}
           loading={saving}
+          disabled={saving}
           fullWidth
           size="lg"
           icon="✅"

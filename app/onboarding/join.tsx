@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { View, Text, TextInput, Alert } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
@@ -8,6 +8,7 @@ import * as schema from '@/src/db/schema';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { generateId, deriveLocalEmailPart, isValidInviteCode } from '@/src/lib/utils';
 import { Button } from '@/src/components';
+import { createInFlightLatch } from '@/src/lib/in-flight';
 
 export default function JoinFamilyScreen() {
   const router = useRouter();
@@ -15,6 +16,11 @@ export default function JoinFamilyScreen() {
   const [inviteCode, setInviteCode] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
+  // Synchronous re-entry guard. `loading` only disables the Button after a
+  // re-render, so two taps in one event batch would both reach the insert
+  // below — and the duplicate-email pre-check cannot see an insert that has
+  // not committed yet, so both runs would create a users row.
+  const joinLatch = useRef(createInFlightLatch()).current;
 
   const handleJoin = async () => {
     const trimmedCode = inviteCode.trim().toUpperCase();
@@ -33,6 +39,7 @@ export default function JoinFamilyScreen() {
       return;
     }
 
+    if (!joinLatch.tryAcquire()) return;
     setLoading(true);
     try {
       const family = await db.select().from(schema.families)
@@ -78,6 +85,7 @@ export default function JoinFamilyScreen() {
       console.error('Failed to join family:', err);
       Alert.alert('Error', 'Failed to join family. Please try again.');
     } finally {
+      joinLatch.release();
       setLoading(false);
     }
   };
