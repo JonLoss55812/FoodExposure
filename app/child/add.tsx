@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { View, Text, TextInput, ScrollView, Pressable, Alert } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
@@ -11,6 +11,7 @@ import { useAuthStore } from '@/src/stores/auth-store';
 import { useChildStore } from '@/src/stores/child-store';
 import { childSchema, type ChildFormData } from '@/src/lib/validation';
 import { generateId } from '@/src/lib/utils';
+import { createInFlightLatch } from '@/src/lib/in-flight';
 import { Button } from '@/src/components';
 
 const EMOJI_OPTIONS = ['👶', '👧', '👦', '🧒', '👸', '🤴', '🦸', '🧑‍🍳', '🐣', '🌟', '🦋', '🐻'];
@@ -21,6 +22,8 @@ export default function AddChildScreen() {
   const { selectChild } = useChildStore();
 
   const [saving, setSaving] = useState(false);
+  // `saving` lags a render behind the tap; the latch is synchronous.
+  const submitLatch = useRef(createInFlightLatch()).current;
 
   const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm<
     z.input<typeof childSchema>,
@@ -37,7 +40,7 @@ export default function AddChildScreen() {
   const selectedEmoji = watch('avatarEmoji');
 
   const onSubmit = async (data: ChildFormData) => {
-    if (!familyId || saving) return;
+    if (!familyId || !submitLatch.tryAcquire()) return;
 
     setSaving(true);
     try {
@@ -60,6 +63,7 @@ export default function AddChildScreen() {
       console.error('Failed to add child:', err);
       Alert.alert('Error', 'Failed to add child. Please try again.');
     } finally {
+      submitLatch.release();
       setSaving(false);
     }
   };

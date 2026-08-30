@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { View, Text, Pressable, Alert } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { generateId, generateInviteCode } from '@/src/lib/utils';
+import { createInFlightLatch } from '@/src/lib/in-flight';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
 import { Button } from '@/src/components';
@@ -12,9 +13,11 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const { login } = useAuthStore();
   const [saving, setSaving] = useState(false);
+  // `saving` lags a render behind the tap; the latch is synchronous.
+  const startLatch = useRef(createInFlightLatch()).current;
 
   const handleGetStarted = async () => {
-    if (saving) return;
+    if (!startLatch.tryAcquire()) return;
     setSaving(true);
 
     const familyId = generateId();
@@ -48,6 +51,7 @@ export default function OnboardingScreen() {
     } catch (err) {
       console.error('Failed to start onboarding:', err);
       Alert.alert('Error', 'Failed to start. Please try again.');
+      startLatch.release();
       setSaving(false);
     }
   };

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -15,6 +15,7 @@ import { getNextStage, canBumpStage, getHighestStage } from '@/src/lib/stage';
 import { getThresholdForProfile } from '@/src/lib/thresholds';
 import { generateId } from '@/src/lib/utils';
 import { deleteFoodCascade } from '@/src/lib/cascade-delete';
+import { createInFlightLatch } from '@/src/lib/in-flight';
 
 type ExposureRow = Pick<
   typeof schema.exposures.$inferSelect,
@@ -33,6 +34,9 @@ export default function FoodDetailScreen() {
   const [bumping, setBumping] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [loading, setLoading] = useState(true);
+  // `bumping`/`deleting` lag a render behind the tap; the latches are synchronous.
+  const bumpLatch = useRef(createInFlightLatch()).current;
+  const deleteLatch = useRef(createInFlightLatch()).current;
 
   const loadData = useCallback(async () => {
     if (!id) {
@@ -79,9 +83,10 @@ export default function FoodDetailScreen() {
   }, [loadData]);
 
   const handleBumpStage = async () => {
-    if (!id || !selectedChildId || bumping) return;
+    if (!id || !selectedChildId) return;
     const next = getNextStage(highestStage);
     if (!next) return;
+    if (!bumpLatch.tryAcquire()) return;
 
     setBumping(true);
     try {
@@ -106,6 +111,7 @@ export default function FoodDetailScreen() {
       console.error('Failed to bump stage:', err);
       Alert.alert('Error', 'Failed to bump stage. Please try again.');
     } finally {
+      bumpLatch.release();
       setBumping(false);
     }
   };
@@ -135,6 +141,7 @@ export default function FoodDetailScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
+            if (!deleteLatch.tryAcquire()) return;
             setDeleting(true);
             try {
               await deleteFoodCascade(db, food.id);
@@ -142,6 +149,7 @@ export default function FoodDetailScreen() {
             } catch (err) {
               console.error('Failed to delete food:', err);
               Alert.alert('Error', 'Failed to delete food. Please try again.');
+              deleteLatch.release();
               setDeleting(false);
             }
           },

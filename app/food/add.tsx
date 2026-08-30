@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { View, Text, TextInput, ScrollView, Pressable, Alert } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
@@ -11,6 +11,7 @@ import * as schema from '@/src/db/schema';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { foodSchema, type FoodFormData } from '@/src/lib/validation';
 import { generateId } from '@/src/lib/utils';
+import { createInFlightLatch } from '@/src/lib/in-flight';
 import { findDuplicateFood } from '@/src/lib/food-partition';
 import { FOOD_CATEGORIES, CATEGORY_CONFIG, PREPARATIONS } from '@/src/lib/constants';
 import { Button } from '@/src/components';
@@ -20,6 +21,8 @@ export default function AddFoodScreen() {
   const { familyId } = useAuthStore();
 
   const [saving, setSaving] = useState(false);
+  // `saving` lags a render behind the tap; the latch is synchronous.
+  const submitLatch = useRef(createInFlightLatch()).current;
 
   const { control, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<
     z.input<typeof foodSchema>,
@@ -38,7 +41,7 @@ export default function AddFoodScreen() {
   const isSafeFood = watch('isSafeFood');
 
   const onSubmit = async (data: FoodFormData) => {
-    if (!familyId || saving) return;
+    if (!familyId || !submitLatch.tryAcquire()) return;
 
     setSaving(true);
     try {
@@ -83,6 +86,7 @@ export default function AddFoodScreen() {
       console.error('Failed to add food:', err);
       Alert.alert('Error', 'Failed to add food. Please try again.');
     } finally {
+      submitLatch.release();
       setSaving(false);
     }
   };

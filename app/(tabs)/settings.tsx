@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
@@ -13,6 +13,7 @@ import { FEEDING_PROFILES, FEEDING_PROFILE_CONFIG, getFeedingProfileConfig } fro
 import { APP_VERSION } from '@/src/lib/constants';
 import { exportChildData } from '@/src/lib/export';
 import { deleteChildCascade } from '@/src/lib/cascade-delete';
+import { createInFlightLatch } from '@/src/lib/in-flight';
 
 type ChildRow = Pick<typeof schema.children.$inferSelect, 'id' | 'name' | 'avatarEmoji'>;
 
@@ -24,6 +25,9 @@ export default function SettingsScreen() {
   const [exporting, setExporting] = useState(false);
   const [childrenList, setChildrenList] = useState<ChildRow[]>([]);
   const [deletingChildId, setDeletingChildId] = useState<string | null>(null);
+  // The state flags lag a render behind the tap; the latches are synchronous.
+  const exportLatch = useRef(createInFlightLatch()).current;
+  const deleteChildLatch = useRef(createInFlightLatch()).current;
 
   const loadChildren = useCallback(async () => {
     if (!familyId) {
@@ -52,7 +56,7 @@ export default function SettingsScreen() {
   );
 
   const handleDeleteChild = (child: ChildRow) => {
-    if (deletingChildId) return;
+    if (deleteChildLatch.busy) return;
     Alert.alert(
       'Delete Child?',
       `${child.name} and all of their logged exposures will be permanently deleted. This cannot be undone.`,
@@ -62,6 +66,7 @@ export default function SettingsScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
+            if (!deleteChildLatch.tryAcquire()) return;
             setDeletingChildId(child.id);
             try {
               await deleteChildCascade(db, child.id);
@@ -72,6 +77,7 @@ export default function SettingsScreen() {
               console.error('Failed to delete child:', err);
               Alert.alert('Error', 'Failed to delete child. Please try again.');
             } finally {
+              deleteChildLatch.release();
               setDeletingChildId(null);
             }
           },
@@ -85,6 +91,7 @@ export default function SettingsScreen() {
       Alert.alert('No child selected', 'Add or select a child before exporting.');
       return;
     }
+    if (!exportLatch.tryAcquire()) return;
     setExporting(true);
     try {
       const [child] = await db
@@ -97,6 +104,7 @@ export default function SettingsScreen() {
       console.error('Failed to export data:', err);
       Alert.alert('Export failed', err instanceof Error ? err.message : 'Unknown error');
     } finally {
+      exportLatch.release();
       setExporting(false);
     }
   };
