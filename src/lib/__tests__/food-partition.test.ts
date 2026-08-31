@@ -270,6 +270,48 @@ describe('filterFoods', () => {
   });
 });
 
+describe('findDuplicateFood — excludeId (rename self-collision)', () => {
+  const foods = [
+    { id: '1', name: 'Apple' },
+    { id: '2', name: 'Banana' },
+  ];
+
+  it('does not match the excluded row itself (renaming a food to its own name)', () => {
+    expect(findDuplicateFood(foods, 'Apple', '1')).toBeUndefined();
+  });
+
+  it('allows a case-only or whitespace-only rename of the excluded row', () => {
+    expect(findDuplicateFood(foods, 'apple', '1')).toBeUndefined();
+    expect(findDuplicateFood(foods, '  APPLE  ', '1')).toBeUndefined();
+  });
+
+  it('still reports a collision with a different row', () => {
+    expect(findDuplicateFood(foods, 'Banana', '1')?.id).toBe('2');
+    expect(findDuplicateFood(foods, ' banana ', '1')?.id).toBe('2');
+  });
+
+  it('behaves like the no-exclusion call when excludeId is blank or non-string', () => {
+    expect(findDuplicateFood(foods, 'Apple', undefined)?.id).toBe('1');
+    expect(findDuplicateFood(foods, 'Apple', null)?.id).toBe('1');
+    expect(findDuplicateFood(foods, 'Apple', '')?.id).toBe('1');
+    expect(findDuplicateFood(foods, 'Apple', '   ')?.id).toBe('1');
+    expect(findDuplicateFood(foods, 'Apple', 42 as unknown as string)?.id).toBe('1');
+  });
+
+  it('skips only the excluded row when duplicates already exist', () => {
+    const dupes = [
+      { id: '1', name: 'Apple' },
+      { id: '2', name: 'apple' },
+    ];
+    expect(findDuplicateFood(dupes, 'Apple', '1')?.id).toBe('2');
+    expect(findDuplicateFood(dupes, 'Apple', '2')?.id).toBe('1');
+  });
+
+  it('returns undefined when the excluded row is the only match', () => {
+    expect(findDuplicateFood([{ id: '9', name: 'Kiwi' }], 'Kiwi', '9')).toBeUndefined();
+  });
+});
+
 describe('findDuplicateFood', () => {
   const foods = [
     { id: '1', name: 'Apple' },

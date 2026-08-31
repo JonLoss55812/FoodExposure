@@ -57,7 +57,7 @@ export function filterFoods<T extends FoodFilterable>(
   });
 }
 
-type FoodNameable = { name: string };
+type FoodNameable = { name: string; id?: string };
 
 /**
  * Case-insensitive, whitespace-trimmed duplicate lookup for the Add Food
@@ -69,16 +69,26 @@ type FoodNameable = { name: string };
  * Blank/whitespace-only candidates never match: the schema's .min(1)
  * owns that rejection. Returns the first colliding row so the caller
  * can name it in the alert.
+ *
+ * `excludeId` skips one row by id, which the rename flow needs: renaming
+ * "Brocolli" to "Broccoli" must not collide with the row being renamed,
+ * and a case-only fix ("apple" -> "Apple") would otherwise be rejected as
+ * a duplicate of itself. Blank/non-string excludeId behaves as no exclusion.
  */
 export function findDuplicateFood<T extends FoodNameable>(
   foods: readonly T[],
   name: string | null | undefined,
+  excludeId?: string | null,
 ): T | undefined {
   if (typeof name !== 'string') return undefined;
   const needle = name.trim().toLowerCase();
   if (!needle) return undefined;
+  const skipId = typeof excludeId === 'string' && excludeId.trim() ? excludeId : null;
   return foods.find(
-    (food) => typeof food.name === 'string' && food.name.trim().toLowerCase() === needle,
+    (food) =>
+      food.id !== skipId &&
+      typeof food.name === 'string' &&
+      food.name.trim().toLowerCase() === needle,
   );
 }
 

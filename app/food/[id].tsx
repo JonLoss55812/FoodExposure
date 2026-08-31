@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { eq, and, desc } from 'drizzle-orm';
@@ -15,6 +15,8 @@ import { getNextStage, canBumpStage, getHighestStage } from '@/src/lib/stage';
 import { getThresholdForProfile } from '@/src/lib/thresholds';
 import { generateId } from '@/src/lib/utils';
 import { deleteFoodCascade } from '@/src/lib/cascade-delete';
+import { findDuplicateFood } from '@/src/lib/food-partition';
+import { foodSchema } from '@/src/lib/validation';
 import { createInFlightLatch } from '@/src/lib/in-flight';
 
 type ExposureRow = Pick<
@@ -33,10 +35,14 @@ export default function FoodDetailScreen() {
   const [highestStage, setHighestStage] = useState<ExposureStage | null>(null);
   const [bumping, setBumping] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
+  const [savingName, setSavingName] = useState(false);
   const [loading, setLoading] = useState(true);
   // `bumping`/`deleting` lag a render behind the tap; the latches are synchronous.
   const bumpLatch = useRef(createInFlightLatch()).current;
   const deleteLatch = useRef(createInFlightLatch()).current;
+  const renameLatch = useRef(createInFlightLatch()).current;
 
   const loadData = useCallback(async () => {
     if (!id) {
@@ -130,6 +136,60 @@ export default function FoodDetailScreen() {
     }
   };
 
+  const startEditingName = () => {
+    if (!food) return;
+    setNameDraft(food.name);
+    setEditingName(true);
+  };
+
+  const handleSaveName = async () => {
+    if (!food || !renameLatch.tryAcquire()) return;
+
+    // The schema owns trim/min/max; reuse it so rename and Add Food agree.
+    const parsed = foodSchema.shape.name.safeParse(nameDraft);
+    if (!parsed.success) {
+      renameLatch.release();
+      Alert.alert('Invalid Name', parsed.error.issues[0]?.message ?? 'Please enter a food name.');
+      return;
+    }
+    const nextName = parsed.data;
+    if (nextName === food.name) {
+      renameLatch.release();
+      setEditingName(false);
+      return;
+    }
+
+    setSavingName(true);
+    try {
+      // Rename must not bypass the v0.5.136 uniqueness guard — but the food
+      // being renamed is excluded so a case-only fix ("apple" -> "Apple") works.
+      const siblings = await db
+        .select({ id: schema.foods.id, name: schema.foods.name })
+        .from(schema.foods)
+        .where(eq(schema.foods.familyId, food.familyId));
+      const duplicate = findDuplicateFood(siblings, nextName, food.id);
+      if (duplicate) {
+        Alert.alert(
+          'Already Added',
+          `"${duplicate.name}" is already in your food library. Pick a different name.`,
+        );
+        return;
+      }
+
+      await db.update(schema.foods)
+        .set({ name: nextName })
+        .where(eq(schema.foods.id, food.id));
+      setFood({ ...food, name: nextName });
+      setEditingName(false);
+    } catch (err) {
+      console.error('Failed to rename food:', err);
+      Alert.alert('Error', 'Failed to rename food. Please try again.');
+    } finally {
+      renameLatch.release();
+      setSavingName(false);
+    }
+  };
+
   const handleDeleteFood = () => {
     if (!food || deleting) return;
     Alert.alert(
@@ -208,7 +268,44 @@ export default function FoodDetailScreen() {
         <View style={[styles.categoryBadge, { backgroundColor: categoryConfig.color + '20' }]}>
           <Text style={{ fontSize: 40 }}>{categoryConfig.icon}</Text>
         </View>
-        <Text style={styles.foodName}>{food.name}</Text>
+        {editingName ? (
+          <View style={styles.renameRow}>
+            <TextInput
+              style={styles.renameInput}
+              value={nameDraft}
+              onChangeText={setNameDraft}
+              autoFocus
+              maxLength={80}
+              accessibilityLabel="Food name"
+              placeholder="Food name"
+            />
+            <Pressable
+              onPress={handleSaveName}
+              disabled={savingName}
+              accessibilityRole="button"
+              accessibilityLabel="Save food name"
+              accessibilityState={{ disabled: savingName, busy: savingName }}
+            >
+              <Text style={styles.renameAction}>{savingName ? 'Saving…' : 'Save'}</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setEditingName(false)}
+              disabled={savingName}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel renaming food"
+            >
+              <Text style={styles.renameCancel}>Cancel</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable
+            onPress={startEditingName}
+            accessibilityRole="button"
+            accessibilityLabel={`Rename ${food.name}`}
+          >
+            <Text style={styles.foodName}>{food.name} <Text style={styles.editHint}>✏️</Text></Text>
+          </Pressable>
+        )}
         <View style={styles.tags}>
           <View style={[styles.tag, { backgroundColor: categoryConfig.color + '20' }]}>
             <Text style={[styles.tagText, { color: categoryConfig.color }]}>{categoryConfig.label}</Text>
@@ -360,6 +457,36 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.fontSize.xxl,
     fontWeight: '800',
     color: theme.colors.text,
+  },
+  editHint: {
+    fontSize: theme.fontSize.md,
+  },
+  renameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    alignSelf: 'stretch',
+    paddingHorizontal: theme.spacing.lg,
+  },
+  renameInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    fontSize: theme.fontSize.lg,
+    color: theme.colors.text,
+    backgroundColor: theme.colors.surface,
+  },
+  renameAction: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '700',
+    color: theme.colors.primary,
+  },
+  renameCancel: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.textSecondary,
   },
   tags: {
     flexDirection: 'row',
