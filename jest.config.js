@@ -12,5 +12,6 @@ module.exports = {
     '!src/**/index.ts',
     '!src/styles/**',
     '!src/providers/**',
+    '!src/test-utils/**',
   ],
 };
