@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.143 — 572 tests passing across 28 suites, TypeScript clean.
+Reviewed at: v0.5.146 — 594 tests passing across 30 suites, TypeScript clean.
 
 ## Status of the original plan (v0.1.0 review)
 
@@ -34,6 +34,14 @@ All five priorities from the original review have shipped:
 - v0.5.142 — the Log Exposure form reloads on focus (closes gap #5) and
   repairs a `foodId` naming a food deleted since the last load, via a new
   pure `resolveSelectedFoodId` helper (+7 tests).
+- v0.5.144 — every async write handler is guarded by a *synchronous*
+  in-flight latch (`src/lib/in-flight.ts`) instead of a render-lagged
+  `useState` boolean; two handlers had no guard at all.
+- v0.5.145 — rename a food from the detail page (closes gap #3). Routed
+  through `findDuplicateFood`, which gained an `excludeId` param so a food
+  does not collide with itself on a case-only fix.
+- v0.5.146 — first screen render harness (closes gap #1's blocker):
+  `src/test-utils/mock-db.ts` + `app/onboarding/__tests__/join.test.tsx`.
 - v0.5.143 — plain `npm install` works from a wiped tree (closes gap #6):
   dropped the deprecated unused `@testing-library/jest-native`, pinned
   `react-test-renderer` to 19.2.0, added `babel-preset-expo` as an explicit
@@ -41,23 +49,47 @@ All five priorities from the original review have shipped:
 
 ## Known gaps worth doing next (discovered, deliberately not done)
 
-1. **No screen render harness.** The single biggest remaining test gap: every
-   `app/` screen (forms, handlers, conditional empty states) ships without tests
-   because there is no jest harness for expo-router + drizzle + MMKV screens.
-   Dozens of changelog entries cite the "ship-without-test pattern" for this
-   reason. Setting up one working screen test (e.g. `app/onboarding/join.tsx`
-   with mocked db/stores) would unlock testing the largest untested surface.
-   Budget a full session; the mocking is the hard part, not the assertions.
-   The delete flows' *cascade logic* is now covered by unit tests (v0.5.141),
-   so the remaining untested part of them is only the screen glue: the confirm
-   Alert wiring, the in-flight double-tap guard, and the post-delete navigation
-   / `ensureSelection` repair. Still prime first candidates for a harness.
+1. **Screen tests: harness exists now, one screen covered.** v0.5.146 built
+   `src/test-utils/mock-db.ts` (structural fake of the drizzle builder:
+   queue reads, assert recorded writes, `failReads()` for catch blocks) and
+   proved it on `app/onboarding/join.tsx` (9 tests). Copying the pattern to
+   another screen should now be routine. The seams, and the gotchas that
+   cost time the first time:
+   - `jest.mock('expo-router', ...)` must reference a variable whose name
+     starts with `mock` (jest's out-of-scope guard rejects a plain `router`).
+   - Mock `@/src/db/client` with a **getter** so each test's fresh
+     `createMockDb()` is picked up: `{ get db() { return mockDb.db; } }`.
+   - The suite runs on `jest-expo/web` + `@testing-library/react`, so query
+     by `accessibilityLabel` (`getByLabelText`) and use `fireEvent.change`
+     with `{ target: { value } }` for TextInputs, not `changeText`.
+   - react-native-web does **not** serialize `accessibilityState.disabled`
+     to `aria-disabled` on a Pressable; `aria-busy` (v0.5.46) does serialize.
+   - **Known harness limit:** react-native-web never dispatches a second
+     press while the first is in flight, so the same-tick double-tap that
+     `createInFlightLatch` exists for is *not* reachable from a DOM test.
+     A two-tap test will pass with the latch deleted. Do not write one —
+     `in-flight.test.ts` owns those semantics. Mutation-test any new screen
+     test before trusting it; this one shipped only after five independent
+     source mutations each failed exactly one assertion.
+   Best next targets, in order: `app/food/[id].tsx` (delete cascade confirm
+   Alert, stage bump, and the new v0.5.145 rename flow — the rename's
+   duplicate-collision branch and the `foodSchema` validation branch are the
+   untested halves), then `app/(tabs)/log.tsx` (the form + focus reload +
+   `resolveSelectedFoodId` repair), then `app/(tabs)/settings.tsx` delete-child.
+
 2. **Legacy duplicate foods are not deduped.** v0.5.136 guards new adds only.
    With v0.5.138 a parent can now delete a twin manually, but that discards the
    twin's exposures; a merge migration (reassign exposures to the surviving row)
    is still the lossless fix if it ever matters. Not worth it pre-production.
-3. **No food rename/edit UI.** If a rename path ever ships, route the new name
-   through `findDuplicateFood` too, or the v0.5.136 guard is bypassable.
+3. **~~No food rename/edit UI.~~** Done in v0.5.145 — inline rename on the
+   food detail page, validated through `foodSchema.shape.name` and guarded
+   by `findDuplicateFood(..., excludeId)`. Follow-ups deliberately not done:
+   (a) only the *name* is editable; category and default preparation still
+   require delete-and-re-add, and category is the one that changes a food's
+   grouping on the Progress tab; (b) the rename does not normalize casing
+   across the family, so pre-existing legacy duplicates are still separate
+   rows (see gap #2); (c) the rename flow is screen-level and therefore
+   still untested — it is now the best first target for the gap #1 harness.
 4. **~~Tab lists are stale after cross-screen writes.~~** Done in v0.5.140 —
    all four tabs now reload on focus. Follow-up worth knowing about: the
    focus reload is unconditional, so switching tabs re-runs the queries every
