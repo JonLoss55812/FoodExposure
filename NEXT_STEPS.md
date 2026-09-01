@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.146 — 594 tests passing across 30 suites, TypeScript clean.
+Reviewed at: v0.5.148 — 615 tests passing across 32 suites, TypeScript clean.
 
 ## Status of the original plan (v0.1.0 review)
 
@@ -42,6 +42,15 @@ All five priorities from the original review have shipped:
   does not collide with itself on a case-only fix.
 - v0.5.146 — first screen render harness (closes gap #1's blocker):
   `src/test-utils/mock-db.ts` + `app/onboarding/__tests__/join.test.tsx`.
+- v0.5.147 — screen tests for `app/food/[id].tsx` (13): the v0.5.145 rename
+  (schema rejection, no-op, duplicate collision, the load-bearing case-only
+  `excludeId` fix, happy path, latch release, cancel) and the v0.5.138 delete
+  cascade (confirm copy, cancel, confirm + replace), plus not-found and
+  read-failure. Five source mutations each fail exactly one test.
+- v0.5.148 — screen tests for the Settings Delete Child flow (8): cascade,
+  row drop, and the three `ensureSelection` repair outcomes (selected child
+  deleted -> survivor; last child deleted -> null; other child deleted ->
+  unchanged), plus the retryable failure path. Five mutations verified.
 - v0.5.143 — plain `npm install` works from a wiped tree (closes gap #6):
   dropped the deprecated unused `@testing-library/jest-native`, pinned
   `react-test-renderer` to 19.2.0, added `babel-preset-expo` as an explicit
@@ -49,16 +58,25 @@ All five priorities from the original review have shipped:
 
 ## Known gaps worth doing next (discovered, deliberately not done)
 
-1. **Screen tests: harness exists now, one screen covered.** v0.5.146 built
+1. **Screen tests: 3 screens covered, harness proven.** v0.5.146 built
    `src/test-utils/mock-db.ts` (structural fake of the drizzle builder:
-   queue reads, assert recorded writes, `failReads()` for catch blocks) and
-   proved it on `app/onboarding/join.tsx` (9 tests). Copying the pattern to
-   another screen should now be routine. The seams, and the gotchas that
-   cost time the first time:
+   queue reads, assert recorded writes, `failReads()` for catch blocks).
+   v0.5.147 and v0.5.148 copied the pattern to `app/food/[id].tsx` and the
+   Settings Delete Child flow — both destructive cascades are now covered.
+   The seams, and the gotchas that cost time:
    - `jest.mock('expo-router', ...)` must reference a variable whose name
      starts with `mock` (jest's out-of-scope guard rejects a plain `router`).
+     Add `useLocalSearchParams` for `[id]`-style routes and `useFocusEffect`
+     (mock it to a plain `useEffect`) for any screen that loads on focus.
    - Mock `@/src/db/client` with a **getter** so each test's fresh
      `createMockDb()` is picked up: `{ get db() { return mockDb.db; } }`.
+   - **Tab screens need a `SafeAreaProvider` wrapper** with static
+     `initialMetrics` — `SafeAreaView`'s hook throws without one. This failed
+     all 8 settings tests on the first run; see `settings.test.tsx`.
+   - A confirm `Alert` is testable by reaching into the spy's third argument
+     and invoking the named button's `onPress` inside `act` — see the
+     `confirmAlert` helper, duplicated in both files (worth extracting into
+     `src/test-utils/` if a third screen needs it).
    - The suite runs on `jest-expo/web` + `@testing-library/react`, so query
      by `accessibilityLabel` (`getByLabelText`) and use `fireEvent.change`
      with `{ target: { value } }` for TextInputs, not `changeText`.
@@ -69,13 +87,20 @@ All five priorities from the original review have shipped:
      `createInFlightLatch` exists for is *not* reachable from a DOM test.
      A two-tap test will pass with the latch deleted. Do not write one —
      `in-flight.test.ts` owns those semantics. Mutation-test any new screen
-     test before trusting it; this one shipped only after five independent
-     source mutations each failed exactly one assertion.
-   Best next targets, in order: `app/food/[id].tsx` (delete cascade confirm
-   Alert, stage bump, and the new v0.5.145 rename flow — the rename's
-   duplicate-collision branch and the `foodSchema` validation branch are the
-   untested halves), then `app/(tabs)/log.tsx` (the form + focus reload +
-   `resolveSelectedFoodId` repair), then `app/(tabs)/settings.tsx` delete-child.
+     test before trusting it; every test in all three files shipped only
+     after independent source mutations each failed exactly one assertion.
+   - **Known cosmetic wart, unresolved:** screens that load in a
+     `useEffect` emit "An update ... was not wrapped in act(...)" warnings
+     (~37 for the food-detail suite). They are console noise only — the
+     suites pass. Wrapping the render in `await act(async () => ...)` and
+     draining microtasks inside the act scope did *not* silence them, and
+     neither did the `console.error` spy that is already installed in
+     `beforeEach`, which suggests the warnings are emitted outside the
+     spy's window rather than that the act wrapping is wrong. Worth ~15
+     focused minutes if it starts hiding real failures; not before.
+   Remaining targets, in order: `app/(tabs)/log.tsx` (the form + focus
+   reload + `resolveSelectedFoodId` repair), `app/food/add.tsx` (the
+   v0.5.136 duplicate guard on the add path), `app/(tabs)/foods.tsx`.
 
 2. **Legacy duplicate foods are not deduped.** v0.5.136 guards new adds only.
    With v0.5.138 a parent can now delete a twin manually, but that discards the
@@ -88,8 +113,8 @@ All five priorities from the original review have shipped:
    require delete-and-re-add, and category is the one that changes a food's
    grouping on the Progress tab; (b) the rename does not normalize casing
    across the family, so pre-existing legacy duplicates are still separate
-   rows (see gap #2); (c) the rename flow is screen-level and therefore
-   still untested — it is now the best first target for the gap #1 harness.
+   rows (see gap #2); (c) ~~the rename flow is untested~~ — covered by
+   the 7 rename tests added in v0.5.147.
 4. **~~Tab lists are stale after cross-screen writes.~~** Done in v0.5.140 —
    all four tabs now reload on focus. Follow-up worth knowing about: the
    focus reload is unconditional, so switching tabs re-runs the queries every
