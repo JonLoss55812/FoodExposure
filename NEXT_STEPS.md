@@ -67,7 +67,7 @@ All five priorities from the original review have shipped:
 
 ## Known gaps worth doing next (discovered, deliberately not done)
 
-1. **Screen tests: 3 screens covered, harness proven.** v0.5.146 built
+1. **Screen tests: 5 screens covered, harness proven.** v0.5.146 built
    `src/test-utils/mock-db.ts` (structural fake of the drizzle builder:
    queue reads, assert recorded writes, `failReads()` for catch blocks).
    v0.5.147 and v0.5.148 copied the pattern to `app/food/[id].tsx` and the
