@@ -18,13 +18,8 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Alert } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { createMockDb, type MockDb } from '@/src/test-utils/mock-db';
-
-const SAFE_AREA_METRICS = {
-  frame: { x: 0, y: 0, width: 390, height: 844 },
-  insets: { top: 47, left: 0, right: 0, bottom: 34 },
-};
+import { SafeArea } from '@/src/test-utils/screen-helpers';
 
 const mockRouter = { replace: jest.fn(), back: jest.fn(), push: jest.fn() };
 jest.mock('expo-router', () => ({
@@ -58,9 +53,9 @@ function queueLoad(children: unknown[], foods: unknown[]) {
 
 function renderScreen() {
   return render(
-    <SafeAreaProvider initialMetrics={SAFE_AREA_METRICS}>
+    <SafeArea>
       <LogExposureScreen />
-    </SafeAreaProvider>,
+    </SafeArea>,
   );
 }
 

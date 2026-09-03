@@ -16,6 +16,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Alert } from 'react-native';
 import { createMockDb, type MockDb } from '@/src/test-utils/mock-db';
+import { pressAlertButton } from '@/src/test-utils/screen-helpers';
 
 const mockRouter = { replace: jest.fn(), back: jest.fn(), push: jest.fn() };
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter }));
@@ -36,16 +37,6 @@ function typeName(value: string) {
 
 function tapAdd() {
   fireEvent.click(screen.getByLabelText('Add Food'));
-}
-
-/** Invoke a named button on the most recent Alert.alert call. */
-function pressAlertButton(alertSpy: jest.SpyInstance, text: string) {
-  const buttons = alertSpy.mock.calls[alertSpy.mock.calls.length - 1][2] as
-    | { text: string; onPress?: () => void }[]
-    | undefined;
-  const button = buttons?.find((b) => b.text === text);
-  expect(button).toBeTruthy();
-  button?.onPress?.();
 }
 
 describe('AddFoodScreen', () => {
@@ -151,7 +142,7 @@ describe('AddFoodScreen', () => {
 
     await waitFor(() => expect(alertSpy).toHaveBeenCalled());
     // v0.5.16: batch-adding foods must not require deleting the previous name.
-    pressAlertButton(alertSpy, 'Add Another');
+    await pressAlertButton(alertSpy, 'Add Another');
 
     await waitFor(() =>
       expect((screen.getByLabelText('Food name') as HTMLInputElement).value).toBe(''),
@@ -165,7 +156,7 @@ describe('AddFoodScreen', () => {
     tapAdd();
 
     await waitFor(() => expect(alertSpy).toHaveBeenCalled());
-    pressAlertButton(alertSpy, 'Done');
+    await pressAlertButton(alertSpy, 'Done');
     expect(mockRouter.back).toHaveBeenCalled();
   });
 

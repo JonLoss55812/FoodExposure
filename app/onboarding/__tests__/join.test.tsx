@@ -17,7 +17,7 @@
  * that keeps a double-tap from creating two `users` rows.
  */
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Alert } from 'react-native';
 import { createMockDb, type MockDb } from '@/src/test-utils/mock-db';
 

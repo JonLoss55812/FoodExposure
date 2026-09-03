@@ -17,18 +17,10 @@
  * one, so every tab screen test will need that wrapper.
  */
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import { Alert } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { createMockDb, type MockDb } from '@/src/test-utils/mock-db';
-
-// Tab screens are wrapped in `SafeAreaView`, whose hook throws outside a
-// provider. Static metrics keep the harness deterministic (and are the
-// documented way to render safe-area consumers in a test environment).
-const SAFE_AREA_METRICS = {
-  frame: { x: 0, y: 0, width: 390, height: 844 },
-  insets: { top: 47, left: 0, right: 0, bottom: 34 },
-};
+import { SafeArea, click, confirmAlert } from '@/src/test-utils/screen-helpers';
 
 const mockRouter = { replace: jest.fn(), back: jest.fn(), push: jest.fn() };
 jest.mock('expo-router', () => ({
@@ -59,28 +51,12 @@ async function renderWithChildren(children: unknown[]) {
   mockDb.queueSelect(children);
   await act(async () => {
     render(
-      <SafeAreaProvider initialMetrics={SAFE_AREA_METRICS}>
+      <SafeArea>
         <SettingsScreen />
-      </SafeAreaProvider>
+      </SafeArea>
     );
   });
   await waitFor(() => expect(screen.getByText('Settings')).toBeTruthy());
-}
-
-async function click(label: string) {
-  await act(async () => {
-    fireEvent.click(screen.getByLabelText(label));
-  });
-}
-
-/** Invoke a named button inside a confirm Alert's button array. */
-async function confirmAlert(alertSpy: jest.SpyInstance, text: string) {
-  const buttons = alertSpy.mock.calls[0][2] as { text: string; onPress?: () => void }[];
-  const button = buttons.find((b) => b.text === text);
-  expect(button).toBeTruthy();
-  await act(async () => {
-    await button!.onPress?.();
-  });
 }
 
 describe('SettingsScreen — Delete Child (v0.5.139)', () => {

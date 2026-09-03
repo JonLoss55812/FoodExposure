@@ -18,6 +18,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { Alert } from 'react-native';
 import { createMockDb, type MockDb } from '@/src/test-utils/mock-db';
+import { click, confirmAlert } from '@/src/test-utils/screen-helpers';
 
 const mockRouter = { replace: jest.fn(), back: jest.fn(), push: jest.fn() };
 const mockParams = { id: 'food-1' };
@@ -78,22 +79,6 @@ async function startRename(next: string) {
   fireEvent.change(screen.getByLabelText('Food name'), { target: { value: next } });
   await act(async () => {
     fireEvent.click(screen.getByLabelText('Save food name'));
-  });
-}
-
-async function click(label: string) {
-  await act(async () => {
-    fireEvent.click(screen.getByLabelText(label));
-  });
-}
-
-/** Invoke the destructive button inside a confirm Alert's button array. */
-async function confirmAlert(alertSpy: jest.SpyInstance, text: string) {
-  const buttons = alertSpy.mock.calls[0][2] as { text: string; onPress?: () => void }[];
-  const button = buttons.find((b) => b.text === text);
-  expect(button).toBeTruthy();
-  await act(async () => {
-    await button!.onPress?.();
   });
 }
 
