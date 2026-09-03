@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.148 — 615 tests passing across 32 suites, TypeScript clean.
+Reviewed at: v0.5.150 — 634 tests passing across 34 suites, TypeScript clean.
 
 ## Status of the original plan (v0.1.0 review)
 
@@ -51,6 +51,15 @@ All five priorities from the original review have shipped:
   row drop, and the three `ensureSelection` repair outcomes (selected child
   deleted -> survivor; last child deleted -> null; other child deleted ->
   unchanged), plus the retryable failure path. Five mutations verified.
+- v0.5.149 — screen tests for `app/food/add.tsx` (10): the v0.5.136
+  duplicate guard (case-insensitive and whitespace-padded collisions alert
+  and write nothing), the schema rejection path, the family-scoped insert,
+  both Alert actions, and the failure path where a failed lookup must not
+  fall through to the insert. Five mutations verified.
+- v0.5.150 — screen tests for `app/(tabs)/log.tsx` (9): the
+  required-selection guards, the happy-path insert (optional dimensions
+  land as `null`), the `tolerate` default, the v0.5.7 reset (keep child,
+  clear food), and both failure paths. Seven mutations verified.
 - v0.5.143 — plain `npm install` works from a wiped tree (closes gap #6):
   dropped the deprecated unused `@testing-library/jest-native`, pinned
   `react-test-renderer` to 19.2.0, added `babel-preset-expo` as an explicit
@@ -98,9 +107,25 @@ All five priorities from the original review have shipped:
      `beforeEach`, which suggests the warnings are emitted outside the
      spy's window rather than that the act wrapping is wrong. Worth ~15
      focused minutes if it starts hiding real failures; not before.
-   Remaining targets, in order: `app/(tabs)/log.tsx` (the form + focus
-   reload + `resolveSelectedFoodId` repair), `app/food/add.tsx` (the
-   v0.5.136 duplicate guard on the add path), `app/(tabs)/foods.tsx`.
+   - **Two harness limits found in v0.5.150, worth knowing before the next
+     screen test.** (a) react-native-web does not serialize
+     `accessibilityState.selected` to the DOM, so a chip's *highlight* is
+     not directly assertable — assert the behaviour the selection enables
+     instead (e.g. that Save re-validates cleanly rather than surfacing the
+     "Select a food" error). (b) A screen's focus load runs exactly **once**
+     under the harness, because `useFocusEffect` is mocked to a plain
+     `useEffect` and nothing re-focuses the screen. Anything that only
+     happens on a *second* load is therefore unreachable — which is why the
+     v0.5.142 `resolveSelectedFoodId` repair on the Log form is covered by
+     its unit tests and not through the screen. If that repair ever needs
+     screen-level coverage, the honest way in is a test-only re-render that
+     changes `familyId` (loadData's dependency), not a fake second focus.
+   Remaining targets, in order: `app/(tabs)/foods.tsx` (search/category
+   filter + the pinned safe-foods row), `app/(tabs)/index.tsx` (dashboard),
+   `app/(tabs)/progress.tsx`, `app/child/add.tsx`. Also worth ~5 minutes:
+   the `confirmAlert` helper is now duplicated in three files and a
+   `pressAlertButton` variant (v0.5.149) in a fourth — extract them into
+   `src/test-utils/` on the next screen test rather than copying a fifth.
 
 2. **Legacy duplicate foods are not deduped.** v0.5.136 guards new adds only.
    With v0.5.138 a parent can now delete a twin manually, but that discards the
