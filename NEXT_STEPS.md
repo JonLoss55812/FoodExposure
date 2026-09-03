@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.150 — 634 tests passing across 34 suites, TypeScript clean.
+Reviewed at: v0.5.152 — 645 tests passing across 35 suites, TypeScript clean.
 
 ## Status of the original plan (v0.1.0 review)
 
@@ -60,6 +60,15 @@ All five priorities from the original review have shipped:
   required-selection guards, the happy-path insert (optional dimensions
   land as `null`), the `tolerate` default, the v0.5.7 reset (keep child,
   clear food), and both failure paths. Seven mutations verified.
+- v0.5.151 — the duplicated screen-test seams extracted into
+  `src/test-utils/screen-helpers.tsx` (`SAFE_AREA_METRICS`, a `SafeArea`
+  wrapper, `click`, and the two Alert helpers). All five screen suites now
+  import them instead of carrying private copies.
+- v0.5.152 — screen tests for `app/(tabs)/foods.tsx` (11): the pinned
+  safe-foods row (present once, absent when empty), per-food exposure
+  counts, the skipped exposures query when no child is selected, search
+  and category filtering, both empty states plus Clear Filters, and the
+  load-failure path. Six mutations verified.
 - v0.5.143 — plain `npm install` works from a wiped tree (closes gap #6):
   dropped the deprecated unused `@testing-library/jest-native`, pinned
   `react-test-renderer` to 19.2.0, added `babel-preset-expo` as an explicit
@@ -67,7 +76,7 @@ All five priorities from the original review have shipped:
 
 ## Known gaps worth doing next (discovered, deliberately not done)
 
-1. **Screen tests: 5 screens covered, harness proven.** v0.5.146 built
+1. **Screen tests: 6 screens covered, harness proven.** v0.5.146 built
    `src/test-utils/mock-db.ts` (structural fake of the drizzle builder:
    queue reads, assert recorded writes, `failReads()` for catch blocks).
    v0.5.147 and v0.5.148 copied the pattern to `app/food/[id].tsx` and the
@@ -120,12 +129,24 @@ All five priorities from the original review have shipped:
      its unit tests and not through the screen. If that repair ever needs
      screen-level coverage, the honest way in is a test-only re-render that
      changes `familyId` (loadData's dependency), not a fake second focus.
-   Remaining targets, in order: `app/(tabs)/foods.tsx` (search/category
-   filter + the pinned safe-foods row), `app/(tabs)/index.tsx` (dashboard),
-   `app/(tabs)/progress.tsx`, `app/child/add.tsx`. Also worth ~5 minutes:
-   the `confirmAlert` helper is now duplicated in three files and a
-   `pressAlertButton` variant (v0.5.149) in a fourth — extract them into
-   `src/test-utils/` on the next screen test rather than copying a fifth.
+   - **The shared seams now live in `src/test-utils/screen-helpers.tsx`**
+     (v0.5.151): `SAFE_AREA_METRICS`, a `SafeArea` wrapper component,
+     `click(label)`, and two Alert helpers. The Alert pair is deliberately
+     two exports, not one with a flag: `confirmAlert` reads the **first**
+     Alert (so a later failure Alert cannot be mistaken for a confirm
+     dialog on a path that raises both) and `pressAlertButton` reads the
+     **most recent**. Pick by which one the screen under test needs. The
+     `expo-router` and `@/src/db/client` mocks stay per-file — they are
+     `jest.mock` factories, which must be hoisted in the importing module.
+   Remaining targets, in order: `app/(tabs)/index.tsx` (dashboard — the
+   `Set`-based Foods Tracked count from v0.5.85 and the stage-distribution
+   grid are the untested wiring), `app/(tabs)/progress.tsx`, and
+   `app/child/add.tsx`. Two notes from writing the Foods tab suite
+   (v0.5.152): (a) `FlashList` *does* render under `jest-expo/web`,
+   including its `ListHeaderComponent`, so a pinned header section is
+   assertable; (b) `FoodCard` surfaces its exposure count only through
+   `ProgressBar`'s `current/target` label, so assert `'2/15'`, not a
+   phrase like "2 exposures".
 
 2. **Legacy duplicate foods are not deduped.** v0.5.136 guards new adds only.
    With v0.5.138 a parent can now delete a twin manually, but that discards the
