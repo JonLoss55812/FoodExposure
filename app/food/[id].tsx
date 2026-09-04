@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { View, Text, TextInput, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native';
-import { StyleSheet } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { eq, and, desc } from 'drizzle-orm';
 import { db } from '@/src/db/client';
@@ -25,6 +25,7 @@ type ExposureRow = Pick<
 >;
 
 export default function FoodDetailScreen() {
+  const { theme } = useUnistyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { selectedChildId } = useChildStore();
@@ -221,7 +222,7 @@ export default function FoodDetailScreen() {
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color="#F97316" />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
@@ -326,7 +327,7 @@ export default function FoodDetailScreen() {
           <ProgressBar
             current={exposuresList.length}
             target={getThresholdForProfile(feedingProfile)}
-            color={highestStage ? STAGE_CONFIG[highestStage].color : '#F97316'}
+            color={highestStage ? STAGE_CONFIG[highestStage].color : undefined}
             accessibilityLabel={`${food.name} exposures progress`}
           />
         </View>

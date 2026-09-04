@@ -65,7 +65,9 @@ export function Button({
       aria-busy={loading}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? '#FFF' : '#F97316'} />
+        <ActivityIndicator
+          color={variant === 'primary' ? theme.colors.onPrimaryStrong : theme.colors.primaryStrong}
+        />
       ) : (
         <View style={styles.content}>
           {icon && <Text style={styles.icon}>{icon}</Text>}

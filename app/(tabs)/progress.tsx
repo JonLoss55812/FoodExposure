@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StyleSheet } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { eq } from 'drizzle-orm';
 import { db } from '@/src/db/client';
@@ -27,6 +27,7 @@ const EMPTY_STATS: ProgressStats = {
 };
 
 export default function ProgressScreen() {
+  const { theme } = useUnistyles();
   const router = useRouter();
   const { familyId } = useAuthStore();
   const { selectedChildId } = useChildStore();
@@ -70,7 +71,7 @@ export default function ProgressScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <ActivityIndicator size="large" color="#F97316" style={{ flex: 1 }} />
+        <ActivityIndicator size="large" color={theme.colors.primary} style={{ flex: 1 }} />
       </SafeAreaView>
     );
   }
@@ -147,7 +148,6 @@ export default function ProgressScreen() {
             <ProgressBar
               current={stats.avgRating}
               target={5}
-              color="#F97316"
               showLabel={false}
               height={10}
               accessibilityLabel="Average acceptance rating"
@@ -178,7 +178,7 @@ export default function ProgressScreen() {
               <ProgressBar
                 current={row.current}
                 target={row.threshold}
-                color={row.reached ? '#34D399' : '#F97316'}
+                color={row.reached ? theme.colors.success : undefined}
                 showLabel={false}
                 height={8}
                 accessibilityLabel={`${row.foodName} exposures progress`}

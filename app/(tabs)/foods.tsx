@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { View, Text, TextInput, Pressable, ActivityIndicator, Alert, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StyleSheet } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { FlashList } from '@shopify/flash-list';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { eq, asc } from 'drizzle-orm';
@@ -20,6 +20,7 @@ type FoodWithStats = typeof schema.foods.$inferSelect & {
 };
 
 export default function FoodsScreen() {
+  const { theme } = useUnistyles();
   const router = useRouter();
   const { familyId } = useAuthStore();
   const { selectedChildId } = useChildStore();
@@ -116,7 +117,7 @@ export default function FoodsScreen() {
   if (loading && foods.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        <ActivityIndicator size="large" color="#F97316" style={{ flex: 1 }} />
+        <ActivityIndicator size="large" color={theme.colors.primary} style={{ flex: 1 }} />
       </SafeAreaView>
     );
   }

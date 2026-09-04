@@ -218,9 +218,34 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.155
+v0.5.156
 
 ## Changelog
+- v0.5.156 — Refactor: the last eleven hardcoded `#F97316` / `#34D399` literals in `app/` and
+  `src/` now read from the theme. v0.5.153 moved every *token* usage of the brand orange onto
+  an AA-safe pairing and v0.5.155 caught the tab labels, but the literals scattered across
+  spinners and progress-bar fills were invisible to both sweeps — and they are theme-blind by
+  construction, so dark mode rendered the light theme's orange on every full-screen
+  `ActivityIndicator` and every unstaged progress bar, against a `#0F172A` background. Six
+  surfaces: the four `ActivityIndicator size="large"` loading spinners on the dashboard, Foods,
+  Progress and food-detail screens now take `theme.colors.primary`; `Button`'s in-flight
+  spinner takes `onPrimaryStrong` / `primaryStrong` to match the label colour it replaces
+  (previously `'#FFF'` / `'#F97316'`, so the ghost variant's spinner was the one element that
+  did not follow v0.5.153); the Progress tab's per-food "reached" bar takes
+  `theme.colors.success` instead of a literal `'#34D399'`. `ProgressBar`'s `color` prop stops
+  defaulting to a literal and becomes genuinely optional — the component resolves
+  `color ?? theme.colors.primary` internally, which is the right home for the default since
+  it is the only place that knows the fill is decorative (nothing is read against it, so it
+  keeps the brand `primary`, not the AA-safe `primaryStrong`). That in turn lets `FoodCard`
+  and the food-detail screen drop their own `?? '#F97316'` / `: '#F97316'` fallbacks and pass
+  `undefined` for the no-stage case, so the default lives in exactly one place instead of
+  three. Four screens gained a `useUnistyles()` call for the spinner colour. One literal is
+  deliberately left: `src/providers/DatabaseProvider.tsx:104`, the boot spinner shown while
+  the SQLite migration runs — it renders above the app tree and pulling the theme hook in
+  there buys a single frame of correctness for real added risk on the launch path. Bumped
+  `APP_VERSION` to v0.5.156. 658 tests pass across 36 suites — unchanged, as expected for a
+  colour-source refactor with no behavioural delta. TypeScript clean, including
+  `--noUnusedLocals`.
 - v0.5.155 — Fix (a11y): the bottom tab labels are now theme-aware and meet AA. `TabIcon` in
   `app/(tabs)/_layout.tsx` hardcoded `focused ? '#F97316' : '#94A3B8'`, which the v0.5.153
   token sweep could not reach because the literals bypass the theme entirely. Two defects in

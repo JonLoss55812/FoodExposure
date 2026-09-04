@@ -68,7 +68,7 @@ export function FoodCard({
       </View>
       <ProgressBar
         current={exposureCount}
-        color={stageConfig?.color ?? '#F97316'}
+        color={stageConfig?.color}
         height={6}
       />
     </Pressable>

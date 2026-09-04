@@ -1,5 +1,5 @@
 import { View, Text } from 'react-native';
-import { StyleSheet } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 interface ProgressBarProps {
   current: number;
@@ -13,11 +13,15 @@ interface ProgressBarProps {
 export function ProgressBar({
   current,
   target = 15,
-  color = '#F97316',
+  color,
   showLabel = true,
   height = 8,
   accessibilityLabel,
 }: ProgressBarProps) {
+  const { theme } = useUnistyles();
+  // Decorative fill, so `primary` (the brand orange) rather than the
+  // AA-safe `primaryStrong` — nothing is read against this colour.
+  const fillColor = color ?? theme.colors.primary;
   // Defensive coercion: callers today pass validated numbers, but the
   // component is on the hot path (dashboard, food detail, every Progress
   // tab row) and the bracket-deref `current / target` produces Infinity
@@ -51,7 +55,7 @@ export function ProgressBar({
             styles.fill,
             {
               width: `${progress * 100}%`,
-              backgroundColor: color,
+              backgroundColor: fillColor,
               height,
             },
           ]}

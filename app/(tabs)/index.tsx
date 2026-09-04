@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StyleSheet } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { eq, desc, and, sql } from 'drizzle-orm';
 import { db } from '@/src/db/client';
@@ -25,6 +25,7 @@ type RecentExposure = {
 };
 
 export default function DashboardScreen() {
+  const { theme } = useUnistyles();
   const router = useRouter();
   const { familyId, isAuthenticated, isOnboarded } = useAuthStore();
   const { selectedChildId, selectChild, ensureSelection } = useChildStore();
@@ -127,7 +128,7 @@ export default function DashboardScreen() {
   if (loading && childrenList.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        <ActivityIndicator size="large" color="#F97316" style={{ flex: 1 }} />
+        <ActivityIndicator size="large" color={theme.colors.primary} style={{ flex: 1 }} />
       </SafeAreaView>
     );
   }
