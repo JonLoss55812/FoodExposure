@@ -9,6 +9,12 @@ import { useAuthStore } from '@/src/stores/auth-store';
 import { useChildStore } from '@/src/stores/child-store';
 
 function TabIcon({ icon, label, focused }: { icon: string; label: string; focused: boolean }) {
+  // Read from the theme rather than hardcoding: these labels sit on
+  // `tabBar`, which is white in light mode and #1E293B in dark, and at 10px
+  // they are the smallest text in the app. The previous literals were
+  // theme-blind (the light-mode orange rendered in dark mode too) and the
+  // unfocused #94A3B8 was 2.56:1 on a white tab bar.
+  const { theme } = useUnistyles();
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 4 }}>
       <Text style={{ fontSize: 22 }}>{icon}</Text>
@@ -16,7 +22,7 @@ function TabIcon({ icon, label, focused }: { icon: string; label: string; focuse
         style={{
           fontSize: 10,
           fontWeight: focused ? '600' : '400',
-          color: focused ? '#F97316' : '#94A3B8',
+          color: focused ? theme.colors.primaryStrong : theme.colors.textTertiary,
           marginTop: 2,
         }}
       >

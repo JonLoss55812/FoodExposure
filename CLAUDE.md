@@ -218,9 +218,25 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.154
+v0.5.155
 
 ## Changelog
+- v0.5.155 — Fix (a11y): the bottom tab labels are now theme-aware and meet AA. `TabIcon` in
+  `app/(tabs)/_layout.tsx` hardcoded `focused ? '#F97316' : '#94A3B8'`, which the v0.5.153
+  token sweep could not reach because the literals bypass the theme entirely. Two defects in
+  one line. (a) Contrast: the unfocused label is **2.56:1** on the light `tabBar` (`#FFFFFF`)
+  at `fontSize: 10` — the smallest text in the app, and the only text present on every single
+  screen; the focused orange was 2.80:1. (b) Theme drift: both literals are fixed values, so
+  dark mode rendered the *light* theme's orange and grey against the `#1E293B` tab bar,
+  independent of the `tabBarStyle` right below it which correctly reads
+  `theme.colors.tabBar`. Now reads `theme.colors.primaryStrong` (focused) and
+  `theme.colors.textTertiary` (unfocused) through `useUnistyles`, which the same file already
+  imports for `tabBarStyle` — so the labels respond to the theme like the bar they sit on,
+  and both states clear 4.5:1 in both themes. `tabBar` added to the surface list in
+  `src/styles/__tests__/contrast.test.ts`, so every text tier is now asserted against it too
+  and a future token edit that regresses the navigation labels fails loudly. Bumped
+  `APP_VERSION` to v0.5.155. 658 tests pass across 36 suites — unchanged in count, but the
+  13 contrast tests now each cover a fourth surface.
 - v0.5.154 — Fix (a11y): every chip and button now meets the 44pt minimum tap target.
   `Button`'s container had no `minHeight`, so the `sm` size (paddingVertical 8 + 14px label)
   rendered a ~33pt pressable, and the chip rows were the same or worse — the Foods tab's

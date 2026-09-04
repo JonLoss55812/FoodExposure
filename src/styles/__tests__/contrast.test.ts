@@ -42,6 +42,9 @@ describe('theme contrast (WCAG 2.1 AA)', () => {
       theme.colors.background,
       theme.colors.surface,
       theme.colors.cardBackground,
+      // The tab bar carries the 10px navigation labels — the smallest text
+      // in the app, and the only text a user needs on every single screen.
+      theme.colors.tabBar,
     ];
 
     // Every text tier must be legible on every surface it can land on.
