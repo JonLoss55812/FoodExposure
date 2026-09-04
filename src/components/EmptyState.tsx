@@ -53,7 +53,7 @@ const styles = StyleSheet.create((theme) => ({
     lineHeight: 24,
   },
   button: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryStrong,
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.borderRadius.full,
@@ -62,6 +62,6 @@ const styles = StyleSheet.create((theme) => ({
   buttonText: {
     fontSize: theme.fontSize.md,
     fontWeight: '600',
-    color: theme.colors.white,
+    color: theme.colors.onPrimaryStrong,
   },
 }));

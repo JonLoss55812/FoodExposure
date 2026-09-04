@@ -290,7 +290,7 @@ const styles = StyleSheet.create((theme) => ({
   statNumber: {
     fontSize: theme.fontSize.xxl,
     fontWeight: '800',
-    color: theme.colors.primary,
+    color: theme.colors.primaryStrong,
   },
   statLabel: {
     fontSize: theme.fontSize.xs,
@@ -365,7 +365,7 @@ const styles = StyleSheet.create((theme) => ({
   ratingNumber: {
     fontSize: theme.fontSize.xxl,
     fontWeight: '800',
-    color: theme.colors.primary,
+    color: theme.colors.primaryStrong,
   },
   ratingLabel: {
     fontSize: theme.fontSize.md,

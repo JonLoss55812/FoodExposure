@@ -136,7 +136,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   tagline: {
     fontSize: theme.fontSize.lg,
-    color: theme.colors.primary,
+    color: theme.colors.primaryStrong,
     fontWeight: '600',
     fontStyle: 'italic',
     marginTop: theme.spacing.xs,
@@ -175,7 +175,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   joinText: {
     fontSize: theme.fontSize.sm,
-    color: theme.colors.primary,
+    color: theme.colors.primaryStrong,
     fontWeight: '600',
   },
 }));

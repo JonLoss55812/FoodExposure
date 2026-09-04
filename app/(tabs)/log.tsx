@@ -433,7 +433,7 @@ const styles = StyleSheet.create((theme) => ({
   addLink: {
     fontSize: theme.fontSize.sm,
     fontWeight: '600',
-    color: theme.colors.primary,
+    color: theme.colors.primaryStrong,
   },
   foodGrid: {
     gap: theme.spacing.sm,
@@ -470,7 +470,7 @@ const styles = StyleSheet.create((theme) => ({
   detailsToggleText: {
     fontSize: theme.fontSize.sm,
     fontWeight: '600',
-    color: theme.colors.primary,
+    color: theme.colors.primaryStrong,
   },
   detailsSection: {
     gap: theme.spacing.sm,
@@ -497,7 +497,7 @@ const styles = StyleSheet.create((theme) => ({
     color: theme.colors.textSecondary,
   },
   chipTextSelected: {
-    color: theme.colors.primary,
+    color: theme.colors.primaryStrong,
     fontWeight: '600',
   },
   hint: {
@@ -516,7 +516,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   emptyFoodsCtaText: {
     fontSize: theme.fontSize.sm,
-    color: theme.colors.primary,
+    color: theme.colors.primaryStrong,
     fontWeight: '600',
   },
   error: {

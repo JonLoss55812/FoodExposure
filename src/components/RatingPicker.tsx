@@ -64,7 +64,7 @@ const styles = StyleSheet.create((theme) => ({
     fontWeight: '500',
   },
   selectedLabel: {
-    color: theme.colors.primary,
+    color: theme.colors.primaryStrong,
     fontWeight: '700',
   },
 }));

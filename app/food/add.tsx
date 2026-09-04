@@ -218,7 +218,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   back: {
     fontSize: theme.fontSize.md,
-    color: theme.colors.primary,
+    color: theme.colors.primaryStrong,
     fontWeight: '600',
   },
   title: {
@@ -277,7 +277,7 @@ const styles = StyleSheet.create((theme) => ({
     marginTop: 4,
   },
   categoryLabelSelected: {
-    color: theme.colors.primary,
+    color: theme.colors.primaryStrong,
     fontWeight: '700',
   },
   chipRow: {
@@ -302,7 +302,7 @@ const styles = StyleSheet.create((theme) => ({
     color: theme.colors.textSecondary,
   },
   chipTextSelected: {
-    color: theme.colors.primary,
+    color: theme.colors.primaryStrong,
     fontWeight: '600',
   },
   safeToggle: {

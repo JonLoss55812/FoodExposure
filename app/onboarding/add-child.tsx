@@ -192,7 +192,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   step: {
     fontSize: theme.fontSize.sm,
-    color: theme.colors.primary,
+    color: theme.colors.primaryStrong,
     fontWeight: '600',
   },
   title: {

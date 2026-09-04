@@ -24,7 +24,6 @@ const sharedColors = {
   // Semantic
   success: '#22C55E',
   warning: '#F59E0B',
-  error: '#EF4444',
   info: '#3B82F6',
   white: '#FFFFFF',
   black: '#000000',
@@ -60,15 +59,22 @@ const fontSize = {
 export const lightTheme = {
   colors: {
     ...sharedColors,
-    primary: '#F97316',      // Orange - warm, food-related
+    primary: '#F97316',      // Orange - warm, food-related. Decorative fills only.
+    // AA-safe orange for text/icons on light surfaces and for filled action
+    // backgrounds. #F97316 is only 2.80:1 on white; #C2410C is 5.18:1.
+    primaryStrong: '#C2410C',
+    onPrimaryStrong: '#FFFFFF',
+    // #EF4444 is only 3.76:1 on white; the destructive rows (Delete Food,
+    // Delete Child, Sign Out) render it as body-size text, so it needs 4.5:1.
+    error: '#DC2626',
     primaryLight: '#FFF7ED',
     primaryDark: '#EA580C',
     background: '#FFFFFF',
     surface: '#F8FAFC',
     surfaceElevated: '#FFFFFF',
     text: '#0F172A',
-    textSecondary: '#64748B',
-    textTertiary: '#94A3B8',
+    textSecondary: '#475569',
+    textTertiary: '#64748B',
     border: '#E2E8F0',
     borderLight: '#F1F5F9',
     cardBackground: '#FFFFFF',
@@ -109,14 +115,17 @@ export const darkTheme = {
   colors: {
     ...sharedColors,
     primary: '#FB923C',
+    primaryStrong: '#FB923C',
+    onPrimaryStrong: '#0F172A',
+    error: '#F87171',
     primaryLight: '#431407',
     primaryDark: '#FDBA74',
     background: '#0F172A',
     surface: '#1E293B',
     surfaceElevated: '#334155',
     text: '#F8FAFC',
-    textSecondary: '#94A3B8',
-    textTertiary: '#64748B',
+    textSecondary: '#CBD5E1',
+    textTertiary: '#94A3B8',
     border: '#334155',
     borderLight: '#1E293B',
     cardBackground: '#1E293B',

@@ -266,7 +266,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   tagline: {
     fontSize: theme.fontSize.sm,
-    color: theme.colors.primary,
+    color: theme.colors.primaryStrong,
     fontWeight: '600',
     letterSpacing: 0.5,
   },
@@ -292,7 +292,7 @@ const styles = StyleSheet.create((theme) => ({
   summaryNumber: {
     fontSize: theme.fontSize.xxl,
     fontWeight: '800',
-    color: theme.colors.primary,
+    color: theme.colors.primaryStrong,
   },
   summaryLabel: {
     fontSize: theme.fontSize.xs,
@@ -303,7 +303,7 @@ const styles = StyleSheet.create((theme) => ({
   addIcon: {
     fontSize: 28,
     fontWeight: '300',
-    color: theme.colors.primary,
+    color: theme.colors.primaryStrong,
   },
   section: {
     paddingHorizontal: theme.spacing.md,

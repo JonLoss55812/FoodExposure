@@ -73,7 +73,7 @@ const styles = StyleSheet.create((theme) => ({
     color: theme.colors.textSecondary,
   },
   nameSelected: {
-    color: theme.colors.primary,
+    color: theme.colors.primaryStrong,
     fontWeight: '700',
   },
 }));

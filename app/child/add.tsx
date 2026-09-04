@@ -181,7 +181,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   back: {
     fontSize: theme.fontSize.md,
-    color: theme.colors.primary,
+    color: theme.colors.primaryStrong,
     fontWeight: '600',
   },
   title: {

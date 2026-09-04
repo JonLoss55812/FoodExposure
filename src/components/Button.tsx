@@ -25,7 +25,7 @@ export function Button({
   const { theme } = useUnistyles();
 
   const variantContainerStyles = {
-    primary: { backgroundColor: theme.colors.primary },
+    primary: { backgroundColor: theme.colors.primaryStrong },
     secondary: { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border },
     ghost: { backgroundColor: 'transparent' },
   };
@@ -37,9 +37,9 @@ export function Button({
   };
 
   const variantLabelStyles = {
-    primary: { color: theme.colors.white },
+    primary: { color: theme.colors.onPrimaryStrong },
     secondary: { color: theme.colors.text },
-    ghost: { color: theme.colors.primary },
+    ghost: { color: theme.colors.primaryStrong },
   };
 
   const sizeLabelStyles = {

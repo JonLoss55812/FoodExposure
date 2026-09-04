@@ -237,13 +237,13 @@ const styles = StyleSheet.create((theme) => ({
     color: theme.colors.text,
   },
   addButton: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryStrong,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.borderRadius.full,
   },
   addButtonText: {
-    color: theme.colors.white,
+    color: theme.colors.onPrimaryStrong,
     fontWeight: '600',
     fontSize: theme.fontSize.sm,
   },
@@ -289,7 +289,7 @@ const styles = StyleSheet.create((theme) => ({
     fontWeight: '500',
   },
   filterTextSelected: {
-    color: theme.colors.primary,
+    color: theme.colors.primaryStrong,
     fontWeight: '700',
   },
   cardWrapper: {
