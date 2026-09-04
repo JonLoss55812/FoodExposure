@@ -78,6 +78,9 @@ export function Button({
 
 const styles = StyleSheet.create((theme) => ({
   container: {
+    // 44pt is the iOS HIG / Android 48dp minimum tap target. The `sm` size's
+    // padding alone leaves the pressable at ~33pt.
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: theme.borderRadius.lg,

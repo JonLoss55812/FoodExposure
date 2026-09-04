@@ -218,9 +218,26 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.153
+v0.5.154
 
 ## Changelog
+- v0.5.154 — Fix (a11y): every chip and button now meets the 44pt minimum tap target.
+  `Button`'s container had no `minHeight`, so the `sm` size (paddingVertical 8 + 14px label)
+  rendered a ~33pt pressable, and the chip rows were the same or worse — the Foods tab's
+  category `filterChip` uses `paddingVertical: xs + 2` (6pt), leaving roughly a 26-32pt
+  target. These are not incidental surfaces: the chip rows *are* the Log Exposure form
+  (food, meal, temperature, texture, setting), the Foods tab filter, the Add Food category
+  and preparation pickers, and the `ChildSelector`. A parent logging an exposure one-handed
+  while holding a toddler is the exact user the iOS HIG 44pt / Android 48dp floor exists for,
+  and a mistap on a chip row silently records the wrong dimension. Added `minHeight: 44` plus
+  `justifyContent: 'center'` (so the label stays optically centred once the box grows) to the
+  four chip styles and `minHeight: 44` to `Button`'s container. Horizontal padding, radius,
+  colours and layout are untouched — the chips grow vertically only, which the existing
+  `chipRow` `flexWrap` absorbs. Bumped `APP_VERSION` to v0.5.154. 658 tests pass across 36
+  suites — unchanged, which is expected: react-native-web does not expose computed layout
+  under the jsdom harness, so the sizes are not assertable from the test suite and this change
+  is verified by inspection of the style objects and by the suite not regressing. Noted in the
+  session report as the one change here that is not test-locked.
 - v0.5.153 — Fix (a11y): three WCAG 2.1 AA colour-contrast failures in the theme, all on
   text a parent reads every session. (1) `textTertiary` was `#94A3B8`, which is **2.56:1**
   on white and 2.45:1 on `surface` — it carries the exposure date and the meal/temperature/
