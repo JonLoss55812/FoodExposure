@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.152 — 645 tests passing across 35 suites, TypeScript clean.
+Reviewed at: v0.5.158 — 680 tests passing across 38 suites, TypeScript clean.
 
 ## Status of the original plan (v0.1.0 review)
 
@@ -69,6 +69,17 @@ All five priorities from the original review have shipped:
   counts, the skipped exposures query when no child is selected, search
   and category filtering, both empty states plus Clear Filters, and the
   load-failure path. Six mutations verified.
+- v0.5.157 — screen tests for `app/(tabs)/index.tsx` (11): the dashboard's
+  three summary numbers, including the load-bearing v0.5.85 Foods Tracked
+  case (a food whose only exposures carry an unknown stage is still counted,
+  and the two implementations only diverge when such a row exists), the
+  highest-stage bucketing, recent-activity routing, both empty states, the
+  load failure, and the not-onboarded redirect. Five mutations verified.
+- v0.5.158 — screen tests for `app/(tabs)/progress.tsx` (11): the three
+  early-return branches and their CTAs, per-food threshold rows, the reached
+  marker, truncation, the rating-gated gauge, and the load failure. Six of
+  seven mutations verified; the seventh is documented as unreachable (see
+  gap #7 below).
 - v0.5.143 — plain `npm install` works from a wiped tree (closes gap #6):
   dropped the deprecated unused `@testing-library/jest-native`, pinned
   `react-test-renderer` to 19.2.0, added `babel-preset-expo` as an explicit
@@ -138,10 +149,22 @@ All five priorities from the original review have shipped:
      **most recent**. Pick by which one the screen under test needs. The
      `expo-router` and `@/src/db/client` mocks stay per-file — they are
      `jest.mock` factories, which must be hoisted in the importing module.
-   Remaining targets, in order: `app/(tabs)/index.tsx` (dashboard — the
-   `Set`-based Foods Tracked count from v0.5.85 and the stage-distribution
-   grid are the untested wiring), `app/(tabs)/progress.tsx`, and
-   `app/child/add.tsx`. Two notes from writing the Foods tab suite
+   Remaining target: **`app/child/add.tsx`** — the last uncovered screen with
+   real logic (the dashboard and Progress tab were covered in v0.5.157/158).
+   After that, the only untested screens are `app/onboarding/index.tsx`,
+   `app/onboarding/add-child.tsx` and the two `_layout.tsx` files.
+   Three notes from writing the dashboard and Progress suites (v0.5.157/158):
+   (a) a screen whose `loadData` depends on `selectedChildId` **loads twice**
+   when the load itself changes the selection — `ensureSelection([])` on an
+   empty family clears it, which recreates the callback and re-runs the mocked
+   focus effect. Start such a test with the selection already null if you want
+   an unambiguous read count. (b) Numbers are terrible `getByText` targets on
+   stat-card screens; the same digit recurs in stage rows and category tiles.
+   Scope through the label instead — see `statValue` in `progress.test.tsx`.
+   (c) Text split by an expression (``{label} · {threshold}``) is still one
+   element's `textContent`, so `getByText('Picky · 20')` works, but the label
+   must be the config's exact value (`Picky`, not `Picky Eater`).
+   Two notes from writing the Foods tab suite
    (v0.5.152): (a) `FlashList` *does* render under `jest-expo/web`,
    including its `ListHeaderComponent`, so a pinned header section is
    assertable; (b) `FoodCard` surfaces its exposure count only through
@@ -183,6 +206,17 @@ All five priorities from the original review have shipped:
    session should run plain `bun install` and commit the resulting lockfile
    churn deliberately. (b) `bun install --frozen-lockfile` still fails under
    newer Bun versions ("lockfile had changes"); plain `bun install` works.
+
+7. **v0.5.43's threshold-tag refactor is not screen-observable, and that is
+   fine.** Measured in v0.5.158: reverting the Progress header tag from
+   `getThresholdForProfile(feedingProfile)` to `foodProgress[0]?.threshold ?? 15`
+   leaves the whole suite green, on every profile. `calcProgressStats` derives
+   each row's threshold from the same profile and the section is gated on a
+   non-empty list, so the `?? 15` fallback is unreachable. The refactor guards
+   a *future* per-row threshold override (a food-specific allergen threshold
+   was the motivating example). Do not "fix" this by contriving a test —
+   either accept the source shape as the guard, or, if per-row thresholds ever
+   land, the tag becomes genuinely testable and should be covered then.
 
 ## NOT in scope (unchanged from original review)
 
