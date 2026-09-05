@@ -218,9 +218,40 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.156
+v0.5.157
 
 ## Changelog
+- v0.5.157 — Tests: screen coverage for `app/(tabs)/index.tsx`, the dashboard and the first
+  screen a parent sees on every launch. It was NEXT_STEPS gap #1's next named target, and the
+  untested logic is the summary wiring: three numbers derived here and nowhere else, from
+  three different reads. New `app/(tabs)/__tests__/index.test.tsx` with 11 tests on the
+  established seams (`useFocusEffect` mocked to a plain `useEffect`, `SafeArea` wrapper,
+  getter-based db mock, mock-prefixed router spy) plus one helper, `queueLoad({children,
+  today, recent, all})`, which names the fixed order of `loadData`'s four reads. Coverage:
+  the child selector and summary row render; **Today's Exposures** is read off the
+  date-scoped query and not the recent list (the fixture makes the two counts differ, so a
+  screen that counted `recent` reports the wrong number); **Foods Tracked** counts distinct
+  foods rather than exposures; and — the load-bearing case — a food whose only exposures
+  carry an unknown stage is still counted, which is the v0.5.85 fix. That one is worth
+  spelling out: `computeStageCounts` deliberately skips unknown stages (there is no column to
+  render them in), so the pre-v0.5.85 sum-of-buckets count silently dropped such a food from
+  "how many foods have we tried" — and the two numbers only diverge when such a row exists,
+  so a test that does not create one cannot tell the fixed code from the bug. The same test
+  pins that the distribution grid still shows only the classifiable food. Also covered: the
+  grid buckets each food at its *highest* reached stage (one food with three exposures is one
+  entry, not three); the section is hidden when nothing is bucketed; recent exposures render
+  and route to `/food/{id}` on tap; the no-exposures copy; the empty-family Add Child empty
+  state, which must bail before the three child-scoped reads; the load-failure Alert; and the
+  not-onboarded redirect, which must also early-return out of the focus effect rather than
+  race a query against the unmount. Mutation-verified rather than assumed: reverting
+  `foodsTrackedCount` to the sum of stage buckets, sourcing `todayCount` elsewhere, dropping
+  the `!childId` bail, swallowing the load Alert, and bucketing every exposure instead of the
+  highest per food each fail exactly one test, and no mutation passes. One harness note
+  recorded at the assertion site: with a child selected, `ensureSelection([])` clears the
+  selection, which changes `loadData`'s dependency and re-runs the focus effect — a second
+  *children* read, still no child-scoped one. The empty-family test starts with the selection
+  already null so its read count is unambiguous. Bumped `APP_VERSION` to v0.5.157. 669 tests
+  pass across 37 suites (was 658 across 36, +11). TypeScript clean.
 - v0.5.156 — Refactor: the last eleven hardcoded `#F97316` / `#34D399` literals in `app/` and
   `src/` now read from the theme. v0.5.153 moved every *token* usage of the brand orange onto
   an AA-safe pairing and v0.5.155 caught the tab labels, but the literals scattered across
