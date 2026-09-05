@@ -218,9 +218,39 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.157
+v0.5.158
 
 ## Changelog
+- v0.5.158 — Tests: screen coverage for `app/(tabs)/progress.tsx`, the therapist-facing view
+  and the last of NEXT_STEPS gap #1's named tab targets. `calcProgressStats` was already
+  unit-tested in isolation; what shipped unverified is how the screen *presents* it. New
+  `app/(tabs)/__tests__/progress.test.tsx` with 11 tests on the established seams, plus one
+  helper, `statValue(label)`, which reads a summary card's number through the label that owns
+  it — a bare `getByText('3')` is ambiguous here because the same digit recurs in the stage
+  rows and the category tiles. Coverage: the three summary cards; the three early-return
+  branches, which are *distinguishable* states and must stay that way — "Select a Child"
+  (which must also issue zero queries, since a read scoped to a null childId would quietly
+  return every child's rows) and "No Progress Yet" (the v0.5.35 fix; before it, a child with
+  foods but nothing logged got three zero cards and six zero bars, which reads as broken),
+  each routing at its own cure; the per-food rows against the profile threshold; the ✓ marker
+  on a food that reached it, with the unreached food pinned bare so a blanket prefix fails;
+  the v0.5.37 truncation note past ten foods, and its absence below that; the acceptance
+  gauge gated on a recorded rating, so an all-unrated child is not told their average is 0.0;
+  the stage distribution across all six stages; and the load-failure Alert, after which the
+  stats stay at their empty default rather than showing partial numbers. Mutation-verified:
+  dropping either empty-state branch, always showing the reached marker, dropping the
+  truncation note, ungating the gauge, and swallowing the Alert each fail between one and two
+  tests. **One mutation deliberately survived, and is recorded at the assertion site rather
+  than papered over:** reverting the v0.5.43 header tag from
+  `getThresholdForProfile(feedingProfile)` back to `foodProgress[0]?.threshold ?? 15` leaves
+  the suite green even on the picky profile, because `calcProgressStats` derives every row's
+  threshold from that same profile and the section is gated on a non-empty list — so the
+  fallback is unreachable. v0.5.43's own changelog says as much ("dead-code in practice"); it
+  was a single-source-the-helper refactor against a future per-row override, not a live bug
+  fix, and it is not screen-observable. The picky test that remains still does real work: it
+  pins that the profile reaches the screen at all, in both the header tag and the rows, which
+  a hardcoded 15 would fail. Bumped `APP_VERSION` to v0.5.158. 680 tests pass across 38
+  suites (was 669 across 37, +11). TypeScript clean.
 - v0.5.157 — Tests: screen coverage for `app/(tabs)/index.tsx`, the dashboard and the first
   screen a parent sees on every launch. It was NEXT_STEPS gap #1's next named target, and the
   untested logic is the summary wiring: three numbers derived here and nowhere else, from
