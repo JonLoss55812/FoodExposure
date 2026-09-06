@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.158 — 680 tests passing across 38 suites, TypeScript clean.
+Reviewed at: v0.5.160 — 694 tests passing across 39 suites, TypeScript clean.
 
 ## Status of the original plan (v0.1.0 review)
 
@@ -80,6 +80,16 @@ All five priorities from the original review have shipped:
   marker, truncation, the rating-gated gauge, and the load failure. Six of
   seven mutations verified; the seventh is documented as unreachable (see
   gap #7 below).
+- v0.5.159 — screen tests for `app/child/add.tsx` (10), gap #1's last named
+  target: the `selectChild` call that makes a newly added child the selection,
+  the three schema-owned rejections (whitespace name, US-style date, future
+  date) each issuing zero writes, the family-scoped insert with optionals as
+  `null`, and the retryable insert failure. Six mutations verified.
+- v0.5.160 — a food's **category** is now editable from the detail page
+  (closes gap #3 follow-up (a)). Chip row on the category tag; picking a chip
+  is the commit (closed enum, so no Save step and no uniqueness guard);
+  re-picking the current one is a no-op. +4 screen tests, six mutations
+  verified.
 - v0.5.143 — plain `npm install` works from a wiped tree (closes gap #6):
   dropped the deprecated unused `@testing-library/jest-native`, pinned
   `react-test-renderer` to 19.2.0, added `babel-preset-expo` as an explicit
@@ -149,10 +159,21 @@ All five priorities from the original review have shipped:
      **most recent**. Pick by which one the screen under test needs. The
      `expo-router` and `@/src/db/client` mocks stay per-file — they are
      `jest.mock` factories, which must be hoisted in the importing module.
-   Remaining target: **`app/child/add.tsx`** — the last uncovered screen with
-   real logic (the dashboard and Progress tab were covered in v0.5.157/158).
-   After that, the only untested screens are `app/onboarding/index.tsx`,
-   `app/onboarding/add-child.tsx` and the two `_layout.tsx` files.
+   **All screens with real logic are now covered** (v0.5.159 closed the last
+   one, `app/child/add.tsx`). What remains untested is `app/onboarding/index.tsx`
+   (first-launch: two inserts + login + push), `app/onboarding/add-child.tsx`
+   (a near-duplicate of `app/child/add.tsx` — worth *deduplicating* rather than
+   testing twice; the two files differ only in the navigation they do on
+   success and in the onboarding flag they set), and the two `_layout.tsx`
+   files. None is high-value on its own.
+   One harness note from v0.5.159/160, worth having before the next write-path
+   test: `createMockDb().failReads()` covers **reads only**. To drive a write
+   failure — which is how you reach a handler's catch block on a screen that
+   issues no reads, like `app/child/add.tsx` — replace the mock's `insert` (or
+   `update`) for one call and flip a flag to let the retry through; both new
+   suites do this inline. If a third suite needs it, promote it to a
+   `failWrites()` / `failNextWrite()` helper on `mock-db.ts` rather than
+   copying the closure a third time.
    Three notes from writing the dashboard and Progress suites (v0.5.157/158):
    (a) a screen whose `loadData` depends on `selectedChildId` **loads twice**
    when the load itself changes the selection — `ensureSelection([])` on an
@@ -178,9 +199,11 @@ All five priorities from the original review have shipped:
 3. **~~No food rename/edit UI.~~** Done in v0.5.145 — inline rename on the
    food detail page, validated through `foodSchema.shape.name` and guarded
    by `findDuplicateFood(..., excludeId)`. Follow-ups deliberately not done:
-   (a) only the *name* is editable; category and default preparation still
-   require delete-and-re-add, and category is the one that changes a food's
-   grouping on the Progress tab; (b) the rename does not normalize casing
+   ~~(a) only the *name* is editable~~ — category shipped in v0.5.160 (chip row
+   on the category tag). **Default preparation is still not editable** and is
+   the last field that requires delete-and-re-add; it is lower stakes than
+   category was (it is display-only — nothing groups or counts by it), so it
+   is a fill-in-the-gap job, not a data-integrity one. (b) the rename does not normalize casing
    across the family, so pre-existing legacy duplicates are still separate
    rows (see gap #2); (c) ~~the rename flow is untested~~ — covered by
    the 7 rename tests added in v0.5.147.
