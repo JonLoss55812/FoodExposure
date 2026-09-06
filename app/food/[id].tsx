@@ -9,8 +9,8 @@ import { StageIndicator, ProgressBar, ExposureCard, EmptyState, Button } from '@
 import { useChildStore } from '@/src/stores/child-store';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { useSettingsStore } from '@/src/stores/settings-store';
-import { STAGE_CONFIG, getCategoryConfig } from '@/src/lib/constants';
-import type { ExposureStage } from '@/src/lib/constants';
+import { STAGE_CONFIG, CATEGORY_CONFIG, FOOD_CATEGORIES, getCategoryConfig } from '@/src/lib/constants';
+import type { ExposureStage, FoodCategory } from '@/src/lib/constants';
 import { getNextStage, canBumpStage, getHighestStage } from '@/src/lib/stage';
 import { getThresholdForProfile } from '@/src/lib/thresholds';
 import { generateId } from '@/src/lib/utils';
@@ -37,6 +37,8 @@ export default function FoodDetailScreen() {
   const [bumping, setBumping] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [editingName, setEditingName] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(false);
+  const [savingCategory, setSavingCategory] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [savingName, setSavingName] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -44,6 +46,7 @@ export default function FoodDetailScreen() {
   const bumpLatch = useRef(createInFlightLatch()).current;
   const deleteLatch = useRef(createInFlightLatch()).current;
   const renameLatch = useRef(createInFlightLatch()).current;
+  const categoryLatch = useRef(createInFlightLatch()).current;
 
   const loadData = useCallback(async () => {
     if (!id) {
@@ -191,6 +194,41 @@ export default function FoodDetailScreen() {
     }
   };
 
+  /**
+   * Persist a new category. Until now the only way to fix a mis-tapped
+   * category was Delete Food + re-add, which discards every logged exposure
+   * for the food across every child — so a one-tap mistake on Add Food cost
+   * the exposure history that the acceptance threshold is counted from.
+   *
+   * Category is a closed enum, so there is no uniqueness guard to respect
+   * (unlike the rename path) and no separate Save step: picking a chip is the
+   * commit. Picking the current category is a no-op that just closes the row.
+   */
+  const handleSelectCategory = async (next: FoodCategory) => {
+    if (!food || !categoryLatch.tryAcquire()) return;
+
+    if (next === food.category) {
+      categoryLatch.release();
+      setEditingCategory(false);
+      return;
+    }
+
+    setSavingCategory(true);
+    try {
+      await db.update(schema.foods)
+        .set({ category: next })
+        .where(eq(schema.foods.id, food.id));
+      setFood({ ...food, category: next });
+      setEditingCategory(false);
+    } catch (err) {
+      console.error('Failed to change food category:', err);
+      Alert.alert('Error', 'Failed to change category. Please try again.');
+    } finally {
+      categoryLatch.release();
+      setSavingCategory(false);
+    }
+  };
+
   const handleDeleteFood = () => {
     if (!food || deleting) return;
     Alert.alert(
@@ -308,15 +346,47 @@ export default function FoodDetailScreen() {
           </Pressable>
         )}
         <View style={styles.tags}>
-          <View style={[styles.tag, { backgroundColor: categoryConfig.color + '20' }]}>
-            <Text style={[styles.tagText, { color: categoryConfig.color }]}>{categoryConfig.label}</Text>
-          </View>
+          <Pressable
+            onPress={() => setEditingCategory((open) => !open)}
+            style={[styles.tag, { backgroundColor: categoryConfig.color + '20' }]}
+            accessibilityRole="button"
+            accessibilityLabel={`Change category, currently ${categoryConfig.label}`}
+            accessibilityState={{ expanded: editingCategory }}
+          >
+            <Text style={[styles.tagText, { color: categoryConfig.color }]}>
+              {categoryConfig.label} <Text style={styles.editHint}>✏️</Text>
+            </Text>
+          </Pressable>
           {food.isSafeFood && (
             <View style={[styles.tag, { backgroundColor: '#22C55E20' }]}>
               <Text style={[styles.tagText, { color: '#22C55E' }]}>Safe Food</Text>
             </View>
           )}
         </View>
+        {editingCategory && (
+          <View style={styles.categoryRow}>
+            {FOOD_CATEGORIES.map((value) => {
+              const config = CATEGORY_CONFIG[value];
+              const isSelected = value === food.category;
+              return (
+                <Pressable
+                  key={value}
+                  style={[
+                    styles.categoryChip,
+                    isSelected && { backgroundColor: config.color + '20', borderColor: config.color },
+                  ]}
+                  onPress={() => handleSelectCategory(value)}
+                  disabled={savingCategory}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Category: ${config.label}`}
+                  accessibilityState={{ selected: isSelected, disabled: savingCategory }}
+                >
+                  <Text style={styles.categoryChipText}>{config.icon} {config.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
       </View>
 
       {/* Progress */}
@@ -501,6 +571,26 @@ const styles = StyleSheet.create((theme) => ({
   tagText: {
     fontSize: theme.fontSize.sm,
     fontWeight: '600',
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+  },
+  categoryChip: {
+    paddingHorizontal: theme.spacing.md,
+    minHeight: 44,
+    justifyContent: 'center',
+    borderRadius: theme.borderRadius.full,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  categoryChipText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.text,
   },
   section: {
     paddingHorizontal: theme.spacing.md,

@@ -218,9 +218,37 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.159
+v0.5.160
 
 ## Changelog
+- v0.5.160 — Feature: change a food's category from the food detail page (NEXT_STEPS gap #3
+  follow-up (a)). v0.5.145 made the *name* editable but left category permanent-or-destructive:
+  the only way to fix a mis-tapped category on Add Food was the v0.5.138 Delete Food cascade,
+  which discards every logged exposure for that food across every child — the exact history the
+  15/20/30 acceptance threshold is counted from. Category is not cosmetic: it drives the food's
+  icon and colour on every surface, and the Progress tab's Food Categories tiles are grouped by
+  it, so a "Broccoli" filed under Fruit quietly misreports the vegetable repertoire a therapist
+  reads. The category tag in the food header is now a Pressable (with a ✏️ affordance) that
+  toggles a six-chip row below it. Two deliberate departures from the rename editor's shape:
+  (a) there is no separate Save step — category is a closed enum, so picking a chip *is* the
+  commit, and (b) there is no uniqueness guard to respect, because unlike a name a category
+  cannot collide. Re-picking the current category is a no-op that just closes the row without
+  touching the DB. Double-submit is guarded by the v0.5.144 synchronous `createInFlightLatch`,
+  released in `finally` so the no-op early return can't strand it; on failure the row is left
+  open so the retry is one tap rather than a re-open. Local state is patched with
+  `setFood({ ...food, category: next })` rather than reloading — this screen loads in a
+  `useEffect`, not on focus, so a reload is not free and there is nothing else to refresh.
+  Chips carry `minHeight: 44` per the v0.5.154 tap-target floor and the established a11y train:
+  `accessibilityLabel={'Category: ' + label}` on each chip, `Change category, currently X` plus
+  `accessibilityState={{ expanded }}` on the trigger. +4 screen tests in the existing
+  `app/food/__tests__/id.test.tsx` (new `category` describe block): the tag opens the chip row;
+  picking a different category issues exactly one `update` with that category and the tag and
+  chip row follow; re-picking the current category writes nothing and closes; and a failed write
+  alerts, leaves the tag on the old value with the row still open, and stays retryable.
+  Mutation-verified rather than assumed: dropping the `setFood` patch fails 2 tests, and
+  dropping the no-op early return, swallowing the Alert, dropping `categoryLatch.release()`,
+  leaving the row open on success, and writing a fixed category each fail exactly one. Bumped
+  `APP_VERSION` to v0.5.160. 694 tests pass across 39 suites (was 690, +4). TypeScript clean.
 - v0.5.159 — Tests: screen coverage for `app/child/add.tsx`, NEXT_STEPS gap #1's last named
   target and the last uncovered screen with real logic. Two things here had shipped
   screen-level and therefore unverified. (1) `selectChild(childId)` after the insert: every

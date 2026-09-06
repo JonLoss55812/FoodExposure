@@ -210,6 +210,75 @@ describe('FoodDetailScreen', () => {
     });
   });
 
+  describe('category (v0.5.159)', () => {
+    it('opens a chip row from the category tag', async () => {
+      queueLoad();
+      await renderLoaded();
+
+      expect(screen.queryByLabelText('Category: Protein')).toBeNull();
+      await click('Change category, currently Fruit');
+      expect(screen.getByLabelText('Category: Protein')).toBeTruthy();
+      expect(screen.getByLabelText('Category: Fruit')).toBeTruthy();
+    });
+
+    it('persists the picked category and reflects it in the tag', async () => {
+      queueLoad();
+      await renderLoaded();
+
+      await click('Change category, currently Fruit');
+      await click('Category: Vegetable');
+
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      expect(mockDb.writes[0]).toEqual({ kind: 'update', values: { category: 'vegetable' } });
+      // Local state is patched too, so the tag and the icon follow without a
+      // reload — the screen has no focus effect to refetch on.
+      expect(screen.getByLabelText('Change category, currently Vegetable')).toBeTruthy();
+      expect(screen.queryByLabelText('Category: Vegetable')).toBeNull();
+    });
+
+    it('closes without a write when the current category is re-picked', async () => {
+      queueLoad();
+      await renderLoaded();
+
+      await click('Change category, currently Fruit');
+      await click('Category: Fruit');
+
+      // A no-op update would still bump `foods` for no reason; more to the
+      // point, the row must not be reachable as a write with no change.
+      expect(mockDb.writes).toHaveLength(0);
+      expect(screen.queryByLabelText('Category: Protein')).toBeNull();
+    });
+
+    it('alerts on a failed write and leaves the row open to retry', async () => {
+      queueLoad();
+      await renderLoaded();
+
+      let failNext = true;
+      (mockDb.db as { update: unknown }).update = () => ({
+        set: (values: unknown) => ({
+          where: () => {
+            if (failNext) return Promise.reject(new Error('update failed'));
+            mockDb.writes.push({ kind: 'update' as const, values });
+            return Promise.resolve();
+          },
+        }),
+      });
+
+      await click('Change category, currently Fruit');
+      await click('Category: Grain');
+
+      expect(alertSpy).toHaveBeenCalledWith('Error', expect.stringContaining('Failed to change category'));
+      // Still Fruit, and the chip row is still open, so the retry is one tap.
+      expect(screen.getByLabelText('Change category, currently Fruit')).toBeTruthy();
+
+      // The latch is released in `finally`, so the retry is not stranded.
+      failNext = false;
+      await click('Category: Grain');
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      expect(screen.getByLabelText('Change category, currently Grain')).toBeTruthy();
+    });
+  });
+
   describe('delete (v0.5.138)', () => {
     it('names the food and its blast radius in the confirm alert', async () => {
       queueLoad();
