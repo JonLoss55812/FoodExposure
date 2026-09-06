@@ -218,9 +218,37 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.158
+v0.5.159
 
 ## Changelog
+- v0.5.159 — Tests: screen coverage for `app/child/add.tsx`, NEXT_STEPS gap #1's last named
+  target and the last uncovered screen with real logic. Two things here had shipped
+  screen-level and therefore unverified. (1) `selectChild(childId)` after the insert: every
+  child-scoped read in the app is keyed off the store's `selectedChildId`, so a parent who
+  adds their second child and is *not* switched to them logs the next exposure against the
+  first child — silently, with no on-screen cue. It is one line, easy to lose in a refactor,
+  and nothing pinned it. (2) The schema-owned rejections. `childSchema` validates the name
+  plus three separate `dateOfBirth` refinements (format v0.5.79, future v0.5.87,
+  implausibly-old v0.5.100); the schema owns the *messages*, so what has to be true of the
+  screen is that a rejection issues **zero writes** — a persisted `12/05/2020` is a permanent
+  garbage string in a field most parents never revisit after onboarding. New
+  `app/child/__tests__/add.test.tsx` with 10 tests on the established seams (mock-prefixed
+  router spy, getter-based db mock, `getByLabelText` + `fireEvent.change`); no
+  `SafeAreaProvider` is needed here, the screen is a plain `ScrollView`. Coverage: the avatar
+  grid, name field and submit action render; a whitespace-only name, a US-style date and a
+  future date each surface their inline error and write nothing; the happy path persists a
+  `familyId`-scoped row with the *trimmed* name, the default `👶` avatar, and the untouched
+  optionals as `null` rather than `''`; the new child becomes the selection; a chosen avatar
+  and filled optional fields persist (notes trimmed); the success Alert's OK routes back and
+  not before; a signed-out family writes nothing and leaves the selection null; and a failed
+  insert alerts, leaves the selection and navigation alone, and stays retryable — the
+  v0.5.144 latch is released in `finally`, so a second tap gets through. That last test drives
+  the failure by replacing the mock db's `insert` for one call, because `failReads()` only
+  covers reads and this screen issues none. Mutation-verified rather than assumed: dropping
+  `selectChild` fails 2 tests, and dropping the `!familyId` guard, swallowing the error Alert,
+  dropping `submitLatch.release()`, mapping an absent optional to `''`, and dropping the
+  `router.back()` on OK each fail exactly one. Bumped `APP_VERSION` to v0.5.159. 690 tests
+  pass across 39 suites (was 680 across 38, +10). TypeScript clean.
 - v0.5.158 — Tests: screen coverage for `app/(tabs)/progress.tsx`, the therapist-facing view
   and the last of NEXT_STEPS gap #1's named tab targets. `calcProgressStats` was already
   unit-tested in isolation; what shipped unverified is how the screen *presents* it. New
