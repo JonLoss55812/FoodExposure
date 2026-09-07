@@ -317,4 +317,173 @@ describe('FoodDetailScreen', () => {
       expect(mockRouter.replace).toHaveBeenCalledWith('/(tabs)/foods');
     });
   });
+
+  /**
+   * The bump-stage action (v0.2.0) is the app's second write path and the
+   * only one reachable without opening the Log form. Every row it writes is
+   * counted toward the 15/20/30 acceptance threshold and moves the food
+   * through the SOS hierarchy, so two things have to hold: it must write the
+   * *next* stage rather than the current one, and it must never write at all
+   * without a selected child.
+   */
+  describe('bump stage (v0.2.0)', () => {
+    /** An exposure row as the screen's second read projects it. */
+    const exposureAt = (stage: string) => ({
+      id: `exp-${stage}`,
+      stage,
+      rating: null,
+      notes: null,
+      occurredAt: new Date(0),
+      mealType: null,
+      temperature: null,
+      texture: null,
+      setting: null,
+    });
+
+    async function tapBump(label: string) {
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText(label));
+      });
+    }
+
+    it('offers the entry stage for a food with no exposures and records it', async () => {
+      queueLoad();
+      await renderLoaded();
+      queueLoad(); // the reload the handler runs after the insert
+
+      await tapBump('Bump to Tolerate');
+
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      const values = (mockDb.writes[0] as { values: Record<string, unknown> }).values;
+      expect(values).toEqual(
+        expect.objectContaining({
+          childId: 'child-1',
+          foodId: 'food-1',
+          stage: 'tolerate',
+          // A one-tap bump records no dimensions; "not recorded" has to
+          // round-trip as absent, not as an empty string or a 0 rating.
+          rating: null,
+          mealType: null,
+          notes: null,
+        }),
+      );
+      expect(alertSpy).not.toHaveBeenCalled();
+    });
+
+    it('advances one step past the highest stage already reached', async () => {
+      // The load-bearing case: writing the *current* stage would add an
+      // exposure toward the threshold without moving the hierarchy, which
+      // reads on screen as the bump having silently done nothing.
+      queueLoad(FOOD, [exposureAt('tolerate'), exposureAt('smell')]);
+      await renderLoaded();
+      queueLoad();
+
+      await tapBump('Bump to Touch');
+
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      expect((mockDb.writes[0] as { values: { stage: string } }).values.stage).toBe('touch');
+    });
+
+    it('does not offer a bump past the top of the hierarchy', async () => {
+      queueLoad(FOOD, [exposureAt('eat')]);
+      await renderLoaded();
+
+      expect(screen.queryByLabelText(/^Bump to /)).toBeNull();
+      expect(mockDb.writes).toHaveLength(0);
+    });
+
+    it('does not offer a bump when no child is selected', async () => {
+      // An exposure row with a blank childId is dropped silently by every
+      // downstream join, so the action must be unreachable rather than a
+      // no-op handler behind a live button.
+      useChildStore.getState().clear();
+      queueLoad();
+      await renderLoaded();
+
+      expect(screen.queryByLabelText(/^Bump to /)).toBeNull();
+      // Limit recorded rather than papered over: the handler's own
+      // `!selectedChildId` early return is defence-in-depth behind this
+      // render gate, so relaxing it alone leaves the suite green — with no
+      // child there is no button to press. The gate is what is observable.
+    });
+
+    it('alerts on a failed bump and stays retryable', async () => {
+      let failNext = true;
+      (mockDb.db as { insert: unknown }).insert = () => ({
+        values: (values: unknown) => {
+          if (failNext) return Promise.reject(new Error('insert failed'));
+          mockDb.writes.push({ kind: 'insert', values });
+          return Promise.resolve();
+        },
+      });
+
+      queueLoad();
+      await renderLoaded();
+      await tapBump('Bump to Tolerate');
+
+      await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+      expect(alertSpy.mock.calls[0][0]).toBe('Error');
+
+      // The latch is released in `finally`, so the retry gets through.
+      failNext = false;
+      queueLoad();
+      await tapBump('Bump to Tolerate');
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+    });
+  });
+
+  /**
+   * The safe-food flag (v0.3.0) is what pins a food to the Foods tab's
+   * preferred row — the SOS "safe food kept available alongside new
+   * targets". The toggle patches local state rather than reloading, so the
+   * on-screen state and the persisted value can drift apart.
+   */
+  describe('safe food toggle (v0.3.0)', () => {
+    it('persists the flip and follows it on screen', async () => {
+      queueLoad();
+      await renderLoaded();
+      expect(screen.getByText('Mark as Safe Food')).toBeTruthy();
+
+      await click('Mark as safe food');
+
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      expect(mockDb.writes[0]).toEqual({ kind: 'update', values: { isSafeFood: true } });
+      // Read through the toggle's own description, which is unique — the
+      // header also grows a "Safe Food" badge once the flag is on.
+      expect(screen.getByText('Pinned to the top of the Foods tab')).toBeTruthy();
+    });
+
+    it('unmarks a food that is already pinned', async () => {
+      // Without this, a mis-tapped safe food is permanent: the flag drives
+      // the Foods tab's preferred row, and there is no other surface to
+      // clear it from.
+      queueLoad({ ...FOOD, isSafeFood: true });
+      await renderLoaded();
+      expect(screen.getByText('Pinned to the top of the Foods tab')).toBeTruthy();
+
+      await click('Mark as safe food');
+
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      expect(mockDb.writes[0]).toEqual({ kind: 'update', values: { isSafeFood: false } });
+      expect(screen.getByText('A food your child already accepts')).toBeTruthy();
+    });
+
+    it('leaves the on-screen state on the old value when the write fails', async () => {
+      (mockDb.db as { update: unknown }).update = () => ({
+        set: () => ({ where: () => Promise.reject(new Error('update failed')) }),
+      });
+
+      queueLoad();
+      await renderLoaded();
+      await click('Mark as safe food');
+
+      await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+      expect(alertSpy.mock.calls[0][0]).toBe('Error');
+      // Showing the pinned copy after a failed write would tell the parent
+      // the food is pinned when the Foods tab will not pin it.
+      expect(screen.getByText('Mark as Safe Food')).toBeTruthy();
+      expect(screen.queryByText('Pinned to the top of the Foods tab')).toBeNull();
+    });
+  });
+
 });
