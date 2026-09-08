@@ -279,6 +279,100 @@ describe('FoodDetailScreen', () => {
     });
   });
 
+  describe('default preparation (v0.5.161)', () => {
+    it('offers to set a preparation when the food has none', async () => {
+      queueLoad();
+      await renderLoaded();
+
+      expect(screen.queryByLabelText('Preparation: Steamed')).toBeNull();
+      await click('Set default preparation');
+      expect(screen.getByLabelText('Preparation: Steamed')).toBeTruthy();
+      expect(screen.getByLabelText('Preparation: Raw')).toBeTruthy();
+    });
+
+    it('persists the picked preparation and reflects it in the tag', async () => {
+      queueLoad();
+      await renderLoaded();
+
+      await click('Set default preparation');
+      await click('Preparation: Steamed');
+
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      // Stored lowercase (the schema/constant shape), displayed title-cased.
+      expect(mockDb.writes[0]).toEqual({
+        kind: 'update',
+        values: { defaultPreparation: 'steamed' },
+      });
+      expect(screen.getByLabelText('Change preparation, currently Steamed')).toBeTruthy();
+      expect(screen.queryByLabelText('Preparation: Steamed')).toBeNull();
+    });
+
+    it('clears the preparation when the selected chip is re-tapped', async () => {
+      // The load-bearing difference from the category editor: this field is
+      // nullable, so "not recorded" is a legal state and must stay reachable.
+      // A no-op-on-re-tap (the category shape) would make a mis-tap permanent.
+      queueLoad({ ...FOOD, defaultPreparation: 'baked' });
+      await renderLoaded();
+
+      await click('Change preparation, currently Baked');
+      await click('Preparation: Baked');
+
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      expect(mockDb.writes[0]).toEqual({
+        kind: 'update',
+        values: { defaultPreparation: null },
+      });
+      expect(screen.getByLabelText('Set default preparation')).toBeTruthy();
+    });
+
+    it('replaces an existing preparation with a different one', async () => {
+      queueLoad({ ...FOOD, defaultPreparation: 'baked' });
+      await renderLoaded();
+
+      await click('Change preparation, currently Baked');
+      await click('Preparation: Fried');
+
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      expect(mockDb.writes[0]).toEqual({
+        kind: 'update',
+        values: { defaultPreparation: 'fried' },
+      });
+      expect(screen.getByLabelText('Change preparation, currently Fried')).toBeTruthy();
+    });
+
+    it('alerts on a failed write and leaves the row open to retry', async () => {
+      queueLoad();
+      await renderLoaded();
+
+      let failNext = true;
+      (mockDb.db as { update: unknown }).update = () => ({
+        set: (values: unknown) => ({
+          where: () => {
+            if (failNext) return Promise.reject(new Error('update failed'));
+            mockDb.writes.push({ kind: 'update' as const, values });
+            return Promise.resolve();
+          },
+        }),
+      });
+
+      await click('Set default preparation');
+      await click('Preparation: Roasted');
+
+      expect(alertSpy).toHaveBeenCalledWith(
+        'Error',
+        expect.stringContaining('Failed to change preparation'),
+      );
+      // Unchanged, and the row is still open, so the retry is one tap.
+      expect(screen.getByLabelText('Set default preparation')).toBeTruthy();
+
+      // The latch is released in `finally`, so the retry is not stranded.
+      failNext = false;
+      await click('Preparation: Roasted');
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      expect(screen.getByLabelText('Change preparation, currently Roasted')).toBeTruthy();
+    });
+  });
+
   describe('delete (v0.5.138)', () => {
     it('names the food and its blast radius in the confirm alert', async () => {
       queueLoad();

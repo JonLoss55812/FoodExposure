@@ -218,9 +218,37 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.160
+v0.5.161
 
 ## Changelog
+- v0.5.161 — Feature: a food's **default preparation** is now editable from the food detail
+  page — the last field that still required delete-and-re-add (NEXT_STEPS gap #3's final
+  follow-up; name shipped v0.5.145, category v0.5.160). It was also not *displayed* anywhere
+  on the detail page, so a value set on Add Food was write-only from the moment it was saved.
+  A new tag beside the category tag shows the current preparation (title-cased; the constant
+  and the column store lowercase) and toggles a chip row of the eight `PREPARATIONS`. One
+  deliberate departure from the category editor's shape, and it is the load-bearing half:
+  `defaultPreparation` is **nullable**, so "not recorded" is a legal persisted state and has
+  to stay reachable — re-tapping the selected chip therefore *clears* the field to `null`
+  rather than being a no-op close (the v0.5.137 optional-chip deselect contract). Without
+  that, a mis-tap would be permanent-or-destructive all over again, which is the exact defect
+  this closes. When nothing is set the tag reads "Add prep" and announces as
+  `Set default preparation`, so the editor is reachable from the unset state. A legacy value
+  outside the suggestion list still displays verbatim with no chip highlighted, and picking
+  any chip replaces it. Double-submit is guarded by the v0.5.144 synchronous
+  `createInFlightLatch`, released in `finally`; on failure the row is left open so the retry
+  is one tap. Local state is patched with `setFood(...)` rather than reloading, matching the
+  category editor — this screen loads in a `useEffect`, not on focus. Chips carry the
+  v0.5.154 `minHeight: 44` floor and the established a11y train. The three chip styles the
+  category row introduced are renamed `editChipRow` / `editChip` / `editChipText` since both
+  editors now share them. +5 screen tests in `app/food/__tests__/id.test.tsx`: the unset tag
+  opens the row; picking persists lowercase and the tag follows title-cased; re-picking the
+  selected chip writes `null` and the tag returns to its unset copy; a different chip
+  replaces; and a failed write alerts, leaves the value and the open row alone, and stays
+  retryable. Mutation-verified rather than assumed: dropping the clear-on-re-tap, swallowing
+  the Alert, and dropping `prepLatch.release()` each fail exactly one test, and dropping the
+  `setFood` patch fails four. Bumped `APP_VERSION` to v0.5.161. 726 tests pass across 41
+  suites (was 721, +5). TypeScript clean.
 - v0.5.160 — Feature: change a food's category from the food detail page (NEXT_STEPS gap #3
   follow-up (a)). v0.5.145 made the *name* editable but left category permanent-or-destructive:
   the only way to fix a mis-tapped category on Add Food was the v0.5.138 Delete Food cascade,

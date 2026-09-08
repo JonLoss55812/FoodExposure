@@ -9,7 +9,7 @@ import { StageIndicator, ProgressBar, ExposureCard, EmptyState, Button } from '@
 import { useChildStore } from '@/src/stores/child-store';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { useSettingsStore } from '@/src/stores/settings-store';
-import { STAGE_CONFIG, CATEGORY_CONFIG, FOOD_CATEGORIES, getCategoryConfig } from '@/src/lib/constants';
+import { STAGE_CONFIG, CATEGORY_CONFIG, FOOD_CATEGORIES, PREPARATIONS, getCategoryConfig } from '@/src/lib/constants';
 import type { ExposureStage, FoodCategory } from '@/src/lib/constants';
 import { getNextStage, canBumpStage, getHighestStage } from '@/src/lib/stage';
 import { getThresholdForProfile } from '@/src/lib/thresholds';
@@ -23,6 +23,9 @@ type ExposureRow = Pick<
   typeof schema.exposures.$inferSelect,
   'id' | 'stage' | 'rating' | 'notes' | 'occurredAt' | 'mealType' | 'temperature' | 'texture' | 'setting'
 >;
+
+/** PREPARATIONS are stored lowercase; every surface displays them title-cased. */
+const titleCase = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
 export default function FoodDetailScreen() {
   const { theme } = useUnistyles();
@@ -39,6 +42,8 @@ export default function FoodDetailScreen() {
   const [editingName, setEditingName] = useState(false);
   const [editingCategory, setEditingCategory] = useState(false);
   const [savingCategory, setSavingCategory] = useState(false);
+  const [editingPrep, setEditingPrep] = useState(false);
+  const [savingPrep, setSavingPrep] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [savingName, setSavingName] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -47,6 +52,7 @@ export default function FoodDetailScreen() {
   const deleteLatch = useRef(createInFlightLatch()).current;
   const renameLatch = useRef(createInFlightLatch()).current;
   const categoryLatch = useRef(createInFlightLatch()).current;
+  const prepLatch = useRef(createInFlightLatch()).current;
 
   const loadData = useCallback(async () => {
     if (!id) {
@@ -229,6 +235,37 @@ export default function FoodDetailScreen() {
     }
   };
 
+  /**
+   * Persist a new default preparation. Same shape as the category editor —
+   * closed suggestion list, so picking a chip is the commit — with one
+   * deliberate difference: `defaultPreparation` is nullable, so "not
+   * recorded" is a legal persisted state and has to stay reachable. Re-tapping
+   * the selected chip therefore *clears* the field rather than being a no-op,
+   * matching the v0.5.137 optional-chip deselect contract. Without that a
+   * mis-tap here would be permanent-or-destructive all over again, which is
+   * the exact defect this closes.
+   */
+  const handleSelectPreparation = async (next: string) => {
+    if (!food || !prepLatch.tryAcquire()) return;
+
+    const value = next === food.defaultPreparation ? null : next;
+
+    setSavingPrep(true);
+    try {
+      await db.update(schema.foods)
+        .set({ defaultPreparation: value })
+        .where(eq(schema.foods.id, food.id));
+      setFood({ ...food, defaultPreparation: value });
+      setEditingPrep(false);
+    } catch (err) {
+      console.error('Failed to change default preparation:', err);
+      Alert.alert('Error', 'Failed to change preparation. Please try again.');
+    } finally {
+      prepLatch.release();
+      setSavingPrep(false);
+    }
+  };
+
   const handleDeleteFood = () => {
     if (!food || deleting) return;
     Alert.alert(
@@ -357,6 +394,22 @@ export default function FoodDetailScreen() {
               {categoryConfig.label} <Text style={styles.editHint}>✏️</Text>
             </Text>
           </Pressable>
+          <Pressable
+            onPress={() => setEditingPrep((open) => !open)}
+            style={[styles.tag, styles.prepTag]}
+            accessibilityRole="button"
+            accessibilityLabel={
+              food.defaultPreparation
+                ? `Change preparation, currently ${titleCase(food.defaultPreparation)}`
+                : 'Set default preparation'
+            }
+            accessibilityState={{ expanded: editingPrep }}
+          >
+            <Text style={[styles.tagText, styles.prepTagText]}>
+              {food.defaultPreparation ? titleCase(food.defaultPreparation) : 'Add prep'}{' '}
+              <Text style={styles.editHint}>✏️</Text>
+            </Text>
+          </Pressable>
           {food.isSafeFood && (
             <View style={[styles.tag, { backgroundColor: '#22C55E20' }]}>
               <Text style={[styles.tagText, { color: '#22C55E' }]}>Safe Food</Text>
@@ -364,7 +417,7 @@ export default function FoodDetailScreen() {
           )}
         </View>
         {editingCategory && (
-          <View style={styles.categoryRow}>
+          <View style={styles.editChipRow}>
             {FOOD_CATEGORIES.map((value) => {
               const config = CATEGORY_CONFIG[value];
               const isSelected = value === food.category;
@@ -372,7 +425,7 @@ export default function FoodDetailScreen() {
                 <Pressable
                   key={value}
                   style={[
-                    styles.categoryChip,
+                    styles.editChip,
                     isSelected && { backgroundColor: config.color + '20', borderColor: config.color },
                   ]}
                   onPress={() => handleSelectCategory(value)}
@@ -381,7 +434,27 @@ export default function FoodDetailScreen() {
                   accessibilityLabel={`Category: ${config.label}`}
                   accessibilityState={{ selected: isSelected, disabled: savingCategory }}
                 >
-                  <Text style={styles.categoryChipText}>{config.icon} {config.label}</Text>
+                  <Text style={styles.editChipText}>{config.icon} {config.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+        {editingPrep && (
+          <View style={styles.editChipRow}>
+            {PREPARATIONS.map((prep) => {
+              const isSelected = prep === food.defaultPreparation;
+              return (
+                <Pressable
+                  key={prep}
+                  style={[styles.editChip, isSelected && styles.editChipSelected]}
+                  onPress={() => handleSelectPreparation(prep)}
+                  disabled={savingPrep}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Preparation: ${titleCase(prep)}`}
+                  accessibilityState={{ selected: isSelected, disabled: savingPrep }}
+                >
+                  <Text style={styles.editChipText}>{titleCase(prep)}</Text>
                 </Pressable>
               );
             })}
@@ -572,13 +645,13 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.fontSize.sm,
     fontWeight: '600',
   },
-  categoryRow: {
+  editChipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: theme.spacing.sm,
     marginTop: theme.spacing.sm,
   },
-  categoryChip: {
+  editChip: {
     paddingHorizontal: theme.spacing.md,
     minHeight: 44,
     justifyContent: 'center',
@@ -587,7 +660,19 @@ const styles = StyleSheet.create((theme) => ({
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
-  categoryChipText: {
+  prepTag: {
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  prepTagText: {
+    color: theme.colors.textSecondary,
+  },
+  editChipSelected: {
+    backgroundColor: theme.colors.primaryLight,
+    borderColor: theme.colors.primaryStrong,
+  },
+  editChipText: {
     fontSize: theme.fontSize.sm,
     fontWeight: '600',
     color: theme.colors.text,
