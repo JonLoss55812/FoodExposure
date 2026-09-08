@@ -1,6 +1,14 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.160 — 694 tests passing across 39 suites, TypeScript clean.
+Reviewed at: v0.5.162 — 726 tests passing across 41 suites, TypeScript clean.
+
+> **Read this first.** This file was last *fully* rewritten at v0.5.160 and the
+> "Recently shipped" list below lags reality. A session in between added screen
+> suites for the two onboarding screens, the food-detail bump-stage / safe-food
+> paths, and the Settings CSV export without refreshing this file — and the
+> v0.5.162 session then wasted a task re-testing a screen that was already
+> covered. **Before picking work from the gap list, check `git log` and
+> `find app -name '*.test.tsx'` against the claim you are about to act on.**
 
 ## Status of the original plan (v0.1.0 review)
 
@@ -95,7 +103,32 @@ All five priorities from the original review have shipped:
   `react-test-renderer` to 19.2.0, added `babel-preset-expo` as an explicit
   devDependency. CLAUDE.md's `bun test` corrected to `bun run test`.
 
+## Shipped in the v0.5.162 session (2026-09-08)
+
+- v0.5.161 — a food's **default preparation** is editable from the detail page,
+  closing gap #3's last named follow-up. It was also not *displayed* there at
+  all, so a value set on Add Food was write-only. Chip row on a new tag beside
+  the category tag. One deliberate difference from the category editor and it
+  is the load-bearing half: the field is nullable, so re-tapping the selected
+  chip **clears** it to `null` (v0.5.137 deselect contract) rather than being a
+  no-op close — otherwise a mis-tap would be permanent all over again. +5
+  tests, four mutations verified.
+- v0.5.162 — the Add Child form is written **once**, in
+  `src/components/ChildForm.tsx`, shared by `app/child/add.tsx` and
+  `app/onboarding/add-child.tsx` (gap #1's dedup note). 505 lines across two
+  files -> 361 across three. No new tests by design: the 34 existing tests
+  across the two host suites pass untouched, and dropping `selectChild` from
+  the shared component now fails three tests across *both* suites where before
+  it would have failed only one file's.
+
 ## Known gaps worth doing next (discovered, deliberately not done)
+
+0. **Pre-existing `--noUnusedLocals` error.**
+   `app/onboarding/__tests__/index.test.tsx:136` declares `errorSpy` and never
+   reads it, so `npx tsc --noEmit --noUnusedLocals` fails on it. Plain
+   `npx tsc --noEmit` (the project's standard check) is clean. One-word fix
+   (drop the binding, keep the `jest.spyOn` call); left alone in v0.5.162 only
+   to avoid touching another session's test file mid-refactor.
 
 1. **Screen tests: 6 screens covered, harness proven.** v0.5.146 built
    `src/test-utils/mock-db.ts` (structural fake of the drizzle builder:
@@ -196,7 +229,15 @@ All five priorities from the original review have shipped:
    With v0.5.138 a parent can now delete a twin manually, but that discards the
    twin's exposures; a merge migration (reassign exposures to the surviving row)
    is still the lossless fix if it ever matters. Not worth it pre-production.
-3. **~~No food rename/edit UI.~~** Done in v0.5.145 — inline rename on the
+3. **~~No food rename/edit UI.~~** **Fully closed as of v0.5.161** — name
+   (v0.5.145), category (v0.5.160) and default preparation (v0.5.161) are all
+   editable in place. `isSafeFood` was already toggleable from v0.3.0, so every
+   field on `foods` can now be corrected without the delete-and-re-add that
+   discards the exposure history the acceptance threshold is counted from.
+   The one item that survives from this gap is (b): the rename does not
+   normalize casing across the family, so pre-existing legacy duplicates are
+   still separate rows — see gap #2. Original entry follows.
+   Done in v0.5.145 — inline rename on the
    food detail page, validated through `foodSchema.shape.name` and guarded
    by `findDuplicateFood(..., excludeId)`. Follow-ups deliberately not done:
    ~~(a) only the *name* is editable~~ — category shipped in v0.5.160 (chip row
