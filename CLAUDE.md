@@ -218,9 +218,39 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.161
+v0.5.162
 
 ## Changelog
+- v0.5.162 — Refactor: the Add Child form is now written once, in a new shared
+  `src/components/ChildForm.tsx`. NEXT_STEPS gap #1 flagged `app/onboarding/add-child.tsx`
+  as "a near-duplicate of `app/child/add.tsx` — worth *deduplicating* rather than testing
+  twice", and the v0.5.159 / post-v0.5.160 screen suites are what made the dedup safe to do:
+  both hosts are now covered, so the refactor has a net under it rather than being a leap.
+  The two files carried byte-identical copies of the whole form body — the `childSchema`
+  wiring, the twelve-emoji avatar grid, the three fields, the `?? null` mapping that keeps an
+  untouched optional out of SQLite as absent rather than `''`, the v0.5.144 in-flight latch,
+  and the v0.5.159 `selectChild(childId)` call. That last one is the actual hazard: it is a
+  single line, and its absence silently logs the next exposure against the previously selected
+  child with no on-screen cue — so a fix or a regression in one file was neither in the other.
+  `ChildForm` owns everything up to and including the insert and the selection repair, and
+  takes three props for the only things the hosts genuinely disagree on: `submitLabel`,
+  an optional `submitIcon`, and `onSaved({ id, name })` — where `app/child/add.tsx` confirms
+  and pops back, and `app/onboarding/add-child.tsx` sets the onboarding flag and replaces to
+  the tabs. Each host keeps its own header, which is where they really differ (a Cancel link
+  and a plain title on one; step framing and a subtitle on the other) and its own spacing, so
+  the onboarding screen's wider `lg` header padding is preserved. Net 505 lines across two
+  files becomes 361 across three. Two deliberate copy unifications, both toward the shorter
+  variant, since the form now serves both contexts and onboarding's framing lives in its
+  header: the section labels ("Choose an Avatar" -> "Avatar", "Child's Name" -> "Name") and
+  two placeholders. Every `accessibilityLabel` is unchanged — they were already identical in
+  both files, which is why both existing suites pass untouched. `numberOfLines={3}` on the
+  notes field, previously only on the onboarding copy, now applies to both. No new tests, by
+  design: the 34 existing tests across the two host suites are the verification, and they pass
+  unchanged. The dedup was mutation-checked rather than assumed — dropping `selectChild` from
+  the shared component now fails **three** tests spread across *both* suites, where before it
+  would have failed only the one file it was deleted from. Bumped `APP_VERSION` to v0.5.162.
+  726 tests pass across 41 suites — unchanged, which is the point: this commit changes where
+  the code lives, not what it does. TypeScript clean.
 - v0.5.161 — Feature: a food's **default preparation** is now editable from the food detail
   page — the last field that still required delete-and-re-add (NEXT_STEPS gap #3's final
   follow-up; name shipped v0.5.145, category v0.5.160). It was also not *displayed* anywhere
