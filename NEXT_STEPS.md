@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.162 — 726 tests passing across 41 suites, TypeScript clean.
+Reviewed at: v0.5.164 — 750 tests passing across 41 suites, TypeScript clean.
 
 > **Read this first.** This file was last *fully* rewritten at v0.5.160 and the
 > "Recently shipped" list below lags reality. A session in between added screen
@@ -121,7 +121,45 @@ All five priorities from the original review have shipped:
   the shared component now fails three tests across *both* suites where before
   it would have failed only one file's.
 
+## Shipped in the v0.5.164 session (2026-09-08)
+
+- v0.5.163 — **delete a single exposure** from the food detail page. A
+  mis-logged exposure was permanent: it inflates the per-food count the
+  15/20/30 threshold is read from and can fix the food's highest reached stage
+  at a level the child never reached, and the only removal path was the
+  v0.5.138 Delete Food cascade, which discards *every* exposure for that food
+  across every child. Confirm Alert, delete scoped to the exposure id, local
+  patch, and — the load-bearing half — `highestStage` recomputed from the
+  remaining rows so the "Bump to X" target moves back down. +6 tests, five
+  mutations verified. `createMockDb()`'s recorded delete now carries its
+  `where` predicate so scoping is assertable.
+- v0.5.164 — **backdate an exposure** on the Log form. `occurredAt` was always
+  `new Date()`, so logging the morning after recorded the wrong day on every
+  date-bucketed surface and in the therapist CSV. Optional `YYYY-MM-DD` field,
+  `exposureSchema.occurredOn` (format / not-future / not-older-than
+  `MAX_BACKDATE_YEARS`), and a pure `resolveOccurredAt` that parses at **local**
+  midnight and keeps the current time when the named day is today. +18 tests,
+  five mutations verified; a sixth test was removed as vacuous.
+
 ## Known gaps worth doing next (discovered, deliberately not done)
+
+-1. **Backdating has no date picker, and there is no way to correct an
+   existing exposure's date/stage/rating.** v0.5.164 added a validated
+   free-text `YYYY-MM-DD` field, which is the right MVP shape (no new
+   dependency, and it reuses the `childSchema.dateOfBirth` precedent) but it
+   is typing, on a phone, one-handed. A picker would need a package —
+   `@react-native-community/datetimepicker` is the obvious one — so it is a
+   deliberate deferral, not an oversight. Separately, v0.5.163 made an
+   exposure *deletable* but not *editable*: correcting a wrong stage or a
+   missing rating still means delete-and-re-log, which is cheap now that
+   delete exists but loses the original `createdAt`. Edit is the natural next
+   step and the detail-page chip-row editors (v0.5.160/161) are the template.
+
+-2. **`resolveOccurredAt` is only reachable from the Log form.** The
+   food-detail "Bump to X" one-tap action still writes `occurredAt: new Date()`
+   with no way to backdate. That is defensible — a bump is an
+   in-the-moment action — but if backdating turns out to matter there too, the
+   helper is already pure and tested.
 
 0. **Pre-existing `--noUnusedLocals` error.**
    `app/onboarding/__tests__/index.test.tsx:136` declares `errorSpy` and never
@@ -262,7 +300,10 @@ All five priorities from the original review have shipped:
    `ensureSelection` moves the store value. Worth confirming once a harness
    exists. (b) The focus reload is unconditional here too — see gap #4.
 
-6. **~~Tooling gotcha.~~** Mostly resolved in v0.5.143 — plain
+6. **~~Tooling gotcha.~~** *(v0.5.164 note: a fresh pusher worktree has no
+   `node_modules` at all — `npm install` from a wiped tree took ~1 min and
+   exited 0, and `bun` is not on PATH in that environment, so use
+   `npx jest` there rather than `bun run test`.)* Mostly resolved in v0.5.143 — plain
    `npm install` now works and CLAUDE.md documents `bun run test`. Two
    residual items: (a) `bun.lock` was NOT regenerated for the v0.5.143
    `package.json` delta (three devDependency lines) because Bun is not
