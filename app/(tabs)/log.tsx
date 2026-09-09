@@ -13,7 +13,7 @@ import { ChildSelector, StageIndicator, RatingPicker, Button } from '@/src/compo
 import { useChildStore } from '@/src/stores/child-store';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { exposureSchema, type ExposureFormData } from '@/src/lib/validation';
-import { generateId } from '@/src/lib/utils';
+import { generateId, resolveOccurredAt } from '@/src/lib/utils';
 import { resolveSelectedFoodId } from '@/src/lib/food-partition';
 import { createInFlightLatch } from '@/src/lib/in-flight';
 import { STAGE_CONFIG, MEAL_TYPES, TEMPERATURES, TEXTURES, SETTINGS } from '@/src/lib/constants';
@@ -41,6 +41,7 @@ export default function LogExposureScreen() {
       childId: selectedChildId || '',
       foodId: '',
       stage: 'tolerate',
+      occurredOn: '',
     },
   });
 
@@ -102,7 +103,7 @@ export default function LogExposureScreen() {
         setting: data.setting ?? null,
         notes: data.notes ?? null,
         loggedBy: userId,
-        occurredAt: new Date(),
+        occurredAt: resolveOccurredAt(data.occurredOn),
         createdAt: new Date(),
       });
 
@@ -110,7 +111,7 @@ export default function LogExposureScreen() {
       // exposures in one session without re-tapping the child each time.
       // The form is the single source of truth for foodId/stage now —
       // reset() flows back to the watched values, so no parallel setState.
-      reset({ childId: data.childId, foodId: '', stage: 'tolerate' });
+      reset({ childId: data.childId, foodId: '', stage: 'tolerate', occurredOn: '' });
       Alert.alert('Logged!', 'Food exposure saved successfully.', [
         { text: 'Log Another', style: 'default' },
         { text: 'Go Home', onPress: () => router.push('/(tabs)' as any) },
@@ -349,6 +350,28 @@ export default function LogExposureScreen() {
                 </View>
               )}
             />
+          </View>
+
+          {/* Date — blank means "now" */}
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Date</Text>
+            <Controller
+              control={control}
+              name="occurredOn"
+              render={({ field: { onChange, value } }) => (
+                <TextInput
+                  style={styles.textInput}
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="YYYY-MM-DD (leave blank for now)"
+                  placeholderTextColor="#94A3B8"
+                  maxLength={10}
+                  autoCapitalize="none"
+                  accessibilityLabel="Date (optional)"
+                />
+              )}
+            />
+            {errors.occurredOn && <Text style={styles.error}>{errors.occurredOn.message}</Text>}
           </View>
 
           {/* Notes */}

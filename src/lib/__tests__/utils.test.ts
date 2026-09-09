@@ -6,6 +6,8 @@ import {
   formatRelativeDate,
   getStartOfDay,
   deriveLocalEmailPart,
+  resolveOccurredAt,
+  MAX_BACKDATE_YEARS,
 } from '../utils';
 
 describe('generateId', () => {
@@ -363,3 +365,62 @@ describe('deriveLocalEmailPart', () => {
   });
 });
 
+describe('resolveOccurredAt', () => {
+  const NOW = new Date(2026, 8, 8, 14, 30, 0); // Sep 8 2026, 14:30 local
+
+  it('falls back to now for blank, absent, and non-string input', () => {
+    for (const value of ['', '   ', undefined, null, 42 as unknown as string, {} as unknown as string]) {
+      expect(resolveOccurredAt(value, NOW).getTime()).toBe(NOW.getTime());
+    }
+  });
+
+  it('falls back to now for a malformed date string', () => {
+    for (const value of ['09/08/2026', 'yesterday', '2026-9-8', '2026-09-08T10:00:00Z']) {
+      expect(resolveOccurredAt(value, NOW).getTime()).toBe(NOW.getTime());
+    }
+  });
+
+  it('parses a backdated day at LOCAL midnight, not UTC', () => {
+    // The load-bearing case. A UTC parse places a user west of Greenwich on
+    // the previous calendar day, so the row lands outside the day they named
+    // on every surface that buckets by getStartOfDay.
+    const result = resolveOccurredAt('2026-09-05', NOW);
+    expect(result.getFullYear()).toBe(2026);
+    expect(result.getMonth()).toBe(8);
+    expect(result.getDate()).toBe(5);
+    expect(result.getHours()).toBe(0);
+    expect(result.getMinutes()).toBe(0);
+  });
+
+  it('keeps the current time when the named day is today', () => {
+    // Otherwise a row logged today would be stamped local midnight and sort
+    // below every other exposure in the same day's history.
+    expect(resolveOccurredAt('2026-09-08', NOW).getTime()).toBe(NOW.getTime());
+  });
+
+  it('falls back to now on a calendar rollover rather than silently shifting the day', () => {
+    // new Date(2026, 1, 30) rolls forward to Mar 2 — recording an exposure on
+    // a day the parent did not name is worse than ignoring the field.
+    expect(resolveOccurredAt('2026-02-30', NOW).getTime()).toBe(NOW.getTime());
+    expect(resolveOccurredAt('2026-13-01', NOW).getTime()).toBe(NOW.getTime());
+  });
+
+  it('accepts a leap day that really exists and rejects one that does not', () => {
+    const leap = resolveOccurredAt('2024-02-29', NOW);
+    expect(leap.getMonth()).toBe(1);
+    expect(leap.getDate()).toBe(29);
+    expect(resolveOccurredAt('2025-02-29', NOW).getTime()).toBe(NOW.getTime());
+  });
+
+  it('defaults `now` to the current time and survives an invalid one', () => {
+    const before = Date.now();
+    const fallback = resolveOccurredAt('').getTime();
+    expect(fallback).toBeGreaterThanOrEqual(before);
+    expect(fallback).toBeLessThanOrEqual(Date.now());
+    expect(Number.isNaN(resolveOccurredAt('', new Date(NaN)).getTime())).toBe(false);
+  });
+
+  it('exposes a backdate bound that leaves room for a real logging backlog', () => {
+    expect(MAX_BACKDATE_YEARS).toBeGreaterThanOrEqual(1);
+  });
+});

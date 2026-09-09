@@ -65,3 +65,51 @@ export function deriveLocalEmailPart(displayName: string): string {
     .slice(0, RFC_5321_LOCAL_PART_MAX);
   return sanitized.length > 0 ? sanitized : 'user';
 }
+
+/**
+ * How far back an exposure may be backdated. Exposures are logged after the
+ * fact (a parent is feeding a toddler, not holding a phone), but a date older
+ * than this is a typo — an off-by-100 or off-by-1000 year slip — not a memory.
+ */
+export const MAX_BACKDATE_YEARS = 2;
+
+/**
+ * Turn the Log form's optional `YYYY-MM-DD` field into the timestamp stored in
+ * `exposures.occurred_at`.
+ *
+ * Blank, non-string, or unparseable input falls back to `now` — the pre-v0.5.164
+ * behaviour, so an absent date is exactly "logged just now".
+ *
+ * The date is parsed at **local** midnight, not UTC. A UTC parse would place a
+ * user west of Greenwich on the previous calendar day, so their backdated row
+ * would land outside the day they named on every surface that buckets by
+ * `getStartOfDay` — the dashboard's Today count and the relative-date label.
+ *
+ * A date naming today resolves to `now` rather than local midnight, so a row
+ * logged today keeps its time of day and stays correctly ordered against the
+ * others in the same day's history.
+ */
+export function resolveOccurredAt(value?: string | null, now: Date = new Date()): Date {
+  const base = now instanceof Date && !Number.isNaN(now.getTime()) ? now : new Date();
+  if (typeof value !== 'string') return base;
+  const trimmed = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return base;
+
+  const [year, month, day] = trimmed.split('-').map(Number);
+  const local = new Date(year, month - 1, day);
+  if (Number.isNaN(local.getTime())) return base;
+  // Reject a calendar rollover ('2026-02-30' would silently become Mar 1).
+  if (
+    local.getFullYear() !== year ||
+    local.getMonth() !== month - 1 ||
+    local.getDate() !== day
+  ) {
+    return base;
+  }
+
+  const isToday =
+    local.getFullYear() === base.getFullYear() &&
+    local.getMonth() === base.getMonth() &&
+    local.getDate() === base.getDate();
+  return isToday ? base : local;
+}

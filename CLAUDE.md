@@ -218,9 +218,58 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.163
+v0.5.164
 
 ## Changelog
+- v0.5.164 — Feature: an exposure can now be **backdated**. `app/(tabs)/log.tsx`
+  stamped `occurredAt: new Date()` unconditionally, so an exposure logged the
+  morning after — which is the normal case, since a parent feeding a toddler is
+  not simultaneously holding a phone — was recorded as having happened today.
+  That one wrong timestamp propagates everywhere the app buckets by date: the
+  dashboard's "Today's Exposures" card overcounts and yesterday undercounts, the
+  Progress tab's trailing-7-day window slides, `formatRelativeDate` labels the
+  row "Today", and the date column of the therapist-facing CSV is simply wrong —
+  which matters because the whole point of the export is letting a feeding
+  therapist see *when* things happened relative to each other. The optional
+  details block gains a "Date" field: a plain `YYYY-MM-DD` TextInput
+  (`maxLength={10}`, `autoCapitalize="none"`) with the placeholder "YYYY-MM-DD
+  (leave blank for now)". No date-picker package was added — none is installed,
+  and the codebase already has a validated free-text date field precedent in
+  `childSchema.dateOfBirth`, so this reuses the shape rather than the dependency.
+  Two pieces. (1) `exposureSchema.occurredOn`, optional, with the same
+  three-refine chain as `childSchema.dateOfBirth`: a format refine that
+  round-trips through `toISOString()` (so `2026-02-30` and `2026-13-01` are
+  rejected as the rollovers they are, not silently shifted), a not-in-the-future
+  refine, and a not-more-than-`MAX_BACKDATE_YEARS` refine. The bound refines
+  early-return on malformed input so the user sees exactly one precise message
+  rather than two contradictory ones. The future refine compares against the
+  *end* of the named UTC day (`d.getTime() - DAY_MS < Date.now()`) so a same-day
+  log from a timezone ahead of UTC is not rejected as future. (2) A new pure
+  `resolveOccurredAt(value, now?)` in `src/lib/utils.ts` that turns the field
+  into the stored timestamp. Two deliberate decisions, and both are load-bearing:
+  the date is parsed at **local** midnight (`new Date(y, m-1, d)`), not UTC — a
+  UTC parse places every user west of Greenwich on the *previous* calendar day,
+  so their backdated row lands outside the day they named on every surface that
+  buckets through `getStartOfDay`; and a date naming **today** resolves to `now`
+  rather than to local midnight, so a same-day row keeps its time of day and
+  stays correctly ordered against the rest of that day's history. Blank,
+  non-string, malformed, and rollover input all fall back to `now`, which is the
+  pre-v0.5.164 behaviour — an absent date still means "logged just now". +8 unit
+  tests on `resolveOccurredAt` (fallbacks, the local-midnight parse, the
+  today-keeps-the-time branch, rollover rejection, a real vs. fake leap day,
+  the defaulted and invalid `now`), +6 on the schema field, +4 screen tests on
+  the Log form (blank stamps now; a backdated day persists at local midnight;
+  a future date and a malformed date each surface their inline error and write
+  nothing). Mutation-verified: ignoring the field fails one screen test,
+  switching the parse to UTC fails three, dropping the rollover guard fails two,
+  dropping the today branch fails one, and dropping the future refine fails two.
+  **One test was written and then removed rather than shipped green-but-vacuous**
+  — "the date clears after a successful save" passed with `occurredOn: ''`
+  deleted from the post-submit `reset(...)`, because react-hook-form resets every
+  field to the object it is handed and an omitted field lands as undefined, which
+  renders as an empty input either way. The reason is recorded at the site.
+  Bumped `APP_VERSION` to v0.5.164. 750 tests pass across 41 suites (was 732,
+  +18). TypeScript clean.
 - v0.5.163 — Feature: **delete a single exposure** from the food detail page's
   Exposure History. Until now a mis-logged exposure — wrong food, wrong stage, a
   double-tap that got past the latch on a different device — was permanent. It

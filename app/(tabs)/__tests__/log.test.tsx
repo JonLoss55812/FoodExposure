@@ -191,6 +191,105 @@ describe('LogExposureScreen', () => {
     expect(mockDb.writes).toHaveLength(1);
   });
 
+  /**
+   * Backdating (v0.5.164). Before this the handler stamped `occurredAt:
+   * new Date()` unconditionally, so an exposure logged the morning after was
+   * recorded as today — misreporting the dashboard's Today count, the
+   * Progress tab's trailing-7-day window, and the date column of the CSV a
+   * therapist reads. Exposures are logged after the fact by design.
+   */
+  describe('backdating the exposure date', () => {
+    async function openDetails() {
+      await waitFor(() => expect(screen.getByLabelText('Select Apple')).toBeTruthy());
+      fireEvent.click(screen.getByLabelText('Show additional details'));
+      return screen.getByLabelText('Date (optional)');
+    }
+
+    const ymd = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+        d.getDate()
+      ).padStart(2, '0')}`;
+
+    it('stamps the current time when the date field is left blank', async () => {
+      queueLoad([EMMA], [APPLE]);
+      renderScreen();
+      await openDetails();
+
+      const before = Date.now();
+      fireEvent.click(screen.getByLabelText('Select Apple'));
+      tapSave();
+
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      const occurredAt = lastInsert().occurredAt as Date;
+      expect(occurredAt).toBeInstanceOf(Date);
+      expect(occurredAt.getTime()).toBeGreaterThanOrEqual(before);
+    });
+
+    it('persists a backdated day at local midnight', async () => {
+      queueLoad([EMMA], [APPLE]);
+      renderScreen();
+      const input = await openDetails();
+
+      const past = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+      fireEvent.change(input, { target: { value: ymd(past) } });
+      fireEvent.click(screen.getByLabelText('Select Apple'));
+      tapSave();
+
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      const occurredAt = lastInsert().occurredAt as Date;
+      // Local, not UTC: a UTC parse would put a user west of Greenwich on the
+      // previous calendar day, outside the day they actually named.
+      expect(occurredAt.getFullYear()).toBe(past.getFullYear());
+      expect(occurredAt.getMonth()).toBe(past.getMonth());
+      expect(occurredAt.getDate()).toBe(past.getDate());
+      expect(occurredAt.getHours()).toBe(0);
+    });
+
+    it('rejects a future date inline and writes nothing', async () => {
+      // A future-dated row is invisible in every backward-looking window and
+      // would sit at the top of the therapist's CSV forever.
+      queueLoad([EMMA], [APPLE]);
+      renderScreen();
+      const input = await openDetails();
+
+      const future = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+      fireEvent.change(input, { target: { value: ymd(future) } });
+      fireEvent.click(screen.getByLabelText('Select Apple'));
+      tapSave();
+
+      await waitFor(() =>
+        expect(screen.getByText('Date cannot be in the future')).toBeTruthy(),
+      );
+      expect(mockDb.writes).toHaveLength(0);
+    });
+
+    it('rejects a malformed date inline and writes nothing', async () => {
+      queueLoad([EMMA], [APPLE]);
+      renderScreen();
+      const input = await openDetails();
+
+      fireEvent.change(input, { target: { value: '09/08/2026' } });
+      fireEvent.click(screen.getByLabelText('Select Apple'));
+      tapSave();
+
+      await waitFor(() =>
+        expect(screen.getByText('Date must be a valid YYYY-MM-DD date')).toBeTruthy(),
+      );
+      expect(mockDb.writes).toHaveLength(0);
+    });
+
+    /**
+     * There is deliberately no "the date clears after a successful save" test.
+     * One was written and then removed: it passed with `occurredOn: ''`
+     * deleted from the post-submit `reset(...)`, because react-hook-form's
+     * `reset` resets every field to the object it is given and an omitted
+     * field lands as undefined, which renders as an empty input either way.
+     * The assertion therefore could not tell the two implementations apart.
+     * The explicit `occurredOn: ''` is kept in the reset for symmetry with
+     * the other fields, but it is not load-bearing and is not pinned here.
+     */
+  });
+
   it('alerts on a failed load and renders no food chips', async () => {
     mockDb.failReads();
     renderScreen();

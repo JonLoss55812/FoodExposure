@@ -1,5 +1,7 @@
 import { z } from 'zod';
-import { isValidInviteCode } from './utils';
+import { isValidInviteCode, MAX_BACKDATE_YEARS } from './utils';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const optionalTrimmedText = (max: number, label: string) =>
   z.string()
@@ -79,6 +81,48 @@ export const exposureSchema = z.object({
   mealType: z.enum(['breakfast', 'lunch', 'dinner', 'snack']).optional(),
   setting: z.enum(['home', 'school', 'restaurant', 'therapy']).optional(),
   notes: optionalTrimmedText(500, 'Notes'),
+  /**
+   * Optional backdate, `YYYY-MM-DD`. Blank means "now" — see
+   * `resolveOccurredAt`. Same three-refine shape as `childSchema.dateOfBirth`:
+   * the format refine owns malformed input so the bound refines early-return
+   * on it and the user sees one precise message, not two contradictory ones.
+   */
+  occurredOn: z
+    .string()
+    .trim()
+    .optional()
+    .refine(
+      (val) => {
+        if (!val) return true;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(val)) return false;
+        const d = new Date(`${val}T00:00:00Z`);
+        return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(val);
+      },
+      { message: 'Date must be a valid YYYY-MM-DD date' }
+    )
+    .refine(
+      (val) => {
+        if (!val || !/^\d{4}-\d{2}-\d{2}$/.test(val)) return true;
+        const d = new Date(`${val}T00:00:00Z`);
+        if (Number.isNaN(d.getTime())) return true;
+        // UTC midnight of the named day; a same-day log in a zone ahead of UTC
+        // must not be rejected as "future", so compare against the end of the
+        // named UTC day rather than its start.
+        return d.getTime() - DAY_MS < Date.now();
+      },
+      { message: 'Date cannot be in the future' }
+    )
+    .refine(
+      (val) => {
+        if (!val || !/^\d{4}-\d{2}-\d{2}$/.test(val)) return true;
+        const d = new Date(`${val}T00:00:00Z`);
+        if (Number.isNaN(d.getTime())) return true;
+        const earliest = new Date();
+        earliest.setUTCFullYear(earliest.getUTCFullYear() - MAX_BACKDATE_YEARS);
+        return d.getTime() >= earliest.getTime();
+      },
+      { message: `Date cannot be more than ${MAX_BACKDATE_YEARS} years ago` }
+    ),
 });
 
 export type ExposureFormData = z.infer<typeof exposureSchema>;

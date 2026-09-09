@@ -1072,3 +1072,61 @@ describe('whitespace handling on optional string fields', () => {
     });
   });
 });
+
+describe('exposureSchema.occurredOn (backdating, v0.5.164)', () => {
+  const base = { childId: 'c1', foodId: 'f1', stage: 'eat' as const };
+  const ymd = (d: Date) =>
+    `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(
+      d.getUTCDate()
+    ).padStart(2, '0')}`;
+
+  it('is optional — an absent or blank date parses cleanly', () => {
+    expect(exposureSchema.safeParse(base).success).toBe(true);
+    expect(exposureSchema.safeParse({ ...base, occurredOn: '' }).success).toBe(true);
+    expect(exposureSchema.safeParse({ ...base, occurredOn: '   ' }).success).toBe(true);
+  });
+
+  it('accepts today and a recent past date', () => {
+    expect(exposureSchema.safeParse({ ...base, occurredOn: ymd(new Date()) }).success).toBe(true);
+    const week = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    expect(exposureSchema.safeParse({ ...base, occurredOn: ymd(week) }).success).toBe(true);
+  });
+
+  it('rejects a malformed date with the format message', () => {
+    for (const value of ['09/08/2026', 'yesterday', '2026-13-01', '2026-02-30']) {
+      const result = exposureSchema.safeParse({ ...base, occurredOn: value });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0]?.message).toBe('Date must be a valid YYYY-MM-DD date');
+      }
+    }
+  });
+
+  it('rejects a future date', () => {
+    const soon = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+    const result = exposureSchema.safeParse({ ...base, occurredOn: ymd(soon) });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe('Date cannot be in the future');
+    }
+  });
+
+  it('rejects a date far enough in the past to be a year typo', () => {
+    const result = exposureSchema.safeParse({ ...base, occurredOn: '1926-09-08' });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toContain('years ago');
+    }
+  });
+
+  it('surfaces the format message, not the bound message, for malformed input', () => {
+    // The bound refines early-return on malformed input so the user gets one
+    // precise error rather than two that contradict each other.
+    const result = exposureSchema.safeParse({ ...base, occurredOn: 'tomorrow' });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues).toHaveLength(1);
+      expect(result.error.issues[0]?.message).toBe('Date must be a valid YYYY-MM-DD date');
+    }
+  });
+});
