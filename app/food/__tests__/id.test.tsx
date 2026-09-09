@@ -17,6 +17,8 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { Alert } from 'react-native';
+import { eq } from 'drizzle-orm';
+import * as schema from '@/src/db/schema';
 import { createMockDb, type MockDb } from '@/src/test-utils/mock-db';
 import { click, confirmAlert } from '@/src/test-utils/screen-helpers';
 
@@ -407,7 +409,7 @@ describe('FoodDetailScreen', () => {
       // food_chains, then exposures, then the food row itself — the ordering
       // itself is pinned by cascade-delete.test.ts; here we pin that the
       // screen actually runs the cascade rather than a bare food delete.
-      expect(mockDb.writes).toEqual([{ kind: 'delete' }, { kind: 'delete' }, { kind: 'delete' }]);
+      expect(mockDb.writes.map((w) => w.kind)).toEqual(['delete', 'delete', 'delete']);
       expect(mockRouter.replace).toHaveBeenCalledWith('/(tabs)/foods');
     });
   });
@@ -522,6 +524,131 @@ describe('FoodDetailScreen', () => {
       failNext = false;
       queueLoad();
       await tapBump('Bump to Tolerate');
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+    });
+  });
+
+  /**
+   * Deleting a single exposure. Before this, a mis-logged exposure (wrong
+   * food, wrong stage, a double-tap) was permanent: it inflates the per-food
+   * count the 15/20/30 acceptance threshold is read from, and it can fix the
+   * food's highest reached stage at a level the child never reached. The only
+   * removal path was the v0.5.138 Delete Food cascade, which discards *every*
+   * exposure for the food across every child.
+   */
+  describe('delete a single exposure', () => {
+    const exp = (id: string, stage: string) => ({
+      id,
+      stage,
+      rating: null,
+      notes: null,
+      occurredAt: new Date(2026, 0, 15),
+      mealType: null,
+      temperature: null,
+      texture: null,
+      setting: null,
+    });
+
+    const deleteRow = (stage: string) =>
+      screen.getByLabelText(new RegExp(`^Delete ${stage} exposure from `));
+
+    it('offers a delete action per exposure row', async () => {
+      queueLoad(FOOD, [exp('exp-1', 'smell'), exp('exp-2', 'tolerate')]);
+      await renderLoaded();
+
+      expect(deleteRow('Smell')).toBeTruthy();
+      expect(deleteRow('Tolerate')).toBeTruthy();
+    });
+
+    it('names the exposure in the confirm copy and writes nothing on cancel', async () => {
+      queueLoad(FOOD, [exp('exp-1', 'smell')]);
+      await renderLoaded();
+
+      fireEvent.click(deleteRow('Smell'));
+
+      await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+      const [title, message] = alertSpy.mock.calls[0];
+      expect(title).toBe('Delete Exposure?');
+      expect(message).toContain('Smell');
+      expect(message).toContain('Apple');
+      expect(message).toContain('permanently deleted');
+      // Cancel is the default: nothing is written until Delete is pressed.
+      expect(mockDb.writes).toHaveLength(0);
+      expect(screen.getByText('Exposure History (1)')).toBeTruthy();
+    });
+
+    it('issues exactly one delete scoped to that exposure id and drops the row', async () => {
+      queueLoad(FOOD, [exp('exp-1', 'smell'), exp('exp-2', 'tolerate')]);
+      await renderLoaded();
+
+      fireEvent.click(deleteRow('Smell'));
+      await confirmAlert(alertSpy, 'Delete');
+
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      const write = mockDb.writes[0] as { kind: string; where: unknown };
+      expect(write.kind).toBe('delete');
+      // Scoped to the row the user named — a drifted predicate would take
+      // out an unrelated exposure with no on-screen cue.
+      expect(write.where).toEqual(eq(schema.exposures.id, 'exp-1'));
+
+      // Patched locally rather than reloaded; the surviving row stays.
+      await waitFor(() => expect(screen.getByText('Exposure History (1)')).toBeTruthy());
+      expect(screen.queryByLabelText(/^Delete Smell exposure/)).toBeNull();
+      expect(deleteRow('Tolerate')).toBeTruthy();
+    });
+
+    it('moves the bump target back down when the highest-stage row is deleted', async () => {
+      // The load-bearing half. Without recomputing the highest stage from the
+      // remaining rows, the screen keeps offering the next stage past a level
+      // the child no longer has any exposure at.
+      queueLoad(FOOD, [exp('exp-1', 'smell'), exp('exp-2', 'tolerate')]);
+      await renderLoaded();
+      expect(screen.getByLabelText('Bump to Touch')).toBeTruthy();
+
+      fireEvent.click(deleteRow('Smell'));
+      await confirmAlert(alertSpy, 'Delete');
+
+      await waitFor(() => expect(screen.getByLabelText('Bump to Interact')).toBeTruthy());
+      expect(screen.queryByLabelText('Bump to Touch')).toBeNull();
+    });
+
+    it('returns to the entry stage when the last exposure is deleted', async () => {
+      queueLoad(FOOD, [exp('exp-1', 'taste')]);
+      await renderLoaded();
+
+      fireEvent.click(deleteRow('Taste'));
+      await confirmAlert(alertSpy, 'Delete');
+
+      await waitFor(() => expect(screen.getByText('No exposures yet for this food.')).toBeTruthy());
+      expect(screen.getByLabelText('Bump to Tolerate')).toBeTruthy();
+    });
+
+    it('alerts on a failed delete, keeps the row, and stays retryable', async () => {
+      let failNext = true;
+      (mockDb.db as { delete: unknown }).delete = () => ({
+        where: (where: unknown) => {
+          if (failNext) return Promise.reject(new Error('delete failed'));
+          mockDb.writes.push({ kind: 'delete', where });
+          return Promise.resolve();
+        },
+      });
+
+      queueLoad(FOOD, [exp('exp-1', 'smell')]);
+      await renderLoaded();
+
+      fireEvent.click(deleteRow('Smell'));
+      await confirmAlert(alertSpy, 'Delete');
+
+      await waitFor(() => expect(alertSpy).toHaveBeenCalledTimes(2));
+      expect(alertSpy.mock.calls[1][0]).toBe('Error');
+      // The row survives a failed delete rather than disappearing optimistically.
+      expect(screen.getByText('Exposure History (1)')).toBeTruthy();
+
+      // The latch is released in `finally`, so the retry gets through.
+      failNext = false;
+      alertSpy.mockClear();
+      fireEvent.click(deleteRow('Smell'));
+      await confirmAlert(alertSpy, 'Delete');
       await waitFor(() => expect(mockDb.writes).toHaveLength(1));
     });
   });

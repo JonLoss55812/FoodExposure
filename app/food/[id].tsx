@@ -13,7 +13,7 @@ import { STAGE_CONFIG, CATEGORY_CONFIG, FOOD_CATEGORIES, PREPARATIONS, getCatego
 import type { ExposureStage, FoodCategory } from '@/src/lib/constants';
 import { getNextStage, canBumpStage, getHighestStage } from '@/src/lib/stage';
 import { getThresholdForProfile } from '@/src/lib/thresholds';
-import { generateId } from '@/src/lib/utils';
+import { generateId, formatDate } from '@/src/lib/utils';
 import { deleteFoodCascade } from '@/src/lib/cascade-delete';
 import { findDuplicateFood } from '@/src/lib/food-partition';
 import { foodSchema } from '@/src/lib/validation';
@@ -44,6 +44,7 @@ export default function FoodDetailScreen() {
   const [savingCategory, setSavingCategory] = useState(false);
   const [editingPrep, setEditingPrep] = useState(false);
   const [savingPrep, setSavingPrep] = useState(false);
+  const [deletingExposureId, setDeletingExposureId] = useState<string | null>(null);
   const [nameDraft, setNameDraft] = useState('');
   const [savingName, setSavingName] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -53,6 +54,7 @@ export default function FoodDetailScreen() {
   const renameLatch = useRef(createInFlightLatch()).current;
   const categoryLatch = useRef(createInFlightLatch()).current;
   const prepLatch = useRef(createInFlightLatch()).current;
+  const exposureLatch = useRef(createInFlightLatch()).current;
 
   const loadData = useCallback(async () => {
     if (!id) {
@@ -130,6 +132,49 @@ export default function FoodDetailScreen() {
       bumpLatch.release();
       setBumping(false);
     }
+  };
+
+  /**
+   * Remove a single mis-logged exposure. Without this the only removal path is
+   * the v0.5.138 Delete Food cascade, which discards every exposure for the food
+   * across every child — so correcting one double-tap cost the whole history the
+   * acceptance threshold is counted from.
+   */
+  const handleDeleteExposure = (exp: ExposureRow) => {
+    if (!food || exposureLatch.busy) return;
+    const when = formatDate(new Date(exp.occurredAt));
+    Alert.alert(
+      'Delete Exposure?',
+      `This ${STAGE_CONFIG[exp.stage]?.label ?? exp.stage} exposure of ${food.name}` +
+        `${when ? ` from ${when}` : ''} will be permanently deleted.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (!exposureLatch.tryAcquire()) return;
+            setDeletingExposureId(exp.id);
+            try {
+              await db.delete(schema.exposures).where(eq(schema.exposures.id, exp.id));
+              // Patch locally rather than reloading — this screen loads in a
+              // useEffect, not on focus. Recomputing the highest stage is the
+              // load-bearing half: deleting the row that established it must
+              // move the "Bump to X" target back down.
+              const remaining = exposuresList.filter((row) => row.id !== exp.id);
+              setExposuresList(remaining);
+              setHighestStage(getHighestStage(remaining));
+            } catch (err) {
+              console.error('Failed to delete exposure:', err);
+              Alert.alert('Error', 'Failed to delete exposure. Please try again.');
+            } finally {
+              exposureLatch.release();
+              setDeletingExposureId(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleToggleSafeFood = async () => {
@@ -530,19 +575,35 @@ export default function FoodDetailScreen() {
           </View>
         ) : (
           exposuresList.map((exp) => (
-            <ExposureCard
-              key={exp.id}
-              foodName={food.name}
-              childName=""
-              stage={exp.stage}
-              rating={exp.rating ?? undefined}
-              notes={exp.notes ?? undefined}
-              occurredAt={new Date(exp.occurredAt)}
-              mealType={exp.mealType ?? undefined}
-              temperature={exp.temperature ?? undefined}
-              texture={exp.texture ?? undefined}
-              setting={exp.setting ?? undefined}
-            />
+            <View key={exp.id}>
+              <ExposureCard
+                foodName={food.name}
+                childName=""
+                stage={exp.stage}
+                rating={exp.rating ?? undefined}
+                notes={exp.notes ?? undefined}
+                occurredAt={new Date(exp.occurredAt)}
+                mealType={exp.mealType ?? undefined}
+                temperature={exp.temperature ?? undefined}
+                texture={exp.texture ?? undefined}
+                setting={exp.setting ?? undefined}
+              />
+              <Pressable
+                style={styles.exposureDelete}
+                onPress={() => handleDeleteExposure(exp)}
+                disabled={deletingExposureId !== null}
+                accessibilityRole="button"
+                accessibilityLabel={`Delete ${STAGE_CONFIG[exp.stage]?.label ?? exp.stage} exposure from ${formatDate(new Date(exp.occurredAt))}`}
+                accessibilityState={{
+                  disabled: deletingExposureId !== null,
+                  busy: deletingExposureId === exp.id,
+                }}
+              >
+                <Text style={styles.exposureDeleteText}>
+                  {deletingExposureId === exp.id ? 'Deleting…' : 'Delete'}
+                </Text>
+              </Pressable>
+            </View>
           ))
         )}
       </View>
@@ -733,6 +794,20 @@ const styles = StyleSheet.create((theme) => ({
   safeToggleDesc: {
     fontSize: theme.fontSize.sm,
     color: theme.colors.textSecondary,
+  },
+  exposureDelete: {
+    alignSelf: 'flex-end',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    marginTop: -theme.spacing.xs,
+    marginBottom: theme.spacing.sm,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  exposureDeleteText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.error,
+    fontWeight: '600',
   },
   deleteButton: {
     padding: theme.spacing.md,

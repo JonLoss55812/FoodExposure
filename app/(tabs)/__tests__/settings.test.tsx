@@ -117,7 +117,7 @@ describe('SettingsScreen — Delete Child (v0.5.139)', () => {
     // food_chains, then exposures, then the child row — the ordering itself
     // is pinned by cascade-delete.test.ts; here we pin that the screen runs
     // the cascade rather than a bare child delete that would orphan rows.
-    expect(mockDb.writes).toEqual([{ kind: 'delete' }, { kind: 'delete' }, { kind: 'delete' }]);
+    expect(mockDb.writes.map((w) => w.kind)).toEqual(['delete', 'delete', 'delete']);
     await waitFor(() => expect(screen.queryByLabelText('Delete Emma')).toBeNull());
     expect(screen.getByLabelText('Delete Noah')).toBeTruthy();
     // The deleted child was the selected one, so the selection must move.

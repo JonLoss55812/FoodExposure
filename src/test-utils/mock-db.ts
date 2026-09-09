@@ -20,7 +20,7 @@
 export type RecordedWrite =
   | { kind: 'insert'; values: unknown }
   | { kind: 'update'; values: unknown }
-  | { kind: 'delete' };
+  | { kind: 'delete'; where: unknown };
 
 export type MockDb = {
   db: unknown;
@@ -74,8 +74,10 @@ export function createMockDb(): MockDb {
       }),
     }),
     delete: () => ({
-      where: () => {
-        writes.push({ kind: 'delete' });
+      // The predicate is recorded so a caller can assert a delete is scoped to
+      // the row it named — a wrong-column/wrong-id delete is silent otherwise.
+      where: (where: unknown) => {
+        writes.push({ kind: 'delete', where });
         return Promise.resolve();
       },
     }),

@@ -218,9 +218,54 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.162
+v0.5.163
 
 ## Changelog
+- v0.5.163 — Feature: **delete a single exposure** from the food detail page's
+  Exposure History. Until now a mis-logged exposure — wrong food, wrong stage, a
+  double-tap that got past the latch on a different device — was permanent. It
+  inflates the per-food count that the 15/20/30 acceptance threshold is read from
+  (the app's core clinical number), it shows up twice in the CSV a therapist
+  reads, and it can fix the food's *highest reached stage* at a level the child
+  never actually reached, which then drives the "Bump to X" target and the stage
+  distribution on the dashboard. The only removal path was the v0.5.138 Delete
+  Food cascade, which discards **every** exposure for that food across every
+  child — so correcting one stray tap cost the entire history. Same
+  permanent-or-destructive defect class v0.5.145/160/161 closed for the `foods`
+  fields, on the table that actually carries the clinical signal. Each history
+  row gains an error-tinted Delete pressable (`minHeight: 44` per the v0.5.154
+  tap-target floor) with a destructive confirm Alert that names the stage, the
+  food and the date, and says "permanently deleted". Confirming issues exactly
+  one `db.delete(exposures).where(eq(exposures.id, exp.id))` — scoped to the row
+  the user named, not to the food or the child. Local state is patched rather
+  than reloaded, matching the category/preparation editors (this screen loads in
+  a `useEffect`, not on focus), and the load-bearing half is that `highestStage`
+  is **recomputed** from the remaining rows via `getHighestStage`: without it the
+  screen keeps offering the next stage past a level that no longer has any
+  exposure behind it. Double-tap and cross-row races are guarded by the v0.5.144
+  synchronous `createInFlightLatch`, released in `finally`; all Delete pressables
+  disable while any delete is in flight, and the in-flight row reads "Deleting…"
+  with `accessibilityState={{ disabled, busy }}`. The latch is acquired inside
+  the Alert's Delete callback, not in the opener — acquiring at the top would
+  strand it forever the moment a parent taps Cancel (the v0.5.144 placement
+  rule); the opener reads `.busy` instead. One additive change to the shared test
+  harness: `createMockDb()`'s recorded delete now carries its `where` predicate
+  (`{ kind: 'delete'; where: unknown }`) so a test can assert a delete is scoped
+  to the row it named — a wrong-column predicate is otherwise completely silent.
+  The two existing cascade assertions that used an exact `toEqual` on the write
+  list now compare `writes.map(w => w.kind)`, which is what they were actually
+  pinning. +6 screen tests in `app/food/__tests__/id.test.tsx`: a delete action
+  per row; the confirm copy names stage/food/blast radius and Cancel writes
+  nothing; confirming issues exactly one delete with the expected `eq` predicate
+  and drops only that row; deleting the highest-stage row moves the bump target
+  from Touch back to Interact; deleting the last row returns the screen to the
+  empty state with the entry-stage bump offered; and a failed delete alerts,
+  keeps the row (no optimistic removal), and stays retryable. Mutation-verified
+  rather than assumed: dropping the `setHighestStage` recompute and dropping the
+  `setExposuresList` patch each fail two tests, and swallowing the Alert,
+  deleting by `foodId` instead of `id`, and dropping `exposureLatch.release()`
+  each fail exactly one. Bumped `APP_VERSION` to v0.5.163. 732 tests pass across
+  41 suites (was 726, +6). TypeScript clean.
 - v0.5.162 — Refactor: the Add Child form is now written once, in a new shared
   `src/components/ChildForm.tsx`. NEXT_STEPS gap #1 flagged `app/onboarding/add-child.tsx`
   as "a near-duplicate of `app/child/add.tsx` — worth *deduplicating* rather than testing
