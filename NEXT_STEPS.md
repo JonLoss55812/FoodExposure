@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.164 — 750 tests passing across 41 suites, TypeScript clean.
+Reviewed at: v0.5.167 — 765 tests passing across 41 suites, TypeScript clean.
 
 > **Read this first.** This file was last *fully* rewritten at v0.5.160 and the
 > "Recently shipped" list below lags reality. A session in between added screen
@@ -141,19 +141,58 @@ All five priorities from the original review have shipped:
   midnight and keeps the current time when the named day is today. +18 tests,
   five mutations verified; a sixth test was removed as vacuous.
 
+## Shipped in the v0.5.167 session (2026-09-10)
+
+- v0.5.166 — **the CSV export's `date` column was rendered in UTC**, so it named
+  the wrong calendar day for most of the world. Every other date surface in the
+  app buckets by the *local* day (`getStartOfDay`, `formatRelativeDate`, and the
+  v0.5.164 `resolveOccurredAt`, which parses a backdated `YYYY-MM-DD` at local
+  midnight on purpose). An 8am exposure in UTC+10 is stored as 22:00Z the
+  previous day: the dashboard said "Today", the therapist's CSV said yesterday.
+  A backdated row was worse — stored at local midnight, it always exported one
+  day early for every UTC+ user, defeating the whole point of v0.5.164.
+  `toIsoDate` is now an exported, pure `toLocalIsoString(value, offsetMinutes?)`
+  emitting ISO-8601 with an explicit offset. +9 tests, three mutations verified.
+  **Harness fact worth keeping:** jest's jsdom environment resolves the host
+  timezone **once** and ignores later writes to `process.env.TZ` — measured. A
+  test that flips TZ and asserts a rendered date silently asserts nothing. That
+  is why the offset is a parameter; do the same for any future date rendering.
+- v0.5.167 — **correct a logged exposure's stage in place** from the food detail
+  page (closes the edit half of gap #-1). v0.5.163 made an exposure deletable
+  but not editable, so a mis-tapped stage could only be fixed by
+  delete-and-re-log, losing the row's `createdAt` and every optional dimension.
+  Chip row per history row, following the v0.5.160 category editor; the
+  load-bearing half is recomputing `highestStage` in **both** directions so the
+  "Bump to X" target follows a correction up as well as down. +6 tests, seven
+  mutations verified. `createMockDb()` now records an **update**'s `where`
+  predicate too (v0.5.163 did this for `delete`); the eight existing exact
+  `toEqual` update assertions gained `where: expect.anything()`.
+
 ## Known gaps worth doing next (discovered, deliberately not done)
 
--1. **Backdating has no date picker, and there is no way to correct an
-   existing exposure's date/stage/rating.** v0.5.164 added a validated
-   free-text `YYYY-MM-DD` field, which is the right MVP shape (no new
-   dependency, and it reuses the `childSchema.dateOfBirth` precedent) but it
-   is typing, on a phone, one-handed. A picker would need a package —
-   `@react-native-community/datetimepicker` is the obvious one — so it is a
-   deliberate deferral, not an oversight. Separately, v0.5.163 made an
-   exposure *deletable* but not *editable*: correcting a wrong stage or a
-   missing rating still means delete-and-re-log, which is cheap now that
-   delete exists but loses the original `createdAt`. Edit is the natural next
-   step and the detail-page chip-row editors (v0.5.160/161) are the template.
+-1. **Backdating has no date picker; an exposure's rating/notes/date are still
+   not editable (stage now is).** v0.5.164 added a validated free-text
+   `YYYY-MM-DD` field, which is the right MVP shape (no new dependency, reuses
+   the `childSchema.dateOfBirth` precedent) but it is typing, on a phone,
+   one-handed. A picker needs a package — `@react-native-community/datetimepicker`
+   is the obvious one — so it is a deliberate deferral, not an oversight.
+   v0.5.167 made **stage** editable in place, which was the field that mattered
+   most (it is what `getHighestStage` reads, so it drives the bump target and
+   the dashboard distribution). The remaining fields are strictly easier and
+   each has a template already in the file:
+   - **rating** — `RatingPicker` already renders the 5-segment control and
+     already supports clear-on-re-tap (v0.5.137), and `rating` is nullable, so
+     this is the v0.5.161 *preparation* editor's shape (re-tap clears to
+     `null`), not the v0.5.160 category one. Probably 20 minutes.
+   - **notes** — an inline `TextInput` + Save/Cancel; the v0.5.145 rename
+     editor on the same screen is the template. Validate through
+     `exposureSchema.shape.notes` rather than a hand-rolled check.
+   - **occurredAt** — the same free-text `YYYY-MM-DD` field the Log form has,
+     routed through the existing pure `resolveOccurredAt`. Note this one
+     changes which day every date-bucketed surface counts the row on, so it
+     wants the same care the stage edit got.
+   Do the chip-row ones before the text ones; the `where`-recording update in
+   `mock-db.ts` (v0.5.167) means a wrong-column predicate is now assertable.
 
 -2. **`resolveOccurredAt` is only reachable from the Log form.** The
    food-detail "Bump to X" one-tap action still writes `occurredAt: new Date()`
