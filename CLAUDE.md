@@ -218,9 +218,52 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.165
+v0.5.166
 
 ## Changelog
+- v0.5.166 — Fix: the CSV export's `date` column was rendered in **UTC**, so it named
+  the wrong calendar day for most of the world. Every other date surface in the app
+  buckets by the *local* calendar day — `getStartOfDay` calls `setHours(0, 0, 0, 0)`,
+  `formatRelativeDate` compares local day starts, and the v0.5.164 `resolveOccurredAt`
+  parses a backdated `YYYY-MM-DD` at local midnight precisely so the row lands on the
+  day the parent named. `toIsoDate` was the one surface that disagreed: it returned
+  `d.toISOString()`. For any user east of Greenwich an 8am exposure in UTC+10 is stored
+  as 22:00Z the *previous* day, so the dashboard says "Today", the Progress tab's
+  trailing-7-day window buckets it today, and the one column a feeding therapist
+  actually reads says yesterday. The backdated case is worse and is the reason this
+  matters: a v0.5.164 backdated row is stored at **local midnight** by design, so it
+  rendered as the previous calendar day for *every* UTC+ user — defeating the entire
+  purpose of the feature, whose stated justification was getting the therapist-facing
+  export's dates right. `toIsoDate` is replaced by an exported, pure
+  `toLocalIsoString(value, offsetMinutes?)` that shifts the instant by the offset and
+  reads the UTC getters off the result, yielding the local wall clock without depending
+  on the host timezone. Output is ISO-8601 with an explicit offset
+  (`2026-09-10T08:00:00.000+10:00`) rather than a bare local stamp, so the instant stays
+  unambiguous — this is a change of representation, not a loss of information, and any
+  consumer that parsed the old `Z` form parses this one. `offsetMinutes` is minutes
+  *ahead of* UTC (the ISO convention, the opposite sign to
+  `Date.prototype.getTimezoneOffset()`) and defaults to the device's own offset; it is a
+  parameter because it is the only way to test the rendering — measured under this
+  harness, jest's jsdom environment resolves the host timezone once and **ignores**
+  later writes to `process.env.TZ`, so a TZ-flipping test silently asserts nothing.
+  Injection also puts the sign/padding/rollover arithmetic, which is where the real bugs
+  live, directly under test. The v0.5.96/v0.5.120 corrupt-row guards (null, undefined,
+  unparseable, NaN → empty cell) are preserved and re-pinned, and a non-finite injected
+  offset falls back to the device rather than emitting `NaN-NaN-NaNTNaN:NaN` into a
+  therapist's spreadsheet. +9 tests: the two day-boundary cases (local day ahead of and
+  behind UTC, each also asserting the *wrong* day is absent so a partial fix fails), the
+  backdated local-midnight round trip, a half-hour zone (UTC+05:30 — an implementation
+  that divided by 60 and dropped the remainder would emit `+05:00`), the sign
+  convention in both directions, zero-padding, the device-offset default (compared
+  against the platform's own local getters rather than re-deriving the format, so it
+  stays a check and not a restatement), the non-finite fallback, and the guards.
+  Three existing assertions that pinned a literal UTC stamp are now
+  timezone-portable — two derive the expectation from `toLocalIsoString` itself and the
+  full-row equality asserts the date column by shape and the remaining eleven columns
+  exactly, so it no longer only passes on a UTC machine. Mutation-verified: reverting to
+  `toISOString()` fails 8 tests, dropping the sign negation fails 1, and truncating the
+  offset to whole hours fails 1. Bumped `APP_VERSION` to v0.5.166. 759 tests pass across
+  41 suites (was 750, +9). TypeScript clean.
 - v0.5.165 — Chore (supply chain): shrink the *production* dependency graph and drop
   two unused dev packages. Three test-only packages were declared in `dependencies`
   rather than `devDependencies` — `@jest/globals`, `@testing-library/dom` and

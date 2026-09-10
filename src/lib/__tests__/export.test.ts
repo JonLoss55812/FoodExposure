@@ -1,4 +1,9 @@
-import { formatExposuresCsv, csvEscape, buildExportFilename } from '../export';
+import {
+  formatExposuresCsv,
+  csvEscape,
+  buildExportFilename,
+  toLocalIsoString,
+} from '../export';
 import type { ExposureRow } from '../export';
 
 const iso = (s: string) => new Date(s);
@@ -150,8 +155,15 @@ describe('formatExposuresCsv', () => {
     const csv = formatExposuresCsv([row()]);
     const lines = csv.trim().split('\n');
     expect(lines[0]).toBe(header);
-    expect(lines[1]).toBe(
-      '2026-04-01T13:30:00.000Z,Apple,fruit,false,taste,4,sliced,crunchy,cold,snack,home,'
+    // The date column renders in the *device's* local zone (see
+    // toLocalIsoString), so it is asserted separately, by shape, rather
+    // than pinned to a host-timezone-specific literal that would fail on
+    // any other machine. The exact rendering is covered by the
+    // toLocalIsoString block below, which injects a fixed offset.
+    const cols1 = lines[1].split(',');
+    expect(cols1[0]).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{2}:\d{2}$/);
+    expect(cols1.slice(1).join(',')).toBe(
+      'Apple,fruit,false,taste,4,sliced,crunchy,cold,snack,home,'
     );
   });
 
@@ -204,7 +216,9 @@ describe('formatExposuresCsv', () => {
   it('renders occurredAt as ISO 8601 even when given a timestamp number', () => {
     const ts = iso('2026-03-15T08:00:00.000Z').getTime();
     const csv = formatExposuresCsv([row({ occurredAt: ts as unknown as Date })]);
-    expect(csv).toContain('2026-03-15T08:00:00.000Z');
+    expect(csv.trim().split('\n')[1].split(',')[0]).toBe(
+      toLocalIsoString(iso('2026-03-15T08:00:00.000Z'))
+    );
   });
 
   // Defensive: a single corrupted occurredAt cell must not throw and abort
@@ -262,7 +276,7 @@ describe('formatExposuresCsv', () => {
     const lines = csv.trim().split('\n');
     expect(lines).toHaveLength(3);
     expect(lines[1].startsWith(',BadDateApple,')).toBe(true);
-    expect(lines[2]).toContain('2026-04-01T13:30:00.000Z');
+    expect(lines[2]).toContain(toLocalIsoString(iso('2026-04-01T13:30:00.000Z')));
     expect(lines[2]).toContain('GoodPear');
   });
 });
@@ -379,5 +393,110 @@ describe('buildExportFilename', () => {
   it('falls back to "child" when childName is an object', () => {
     const name = buildExportFilename({} as unknown as string, iso('2026-05-10T00:00:00.000Z'));
     expect(name).toBe('tonguetutor-child-20260510.csv');
+  });
+});
+
+
+// The date column names a *calendar day* to the feeding therapist reading the
+// export. Every other date surface in the app buckets by the LOCAL calendar
+// day (`getStartOfDay` -> setHours(0,0,0,0); `formatRelativeDate` -> local day
+// deltas; the v0.5.164 `resolveOccurredAt` -> local midnight). Rendering the
+// export in UTC put this one column out of step with all of them.
+//
+// The offset is injected rather than driven through `process.env.TZ` because
+// jest's jsdom environment resolves the host timezone once and ignores later
+// writes to it (measured — a TZ set inside a test leaves getTimezoneOffset()
+// reporting the host zone). Injection also makes the sign/padding/rollover
+// arithmetic — which is where the actual bugs live — directly assertable.
+describe('toLocalIsoString', () => {
+  const SYDNEY = 600; // UTC+10
+  const CHICAGO = -300; // UTC-5
+  const KOLKATA = 330; // UTC+05:30
+
+  // The load-bearing case. 22:00Z on the 9th is 08:00 on the 10th in Sydney —
+  // the app shows this row on the 10th on every surface, so the export must
+  // too. The pre-fix implementation emitted '2026-09-09T22:00:00.000Z'.
+  it('names the LOCAL calendar day when the local day is ahead of UTC', () => {
+    const out = toLocalIsoString(iso('2026-09-09T22:00:00.000Z'), SYDNEY);
+    expect(out).toBe('2026-09-10T08:00:00.000+10:00');
+    expect(out.startsWith('2026-09-09')).toBe(false);
+  });
+
+  // The mirror case: 01:00Z on the 10th is 20:00 on the 9th in Chicago.
+  it('names the LOCAL calendar day when the local day is behind UTC', () => {
+    const out = toLocalIsoString(iso('2026-09-10T01:00:00.000Z'), CHICAGO);
+    expect(out).toBe('2026-09-09T20:00:00.000-05:00');
+    expect(out.startsWith('2026-09-10')).toBe(false);
+  });
+
+  // A v0.5.164 backdated exposure is stored at LOCAL midnight of the day the
+  // parent named. Under the old UTC render every UTC+ user's backdated row
+  // came out one day early — the most damaging instance of this bug, because
+  // backdating exists specifically to make this column correct.
+  it('round-trips a backdated local-midnight exposure to the day the parent named', () => {
+    // Local midnight on 2026-09-05 in Sydney is 2026-09-04T14:00:00Z.
+    const stored = iso('2026-09-04T14:00:00.000Z');
+    expect(toLocalIsoString(stored, SYDNEY)).toBe('2026-09-05T00:00:00.000+10:00');
+  });
+
+  // Not every offset is a whole hour. An implementation that divided by 60 and
+  // dropped the remainder would emit '+05:00' and silently misstate the zone.
+  it('renders a half-hour offset with its minutes', () => {
+    expect(toLocalIsoString(iso('2026-09-09T20:00:00.000Z'), KOLKATA)).toBe(
+      '2026-09-10T01:30:00.000+05:30'
+    );
+  });
+
+  // Sign lock. getTimezoneOffset() reports minutes *behind* UTC (UTC+10 is
+  // -600), so a missing negation in the default path flips every offset in
+  // the file — and would also shift the wall clock 20 hours the wrong way.
+  it('treats the offset as minutes ahead of UTC, the ISO 8601 convention', () => {
+    expect(toLocalIsoString(iso('2026-09-10T00:00:00.000Z'), 600)).toBe(
+      '2026-09-10T10:00:00.000+10:00'
+    );
+    expect(toLocalIsoString(iso('2026-09-10T00:00:00.000Z'), -600)).toBe(
+      '2026-09-09T14:00:00.000-10:00'
+    );
+  });
+
+  it('zero-pads every component', () => {
+    expect(toLocalIsoString(iso('2026-01-02T03:04:05.006Z'), 0)).toBe(
+      '2026-01-02T03:04:05.006+00:00'
+    );
+  });
+
+  // Defaulting to the device offset is what the CSV path relies on. Assert it
+  // agrees with the platform's own local getters rather than re-deriving the
+  // format, so this stays a real check and not a restatement of the function.
+  it('defaults to the device offset when none is given', () => {
+    const d = iso('2026-04-01T13:30:00.000Z');
+    const out = toLocalIsoString(d);
+    expect(out.slice(0, 10)).toBe(
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+        d.getDate()
+      ).padStart(2, '0')}`
+    );
+    expect(out.slice(11, 19)).toBe(
+      `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(
+        2,
+        '0'
+      )}:${String(d.getSeconds()).padStart(2, '0')}`
+    );
+  });
+
+  // A non-finite injected offset must fall back to the device rather than
+  // producing 'NaN-NaN-NaNTNaN:NaN' in a therapist's spreadsheet.
+  it('falls back to the device offset for a non-finite offset', () => {
+    const d = iso('2026-04-01T13:30:00.000Z');
+    expect(toLocalIsoString(d, NaN)).toBe(toLocalIsoString(d));
+    expect(toLocalIsoString(d, Infinity)).toBe(toLocalIsoString(d));
+  });
+
+  // The v0.5.120 / v0.5.96 corrupt-row guards must survive the refactor.
+  it('keeps the empty-string guards for null, undefined and unparseable input', () => {
+    expect(toLocalIsoString(null as unknown as Date, SYDNEY)).toBe('');
+    expect(toLocalIsoString(undefined as unknown as Date, SYDNEY)).toBe('');
+    expect(toLocalIsoString(new Date('nope'), SYDNEY)).toBe('');
+    expect(toLocalIsoString('totally bogus', SYDNEY)).toBe('');
   });
 });

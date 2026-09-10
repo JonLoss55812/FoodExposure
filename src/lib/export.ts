@@ -59,24 +59,73 @@ export function csvEscape(value: unknown): string {
   return str;
 }
 
-function toIsoDate(value: Date | number | string): string {
+function pad(n: number, width = 2): string {
+  return String(Math.abs(n)).padStart(width, '0');
+}
+
+/**
+ * Render a timestamp as ISO-8601 in a *local* wall clock with an explicit UTC
+ * offset (`2026-09-10T08:00:00.000+10:00`) rather than as a UTC `Z` string.
+ *
+ * This is not cosmetic. Every other date surface in the app buckets by the
+ * LOCAL calendar day — `getStartOfDay` calls `setHours(0, 0, 0, 0)`,
+ * `formatRelativeDate` compares local day starts, and the v0.5.164
+ * `resolveOccurredAt` parses a backdated `YYYY-MM-DD` at local midnight
+ * precisely so the row lands on the day the parent named. A UTC render
+ * disagrees with all of them for any user east of Greenwich: an 8am exposure
+ * in UTC+10 is stored as 22:00Z the *previous* day, so the app says "Today"
+ * while the date column a feeding therapist reads says yesterday. A backdated
+ * row is the worst case — stored at local midnight, it always rendered as the
+ * previous calendar day for every UTC+ user, defeating the entire point of
+ * backdating, whose stated purpose is getting the export's dates right.
+ *
+ * The offset is retained, so the instant stays unambiguous: this is a change
+ * of representation, not a loss of information.
+ *
+ * `offsetMinutes` is minutes *ahead of* UTC (so UTC+10 is `600`), which is the
+ * sign ISO-8601 uses — the opposite of `Date.prototype.getTimezoneOffset()`.
+ * It defaults to the device's own offset; it is a parameter so the rendering
+ * is testable against a fixed zone (jest's jsdom environment resolves the host
+ * timezone once and ignores later `process.env.TZ` writes).
+ */
+export function toLocalIsoString(
+  value: Date | number | string,
+  offsetMinutes?: number | null
+): string {
   // `new Date(null)` coerces null to 0 and returns the Unix epoch
-  // (1970-01-01T00:00:00.000Z), which has a valid .getTime() of 0 — so
-  // the NaN guard below would let a corrupt exposures.occurredAt row
-  // with a null value emit a date "before computers existed" into the
-  // therapist-facing CSV. Early-return on null/undefined before the
-  // Date constructor runs. Matches v0.5.96/v0.5.107/v0.5.114 invalid-
-  // Date guard pattern.
+  // (1970-01-01T00:00:00.000Z), which has a valid .getTime() of 0 — so the
+  // NaN guard below would let a corrupt exposures.occurredAt row with a null
+  // value emit a date "before computers existed" into the therapist-facing
+  // CSV. Early-return on null/undefined before the Date constructor runs.
+  // Matches v0.5.96/v0.5.107/v0.5.114 invalid-Date guard pattern.
   if (value === null || value === undefined) return '';
   const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return '';
-  return d.toISOString();
+
+  const offset =
+    typeof offsetMinutes === 'number' && Number.isFinite(offsetMinutes)
+      ? offsetMinutes
+      : -d.getTimezoneOffset();
+
+  // Shift the instant by the offset and then read the UTC getters: the result
+  // is the local wall clock, computed without depending on the host timezone.
+  const shifted = new Date(d.getTime() + offset * 60_000);
+  const sign = offset < 0 ? '-' : '+';
+  const abs = Math.abs(offset);
+  const stamp =
+    `${pad(shifted.getUTCFullYear(), 4)}-${pad(shifted.getUTCMonth() + 1)}-${pad(
+      shifted.getUTCDate()
+    )}` +
+    `T${pad(shifted.getUTCHours())}:${pad(shifted.getUTCMinutes())}:${pad(
+      shifted.getUTCSeconds()
+    )}.${pad(shifted.getUTCMilliseconds(), 3)}`;
+  return `${stamp}${sign}${pad(Math.trunc(abs / 60))}:${pad(abs % 60)}`;
 }
 
 export function formatExposuresCsv(rows: ReadonlyArray<ExposureRow>): string {
   const body = rows.map((r) =>
     [
-      toIsoDate(r.occurredAt),
+      toLocalIsoString(r.occurredAt),
       csvEscape(r.foodName),
       csvEscape(r.category),
       csvEscape(r.isSafeFood),
