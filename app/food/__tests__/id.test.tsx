@@ -172,7 +172,7 @@ describe('FoodDetailScreen', () => {
       await startRename('APPLE');
 
       await waitFor(() => expect(screen.getByLabelText('Rename APPLE')).toBeTruthy());
-      expect(mockDb.writes).toEqual([{ kind: 'update', values: { name: 'APPLE' } }]);
+      expect(mockDb.writes).toEqual([{ kind: 'update', values: { name: 'APPLE' }, where: expect.anything() }]);
       expect(alertSpy).not.toHaveBeenCalled();
     });
 
@@ -183,7 +183,7 @@ describe('FoodDetailScreen', () => {
       await startRename('  Broccoli  ');
 
       await waitFor(() => expect(screen.getByLabelText('Rename Broccoli')).toBeTruthy());
-      expect(mockDb.writes).toEqual([{ kind: 'update', values: { name: 'Broccoli' } }]);
+      expect(mockDb.writes).toEqual([{ kind: 'update', values: { name: 'Broccoli' }, where: expect.anything() }]);
       expect(screen.queryByLabelText('Food name')).toBeNull();
     });
 
@@ -231,7 +231,7 @@ describe('FoodDetailScreen', () => {
       await click('Category: Vegetable');
 
       await waitFor(() => expect(mockDb.writes).toHaveLength(1));
-      expect(mockDb.writes[0]).toEqual({ kind: 'update', values: { category: 'vegetable' } });
+      expect(mockDb.writes[0]).toEqual({ kind: 'update', values: { category: 'vegetable' }, where: expect.anything() });
       // Local state is patched too, so the tag and the icon follow without a
       // reload — the screen has no focus effect to refetch on.
       expect(screen.getByLabelText('Change category, currently Vegetable')).toBeTruthy();
@@ -258,9 +258,9 @@ describe('FoodDetailScreen', () => {
       let failNext = true;
       (mockDb.db as { update: unknown }).update = () => ({
         set: (values: unknown) => ({
-          where: () => {
+          where: (where: unknown) => {
             if (failNext) return Promise.reject(new Error('update failed'));
-            mockDb.writes.push({ kind: 'update' as const, values });
+            mockDb.writes.push({ kind: 'update' as const, values, where });
             return Promise.resolve();
           },
         }),
@@ -304,6 +304,7 @@ describe('FoodDetailScreen', () => {
       expect(mockDb.writes[0]).toEqual({
         kind: 'update',
         values: { defaultPreparation: 'steamed' },
+        where: expect.anything(),
       });
       expect(screen.getByLabelText('Change preparation, currently Steamed')).toBeTruthy();
       expect(screen.queryByLabelText('Preparation: Steamed')).toBeNull();
@@ -323,6 +324,7 @@ describe('FoodDetailScreen', () => {
       expect(mockDb.writes[0]).toEqual({
         kind: 'update',
         values: { defaultPreparation: null },
+        where: expect.anything(),
       });
       expect(screen.getByLabelText('Set default preparation')).toBeTruthy();
     });
@@ -338,6 +340,7 @@ describe('FoodDetailScreen', () => {
       expect(mockDb.writes[0]).toEqual({
         kind: 'update',
         values: { defaultPreparation: 'fried' },
+        where: expect.anything(),
       });
       expect(screen.getByLabelText('Change preparation, currently Fried')).toBeTruthy();
     });
@@ -349,9 +352,9 @@ describe('FoodDetailScreen', () => {
       let failNext = true;
       (mockDb.db as { update: unknown }).update = () => ({
         set: (values: unknown) => ({
-          where: () => {
+          where: (where: unknown) => {
             if (failNext) return Promise.reject(new Error('update failed'));
-            mockDb.writes.push({ kind: 'update' as const, values });
+            mockDb.writes.push({ kind: 'update' as const, values, where });
             return Promise.resolve();
           },
         }),
@@ -668,7 +671,7 @@ describe('FoodDetailScreen', () => {
       await click('Mark as safe food');
 
       await waitFor(() => expect(mockDb.writes).toHaveLength(1));
-      expect(mockDb.writes[0]).toEqual({ kind: 'update', values: { isSafeFood: true } });
+      expect(mockDb.writes[0]).toEqual({ kind: 'update', values: { isSafeFood: true }, where: expect.anything() });
       // Read through the toggle's own description, which is unique — the
       // header also grows a "Safe Food" badge once the flag is on.
       expect(screen.getByText('Pinned to the top of the Foods tab')).toBeTruthy();
@@ -685,7 +688,7 @@ describe('FoodDetailScreen', () => {
       await click('Mark as safe food');
 
       await waitFor(() => expect(mockDb.writes).toHaveLength(1));
-      expect(mockDb.writes[0]).toEqual({ kind: 'update', values: { isSafeFood: false } });
+      expect(mockDb.writes[0]).toEqual({ kind: 'update', values: { isSafeFood: false }, where: expect.anything() });
       expect(screen.getByText('A food your child already accepts')).toBeTruthy();
     });
 
@@ -704,6 +707,161 @@ describe('FoodDetailScreen', () => {
       // the food is pinned when the Foods tab will not pin it.
       expect(screen.getByText('Mark as Safe Food')).toBeTruthy();
       expect(screen.queryByText('Pinned to the top of the Foods tab')).toBeNull();
+    });
+  });
+
+
+  /**
+   * Correcting a logged exposure's stage in place.
+   *
+   * v0.5.163 made an exposure deletable but not editable, so a mis-tapped
+   * stage could only be fixed by delete-and-re-log — which discards the
+   * row's original `createdAt` and every optional dimension recorded with
+   * it. Stage is the field that most needs correcting: `getHighestStage`
+   * reads it, so one wrong tap fixes the food's highest reached level at a
+   * stage the child never reached, which then drives the "Bump to X" target
+   * and the dashboard's stage distribution.
+   */
+  describe('edit an exposure stage', () => {
+    const exp = (id: string, stage: string) => ({
+      id,
+      stage,
+      rating: null,
+      notes: null,
+      occurredAt: new Date(2026, 0, 15),
+      mealType: null,
+      temperature: null,
+      texture: null,
+      setting: null,
+    });
+
+    const editRow = (stage: string) =>
+      screen.getByLabelText(new RegExp(`^Change stage of ${stage} exposure from `));
+
+    /** `click()` takes a literal label; the row labels embed a formatted date. */
+    const openEditor = async (stage: string) => {
+      await act(async () => {
+        fireEvent.click(editRow(stage));
+      });
+    };
+
+    it('offers an edit action per exposure row and opens a chip row', async () => {
+      queueLoad(FOOD, [exp('exp-1', 'smell'), exp('exp-2', 'tolerate')]);
+      await renderLoaded();
+
+      expect(editRow('Tolerate')).toBeTruthy();
+      // Closed until asked for — the chip row is per-row, so leaving every
+      // row expanded would bury the history under six chips apiece.
+      expect(screen.queryByLabelText('Set stage: Touch')).toBeNull();
+
+      await openEditor('Smell');
+      expect(screen.getByLabelText('Set stage: Touch')).toBeTruthy();
+    });
+
+    it('persists the picked stage, patches the row, and closes the chip row', async () => {
+      queueLoad(FOOD, [exp('exp-1', 'smell')]);
+      await renderLoaded();
+
+      await openEditor('Smell');
+      await click('Set stage: Taste');
+
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      const write = mockDb.writes[0] as {
+        kind: string;
+        values: Record<string, unknown>;
+        where: unknown;
+      };
+      expect(write.kind).toBe('update');
+      expect(write.values).toEqual({ stage: 'taste' });
+      // Scoped to the row the user named. A predicate keyed on foodId would
+      // rewrite the whole history with no on-screen cue.
+      expect(write.where).toEqual(eq(schema.exposures.id, 'exp-1'));
+
+      // Patched locally rather than reloaded — this screen loads in a
+      // useEffect, not on focus.
+      await waitFor(() =>
+        expect(
+          screen.getByLabelText(/^Change stage of Taste exposure from /),
+        ).toBeTruthy(),
+      );
+      expect(screen.queryByLabelText(/^Change stage of Smell exposure/)).toBeNull();
+      // Picking a chip is the commit, so the row closes on success.
+      expect(screen.queryByLabelText('Set stage: Touch')).toBeNull();
+      expect(alertSpy).not.toHaveBeenCalled();
+    });
+
+    it('moves the bump target when the highest-stage row is corrected downward', async () => {
+      // The load-bearing half, and the reason this feature exists: a stage
+      // logged too high must be correctable *without* discarding the row,
+      // and the "Bump to X" target has to follow it back down.
+      queueLoad(FOOD, [exp('exp-1', 'taste'), exp('exp-2', 'tolerate')]);
+      await renderLoaded();
+      expect(screen.getByLabelText('Bump to Eat')).toBeTruthy();
+
+      await openEditor('Taste');
+      await click('Set stage: Interact');
+
+      await waitFor(() => expect(screen.getByLabelText('Bump to Smell')).toBeTruthy());
+      expect(screen.queryByLabelText('Bump to Eat')).toBeNull();
+      // The row itself survives — this is a correction, not a delete.
+      expect(screen.getByText('Exposure History (2)')).toBeTruthy();
+    });
+
+    it('moves the bump target up when a row is corrected upward', async () => {
+      // The mirror direction, so a recompute that only ever lowers the
+      // target fails loudly.
+      queueLoad(FOOD, [exp('exp-1', 'tolerate')]);
+      await renderLoaded();
+      expect(screen.getByLabelText('Bump to Interact')).toBeTruthy();
+
+      await openEditor('Tolerate');
+      await click('Set stage: Touch');
+
+      await waitFor(() => expect(screen.getByLabelText('Bump to Taste')).toBeTruthy());
+    });
+
+    it('re-picking the current stage writes nothing and closes the row', async () => {
+      queueLoad(FOOD, [exp('exp-1', 'smell')]);
+      await renderLoaded();
+
+      await openEditor('Smell');
+      await click('Set stage: Smell');
+
+      expect(mockDb.writes).toHaveLength(0);
+      expect(screen.queryByLabelText('Set stage: Touch')).toBeNull();
+      expect(alertSpy).not.toHaveBeenCalled();
+    });
+
+    it('alerts on a failed write, keeps the old stage, and stays retryable', async () => {
+      queueLoad(FOOD, [exp('exp-1', 'smell')]);
+      await renderLoaded();
+
+      // `failReads()` covers reads only; this screen's edit path issues a
+      // write, so replace `update` for exactly one call.
+      const target = mockDb.db as unknown as { update: (...a: unknown[]) => unknown };
+      const realUpdate = target.update;
+      let failed = false;
+      target.update = (...args: unknown[]) => {
+        if (failed) return realUpdate(...args);
+        failed = true;
+        return {
+          set: () => ({ where: () => Promise.reject(new Error('boom')) }),
+        };
+      };
+
+      await openEditor('Smell');
+      await click('Set stage: Taste');
+
+      await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+      expect(alertSpy.mock.calls[0][0]).toBe('Error');
+      // No optimistic patch: the row still reads at its stored stage.
+      expect(screen.getByLabelText(/^Change stage of Smell exposure from /)).toBeTruthy();
+      // The chip row is left open so the retry is one tap, and the latch was
+      // released in `finally` so the retry actually reaches the DB.
+      expect(screen.getByLabelText('Set stage: Taste')).toBeTruthy();
+
+      await click('Set stage: Taste');
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
     });
   });
 

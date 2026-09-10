@@ -9,7 +9,7 @@ import { StageIndicator, ProgressBar, ExposureCard, EmptyState, Button } from '@
 import { useChildStore } from '@/src/stores/child-store';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { useSettingsStore } from '@/src/stores/settings-store';
-import { STAGE_CONFIG, CATEGORY_CONFIG, FOOD_CATEGORIES, PREPARATIONS, getCategoryConfig } from '@/src/lib/constants';
+import { STAGE_CONFIG, STAGE_ORDER, CATEGORY_CONFIG, FOOD_CATEGORIES, PREPARATIONS, getCategoryConfig } from '@/src/lib/constants';
 import type { ExposureStage, FoodCategory } from '@/src/lib/constants';
 import { getNextStage, canBumpStage, getHighestStage } from '@/src/lib/stage';
 import { getThresholdForProfile } from '@/src/lib/thresholds';
@@ -45,6 +45,8 @@ export default function FoodDetailScreen() {
   const [editingPrep, setEditingPrep] = useState(false);
   const [savingPrep, setSavingPrep] = useState(false);
   const [deletingExposureId, setDeletingExposureId] = useState<string | null>(null);
+  const [editingStageId, setEditingStageId] = useState<string | null>(null);
+  const [savingStageId, setSavingStageId] = useState<string | null>(null);
   const [nameDraft, setNameDraft] = useState('');
   const [savingName, setSavingName] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -55,6 +57,7 @@ export default function FoodDetailScreen() {
   const categoryLatch = useRef(createInFlightLatch()).current;
   const prepLatch = useRef(createInFlightLatch()).current;
   const exposureLatch = useRef(createInFlightLatch()).current;
+  const stageEditLatch = useRef(createInFlightLatch()).current;
 
   const loadData = useCallback(async () => {
     if (!id) {
@@ -175,6 +178,59 @@ export default function FoodDetailScreen() {
         },
       ]
     );
+  };
+
+  /**
+   * Correct a logged exposure's stage in place.
+   *
+   * v0.5.163 made an exposure deletable but not editable, so fixing a
+   * mis-tapped stage meant delete-and-re-log — which discards the row's
+   * original `createdAt` and every optional dimension the parent recorded
+   * with it (rating, notes, meal, temperature, texture, setting). Stage is
+   * the field that most needs correcting: it is what `getHighestStage`
+   * reads, so one wrong tap can fix the food's highest reached level at a
+   * stage the child never actually reached, which then drives the
+   * "Bump to X" target and the dashboard's stage distribution.
+   *
+   * Same shape as the v0.5.160 category editor — stage is a closed enum, so
+   * picking a chip *is* the commit and there is no separate Save step, and
+   * re-picking the current stage is a no-op that just closes the row. Unlike
+   * the v0.5.161 preparation editor there is no clear-on-re-tap: `stage` is
+   * NOT NULL, so "unset" is not a legal persisted state.
+   */
+  const handleSelectExposureStage = async (exp: ExposureRow, next: ExposureStage) => {
+    if (!stageEditLatch.tryAcquire()) return;
+
+    if (next === exp.stage) {
+      stageEditLatch.release();
+      setEditingStageId(null);
+      return;
+    }
+
+    setSavingStageId(exp.id);
+    try {
+      await db.update(schema.exposures)
+        .set({ stage: next })
+        .where(eq(schema.exposures.id, exp.id));
+      // Patch locally rather than reloading — this screen loads in a
+      // useEffect, not on focus. Recomputing the highest stage is the
+      // load-bearing half, in both directions: correcting the row that
+      // established the highest stage downward must move the "Bump to X"
+      // target back down, and correcting one upward must move it up.
+      const updated = exposuresList.map((row) =>
+        row.id === exp.id ? { ...row, stage: next } : row
+      );
+      setExposuresList(updated);
+      setHighestStage(getHighestStage(updated));
+      setEditingStageId(null);
+    } catch (err) {
+      console.error('Failed to change exposure stage:', err);
+      Alert.alert('Error', 'Failed to change stage. Please try again.');
+      // Leave the row open so the retry is one tap rather than a re-open.
+    } finally {
+      stageEditLatch.release();
+      setSavingStageId(null);
+    }
   };
 
   const handleToggleSafeFood = async () => {
@@ -588,21 +644,73 @@ export default function FoodDetailScreen() {
                 texture={exp.texture ?? undefined}
                 setting={exp.setting ?? undefined}
               />
-              <Pressable
-                style={styles.exposureDelete}
-                onPress={() => handleDeleteExposure(exp)}
-                disabled={deletingExposureId !== null}
-                accessibilityRole="button"
-                accessibilityLabel={`Delete ${STAGE_CONFIG[exp.stage]?.label ?? exp.stage} exposure from ${formatDate(new Date(exp.occurredAt))}`}
-                accessibilityState={{
-                  disabled: deletingExposureId !== null,
-                  busy: deletingExposureId === exp.id,
-                }}
-              >
-                <Text style={styles.exposureDeleteText}>
-                  {deletingExposureId === exp.id ? 'Deleting…' : 'Delete'}
-                </Text>
-              </Pressable>
+              <View style={styles.exposureActions}>
+                <Pressable
+                  style={styles.exposureAction}
+                  onPress={() =>
+                    setEditingStageId((current) => (current === exp.id ? null : exp.id))
+                  }
+                  disabled={deletingExposureId !== null || savingStageId !== null}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Change stage of ${STAGE_CONFIG[exp.stage]?.label ?? exp.stage} exposure from ${formatDate(new Date(exp.occurredAt))}`}
+                  accessibilityState={{
+                    expanded: editingStageId === exp.id,
+                    disabled: deletingExposureId !== null || savingStageId !== null,
+                    busy: savingStageId === exp.id,
+                  }}
+                >
+                  <Text style={styles.exposureActionText}>
+                    {savingStageId === exp.id ? 'Saving…' : 'Edit stage'}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={styles.exposureDelete}
+                  onPress={() => handleDeleteExposure(exp)}
+                  disabled={deletingExposureId !== null || savingStageId !== null}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Delete ${STAGE_CONFIG[exp.stage]?.label ?? exp.stage} exposure from ${formatDate(new Date(exp.occurredAt))}`}
+                  accessibilityState={{
+                    disabled: deletingExposureId !== null || savingStageId !== null,
+                    busy: deletingExposureId === exp.id,
+                  }}
+                >
+                  <Text style={styles.exposureDeleteText}>
+                    {deletingExposureId === exp.id ? 'Deleting…' : 'Delete'}
+                  </Text>
+                </Pressable>
+              </View>
+              {editingStageId === exp.id && (
+                <View style={styles.editChipRow}>
+                  {STAGE_ORDER.map((value) => {
+                    const config = STAGE_CONFIG[value];
+                    const isSelected = value === exp.stage;
+                    return (
+                      <Pressable
+                        key={value}
+                        style={[
+                          styles.editChip,
+                          isSelected && {
+                            backgroundColor: config.color + '20',
+                            borderColor: config.color,
+                          },
+                        ]}
+                        onPress={() => handleSelectExposureStage(exp, value)}
+                        disabled={savingStageId !== null}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Set stage: ${config.label}`}
+                        accessibilityState={{
+                          selected: isSelected,
+                          disabled: savingStageId !== null,
+                        }}
+                      >
+                        <Text style={styles.editChipText}>
+                          {config.icon} {config.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
             </View>
           ))
         )}
@@ -794,6 +902,23 @@ const styles = StyleSheet.create((theme) => ({
   safeToggleDesc: {
     fontSize: theme.fontSize.sm,
     color: theme.colors.textSecondary,
+  },
+  exposureActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  exposureAction: {
+    alignSelf: 'flex-end',
+    paddingHorizontal: theme.spacing.md,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  exposureActionText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.primaryStrong,
   },
   exposureDelete: {
     alignSelf: 'flex-end',

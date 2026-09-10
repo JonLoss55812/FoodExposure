@@ -218,9 +218,56 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.166
+v0.5.167
 
 ## Changelog
+- v0.5.167 — Feature: **correct a logged exposure's stage** in place, from the food
+  detail page's Exposure History. v0.5.163 made an exposure deletable but not
+  editable, so fixing a mis-tapped stage meant delete-and-re-log — which discards the
+  row's original `createdAt` and every optional dimension the parent recorded with it
+  (rating, notes, meal, temperature, texture, setting). Stage is the field that most
+  needs correcting, because it is the one `getHighestStage` reads: a single wrong tap
+  fixes the food's *highest reached* level at a stage the child never actually
+  reached, and that number then drives the "Bump to X" target on this screen and the
+  stage distribution on the dashboard. Closes the edit half of NEXT_STEPS gap #-1.
+  Each history row gains an "Edit stage" pressable beside the v0.5.163 Delete, opening
+  a six-chip `STAGE_ORDER` row below it. Shape follows the v0.5.160 category editor:
+  stage is a closed enum, so picking a chip **is** the commit — no separate Save step
+  and no uniqueness guard — and re-picking the current stage is a no-op that just
+  closes the row. One deliberate difference from the v0.5.161 preparation editor:
+  there is no clear-on-re-tap, because `exposures.stage` is NOT NULL and "unset" is
+  not a legal persisted state. Confirming issues exactly one
+  `db.update(exposures).set({ stage }).where(eq(exposures.id, exp.id))` — scoped to
+  the row the user named, not to the food or the child. Local state is patched rather
+  than reloaded, matching the other editors on this screen (it loads in a `useEffect`,
+  not on focus), and the load-bearing half is that `highestStage` is **recomputed**
+  from the patched list via `getHighestStage`, in both directions: a row corrected
+  downward must move the bump target back down, and one corrected upward must move it
+  up. Double-tap and cross-row races are guarded by the v0.5.144 synchronous
+  `createInFlightLatch`, released in `finally` so the no-op early return cannot strand
+  it; Edit and Delete on every row disable while any stage save is in flight, and the
+  in-flight row reads "Saving…" with `accessibilityState={{ expanded, disabled, busy }}`.
+  On failure the chip row is left open so the retry is one tap. Chips carry the
+  v0.5.154 `minHeight: 44` floor and the established a11y train. One additive change
+  to the shared test harness: `createMockDb()`'s recorded **update** now carries its
+  `where` predicate (`{ kind: 'update'; values: unknown; where: unknown }`), matching
+  what v0.5.163 did for `delete` and for the same reason — an update scoped to the
+  wrong column rewrites rows the user never named with nothing on screen to say so.
+  The eight existing assertions that did an exact `toEqual` on an update write now
+  carry `where: expect.anything()`, which keeps them exact on the fields they were
+  actually pinning. +6 screen tests in `app/food/__tests__/id.test.tsx`: an edit
+  action per row opening a chip row that starts closed; the happy path (exactly one
+  update, the expected `eq` predicate, the row follows, the chip row closes); the
+  highest-stage row corrected *downward* moves the bump target from Eat back to Smell
+  while the row survives; a row corrected *upward* moves the target up, so a recompute
+  that only ever lowers it fails loudly; re-picking the current stage writes nothing
+  and closes; and a failed write alerts, leaves the stored stage and the open row
+  alone, and stays retryable. Mutation-verified rather than assumed: dropping the
+  `setHighestStage` recompute fails two tests, and dropping the `setExposuresList`
+  patch, scoping the update by `foodId`, dropping the no-op early return, swallowing
+  the Alert, dropping `stageEditLatch.release()`, and leaving the row open on success
+  each fail exactly one. Bumped `APP_VERSION` to v0.5.167. 765 tests pass across 41
+  suites (was 759, +6). TypeScript clean.
 - v0.5.166 — Fix: the CSV export's `date` column was rendered in **UTC**, so it named
   the wrong calendar day for most of the world. Every other date surface in the app
   buckets by the *local* calendar day — `getStartOfDay` calls `setHours(0, 0, 0, 0)`,

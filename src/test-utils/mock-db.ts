@@ -19,7 +19,7 @@
  */
 export type RecordedWrite =
   | { kind: 'insert'; values: unknown }
-  | { kind: 'update'; values: unknown }
+  | { kind: 'update'; values: unknown; where: unknown }
   | { kind: 'delete'; where: unknown };
 
 export type MockDb = {
@@ -67,8 +67,11 @@ export function createMockDb(): MockDb {
     }),
     update: () => ({
       set: (values: unknown) => ({
-        where: () => {
-          writes.push({ kind: 'update', values });
+        // The predicate is recorded for the same reason as on `delete`: an
+        // update scoped to the wrong column rewrites rows the user never
+        // named, with nothing on screen to say so.
+        where: (where: unknown) => {
+          writes.push({ kind: 'update', values, where });
           return Promise.resolve();
         },
       }),
