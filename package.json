@@ -14,11 +14,9 @@
   "dependencies": {
     "@expo/metro-runtime": "~55.0.6",
     "@hookform/resolvers": "^5.2.2",
-    "@jest/globals": "^30.4.1",
     "@sentry/react-native": "~7.11.0",
     "@shopify/flash-list": "2.0.2",
     "@tanstack/react-query": "^5.95.2",
-    "@testing-library/dom": "^10.4.1",
     "convex": "^1.34.1",
     "drizzle-orm": "^0.45.1",
     "expo": "~55.0.8",
@@ -32,7 +30,6 @@
     "expo-status-bar": "~55.0.4",
     "expo-system-ui": "~55.0.10",
     "expo-web-browser": "~55.0.10",
-    "jest-environment-jsdom": "^30.4.1",
     "posthog-react-native": "^4.37.6",
     "react": "19.2.0",
     "react-dom": "19.2.0",
@@ -51,18 +48,19 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@jest/globals": "^30.4.1",
+    "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/react-native": "^13.3.3",
-    "babel-preset-expo": "~55.0.25",
-    "react-test-renderer": "19.2.0",
     "@types/jest": "^30.0.0",
     "@types/react": "~19.2.2",
-    "@types/uuid": "^11.0.0",
+    "babel-preset-expo": "~55.0.25",
     "drizzle-kit": "^0.31.10",
     "jest": "^30.3.0",
+    "jest-environment-jsdom": "^30.4.1",
     "jest-expo": "^55.0.11",
-    "ts-jest": "^29.4.6",
+    "react-test-renderer": "19.2.0",
     "typescript": "~5.9.2"
   },
   "private": true

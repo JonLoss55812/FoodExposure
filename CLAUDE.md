@@ -218,9 +218,52 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.164
+v0.5.165
 
 ## Changelog
+- v0.5.165 — Chore (supply chain): shrink the *production* dependency graph and drop
+  two unused dev packages. Three test-only packages were declared in `dependencies`
+  rather than `devDependencies` — `@jest/globals`, `@testing-library/dom` and
+  `jest-environment-jsdom`. None of the three is imported by a single line of `app/`
+  or `src/`; they exist only to serve the jest harness (`jest-environment-jsdom` is
+  the separate-package jsdom environment that jest 28+ requires and that the
+  `jest-expo/web` preset resolves, `@testing-library/dom` is the peer of
+  `@testing-library/react`, and `@jest/globals` is unreferenced entirely since the
+  suite uses the injected globals). Declaring them as production dependencies is a
+  real supply-chain cost, not a cosmetic one: `npm install --omit=dev` on CI or any
+  downstream consumer was pulling the whole jsdom + testing-library tree into the
+  shipped graph, and their advisories were being counted against the production
+  surface. Moving them drops the production dependency count from **983 to 926**
+  packages (-57) and moves 5 moderate advisories out of the `--omit=dev` audit
+  (25 → 20 prod-scoped). Also removed outright: `@types/uuid@^11.0.0`, which npm
+  itself deprecates on every install ("This is a stub types definition. uuid
+  provides its own type definitions, so you do not need this installed") — `uuid@13`
+  ships `.d.ts` files, so the stub was shadowing nothing and only added an
+  unmaintained package to the tree; and `ts-jest@^29.4.6`, which is referenced by no
+  config in the repo (`jest.config.js` runs `preset: 'jest-expo/web'`, which
+  transforms through babel-jest via `babel-preset-expo`, never ts-jest). Total
+  package count 1404 → 1384. Dependency *versions* are untouched — this commit
+  changes which bucket a package is declared in and removes two that nothing reads,
+  so there is no upgrade risk to absorb. Verified from a wiped `node_modules` +
+  `package-lock.json`: `npm install` exits 0 and 750 tests pass across 41 suites,
+  identical to the pre-change baseline; `npx tsc --noEmit` clean (the `@types/uuid`
+  removal in particular is only safe because tsc still resolves `uuid`'s own types,
+  which the clean typecheck proves). `bun.lock` is intentionally left untouched —
+  Bun is not installed in this environment to regenerate it faithfully, matching the
+  v0.5.143 precedent; a plain `bun install` re-resolves the five-line `package.json`
+  delta on the next Bun run. The 30 remaining `npm audit` advisories are **not**
+  fixable and are documented rather than papered over — see the audit report for the
+  per-advisory reasoning, but the short version is that the three root advisories
+  reachable from this tree (`image-size`, `@react-navigation/native`,
+  `decode-uri-component`) have *no patched version published*: the latest release of
+  `image-size` is 2.0.2 against a `<=2.0.2` advisory, the latest
+  `@react-navigation/native` is 7.3.18 against a `<=7.3.18` advisory, and
+  `decode-uri-component` is fixed in 0.5.0 but that release is ESM-only (`"type":
+  "module"`) while its only consumer here, `query-string@7.1.3`, is CommonJS and
+  `require()`s it — so an override would trade a moderate DoS advisory for a hard
+  runtime failure. Bumped `APP_VERSION` to v0.5.165. 750 tests pass across 41 suites
+  — unchanged, which is the point: this commit changes what gets installed, not what
+  the app does.
 - v0.5.164 — Feature: an exposure can now be **backdated**. `app/(tabs)/log.tsx`
   stamped `occurredAt: new Date()` unconditionally, so an exposure logged the
   morning after — which is the normal case, since a parent feeding a toddler is
