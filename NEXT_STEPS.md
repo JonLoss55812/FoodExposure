@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.167 — 765 tests passing across 41 suites, TypeScript clean.
+Reviewed at: v0.5.169 — 777 tests passing across 41 suites, TypeScript clean.
 
 > **Read this first.** This file was last *fully* rewritten at v0.5.160 and the
 > "Recently shipped" list below lags reality. A session in between added screen
@@ -168,31 +168,59 @@ All five priorities from the original review have shipped:
   predicate too (v0.5.163 did this for `delete`); the eight existing exact
   `toEqual` update assertions gained `where: expect.anything()`.
 
+## Shipped in the v0.5.169 session (2026-09-11)
+
+- v0.5.168 — **correct a logged exposure's rating** in place. Follows the v0.5.161
+  *preparation* editor, not the v0.5.160 category one, and that is the whole point:
+  `rating` is nullable, so re-tapping the selected chip **clears** it to `null`
+  (v0.5.137 deselect contract) rather than being a no-op close. No `getHighestStage`
+  recompute — unlike stage, rating feeds no derived value on this screen. One
+  structural change rides along: the per-row busy condition, previously duplicated at
+  five sites as `deletingExposureId !== null || savingStageId !== null`, is now a
+  single `rowBusy` local. Not cosmetic — the editors patch `exposuresList` rather than
+  reloading, so two concurrent per-row writes would race on the same list and one
+  would silently clobber the other. +5 tests, six mutations verified.
+- v0.5.169 — **correct a logged exposure's notes** in place. Free text, so it follows
+  the v0.5.145 rename editor (inline `TextInput` seeded from the stored note,
+  explicit Save/Cancel) rather than a chip row, validated through
+  `exposureSchema.shape.notes`. Two consequences of routing through the schema are
+  load-bearing: `optionalTrimmedText` trims, so a draft equal to the stored note after
+  trimming is a no-op that never touches the DB; and it maps a blank draft to
+  `undefined`, persisted as **`null`** — persisting `''` would leave a row reading as
+  noted-but-empty on every surface that gates on truthiness. On failure the editor is
+  left open with the draft intact. +7 tests, eight mutations verified.
+
 ## Known gaps worth doing next (discovered, deliberately not done)
 
--1. **Backdating has no date picker; an exposure's rating/notes/date are still
-   not editable (stage now is).** v0.5.164 added a validated free-text
-   `YYYY-MM-DD` field, which is the right MVP shape (no new dependency, reuses
-   the `childSchema.dateOfBirth` precedent) but it is typing, on a phone,
-   one-handed. A picker needs a package — `@react-native-community/datetimepicker`
-   is the obvious one — so it is a deliberate deferral, not an oversight.
-   v0.5.167 made **stage** editable in place, which was the field that mattered
-   most (it is what `getHighestStage` reads, so it drives the bump target and
-   the dashboard distribution). The remaining fields are strictly easier and
-   each has a template already in the file:
-   - **rating** — `RatingPicker` already renders the 5-segment control and
-     already supports clear-on-re-tap (v0.5.137), and `rating` is nullable, so
-     this is the v0.5.161 *preparation* editor's shape (re-tap clears to
-     `null`), not the v0.5.160 category one. Probably 20 minutes.
-   - **notes** — an inline `TextInput` + Save/Cancel; the v0.5.145 rename
-     editor on the same screen is the template. Validate through
-     `exposureSchema.shape.notes` rather than a hand-rolled check.
-   - **occurredAt** — the same free-text `YYYY-MM-DD` field the Log form has,
-     routed through the existing pure `resolveOccurredAt`. Note this one
-     changes which day every date-bucketed surface counts the row on, so it
-     wants the same care the stage edit got.
-   Do the chip-row ones before the text ones; the `where`-recording update in
-   `mock-db.ts` (v0.5.167) means a wrong-column predicate is now assertable.
+-1. **An exposure's `occurredAt` is still not editable, and backdating has no date
+   picker.** v0.5.164 added a validated free-text `YYYY-MM-DD` field on the Log form,
+   which is the right MVP shape (no new dependency, reuses the
+   `childSchema.dateOfBirth` precedent) but it is typing, on a phone, one-handed. A
+   picker needs a package — `@react-native-community/datetimepicker` is the obvious
+   one — so it is a deliberate deferral, not an oversight.
+   **Stage (v0.5.167), rating (v0.5.168) and notes (v0.5.169) are now all correctable
+   in place** on the food detail page. That leaves exactly one field:
+   - **occurredAt** — the same free-text `YYYY-MM-DD` field the Log form has, routed
+     through the existing pure `resolveOccurredAt`. Deliberately left for last and
+     deliberately not rushed: unlike the other three, changing it moves the row on
+     *every* date-bucketed surface (the dashboard's Today card, the Progress tab's
+     trailing-7-day window, `formatRelativeDate`, and the therapist CSV's date
+     column), so it wants the same care the stage edit got — and it is the one edit
+     where the row's position in the list changes under the user, since the history is
+     ordered by `occurredAt desc`. Decide explicitly whether the list re-sorts after
+     the patch or stays put until reload; the current editors all patch in place and
+     none of them has had to think about ordering.
+   Templates for it: the v0.5.169 notes editor is the closest shape (free-text +
+   explicit Save + schema validation), and `mock-db.ts` records an update's `where`
+   predicate (v0.5.167) so a wrong-column scope is assertable.
+
+   One thing worth knowing before adding a *fourth* per-row editor: the three that
+   exist each carry their own `editingXId` / `savingXId` pair plus a latch, and the
+   render now has three near-identical conditional blocks inside the history `map`.
+   It is still readable at three; at four it is probably worth an
+   `<ExposureRowEditors>` component or a single `editing: {id, field} | null`
+   discriminated state. Judgement call, not a defect — flagged so the next session
+   makes it deliberately rather than by accretion.
 
 -2. **`resolveOccurredAt` is only reachable from the Log form.** The
    food-detail "Bump to X" one-tap action still writes `occurredAt: new Date()`
