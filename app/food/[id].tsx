@@ -9,7 +9,7 @@ import { StageIndicator, ProgressBar, ExposureCard, EmptyState, Button } from '@
 import { useChildStore } from '@/src/stores/child-store';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { useSettingsStore } from '@/src/stores/settings-store';
-import { STAGE_CONFIG, STAGE_ORDER, CATEGORY_CONFIG, FOOD_CATEGORIES, PREPARATIONS, getCategoryConfig } from '@/src/lib/constants';
+import { STAGE_CONFIG, STAGE_ORDER, CATEGORY_CONFIG, FOOD_CATEGORIES, PREPARATIONS, RATING_CONFIG, getCategoryConfig } from '@/src/lib/constants';
 import type { ExposureStage, FoodCategory } from '@/src/lib/constants';
 import { getNextStage, canBumpStage, getHighestStage } from '@/src/lib/stage';
 import { getThresholdForProfile } from '@/src/lib/thresholds';
@@ -47,6 +47,8 @@ export default function FoodDetailScreen() {
   const [deletingExposureId, setDeletingExposureId] = useState<string | null>(null);
   const [editingStageId, setEditingStageId] = useState<string | null>(null);
   const [savingStageId, setSavingStageId] = useState<string | null>(null);
+  const [editingRatingId, setEditingRatingId] = useState<string | null>(null);
+  const [savingRatingId, setSavingRatingId] = useState<string | null>(null);
   const [nameDraft, setNameDraft] = useState('');
   const [savingName, setSavingName] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -58,6 +60,7 @@ export default function FoodDetailScreen() {
   const prepLatch = useRef(createInFlightLatch()).current;
   const exposureLatch = useRef(createInFlightLatch()).current;
   const stageEditLatch = useRef(createInFlightLatch()).current;
+  const ratingEditLatch = useRef(createInFlightLatch()).current;
 
   const loadData = useCallback(async () => {
     if (!id) {
@@ -233,6 +236,55 @@ export default function FoodDetailScreen() {
     }
   };
 
+  /**
+   * Correct a logged exposure's **rating** in place (NEXT_STEPS gap #-1).
+   *
+   * v0.5.167 made stage correctable but left every other dimension only
+   * fixable by delete-and-re-log, which discards the row's `createdAt` and
+   * each optional dimension recorded alongside it. Rating is the next one
+   * that matters: it is the only subjective signal in the schema, it drives
+   * the Progress tab's "Avg Acceptance" gauge, and it is a column a feeding
+   * therapist reads directly out of the CSV export. A mis-tapped "Refused"
+   * on a exposure the child actually enjoyed is not distinguishable from a
+   * real refusal once it is stored.
+   *
+   * Shape follows the v0.5.161 **preparation** editor rather than the
+   * v0.5.160 category one, and that is the load-bearing difference:
+   * `exposures.rating` is nullable, so "not recorded" is a legal persisted
+   * state and has to stay reachable. Re-tapping the selected chip therefore
+   * *clears* the rating to `null` (the v0.5.137 optional-chip deselect
+   * contract) instead of being a no-op close. Without that a mis-tap would
+   * be permanent all over again, which is the exact defect this closes.
+   *
+   * No `getHighestStage` recompute here — unlike stage, rating feeds no
+   * derived value on this screen.
+   */
+  const handleSelectExposureRating = async (exp: ExposureRow, next: number) => {
+    if (!ratingEditLatch.tryAcquire()) return;
+
+    const value = next === exp.rating ? null : next;
+
+    setSavingRatingId(exp.id);
+    try {
+      await db.update(schema.exposures)
+        .set({ rating: value })
+        .where(eq(schema.exposures.id, exp.id));
+      // Patch locally rather than reloading — this screen loads in a
+      // useEffect, not on focus, matching the other editors here.
+      setExposuresList((rows) =>
+        rows.map((row) => (row.id === exp.id ? { ...row, rating: value } : row)),
+      );
+      setEditingRatingId(null);
+    } catch (err) {
+      console.error('Failed to change exposure rating:', err);
+      Alert.alert('Error', 'Failed to change rating. Please try again.');
+      // Leave the row open so the retry is one tap rather than a re-open.
+    } finally {
+      ratingEditLatch.release();
+      setSavingRatingId(null);
+    }
+  };
+
   const handleToggleSafeFood = async () => {
     if (!food) return;
     const next = !food.isSafeFood;
@@ -394,6 +446,14 @@ export default function FoodDetailScreen() {
       ]
     );
   };
+
+  /**
+   * Any in-flight per-row write disables every row action. The editors patch
+   * `exposuresList` rather than reloading, so two concurrent writes would race
+   * on the same list and one would clobber the other with no on-screen cue.
+   */
+  const rowBusy =
+    deletingExposureId !== null || savingStageId !== null || savingRatingId !== null;
 
   if (loading) {
     return (
@@ -650,12 +710,12 @@ export default function FoodDetailScreen() {
                   onPress={() =>
                     setEditingStageId((current) => (current === exp.id ? null : exp.id))
                   }
-                  disabled={deletingExposureId !== null || savingStageId !== null}
+                  disabled={rowBusy}
                   accessibilityRole="button"
                   accessibilityLabel={`Change stage of ${STAGE_CONFIG[exp.stage]?.label ?? exp.stage} exposure from ${formatDate(new Date(exp.occurredAt))}`}
                   accessibilityState={{
                     expanded: editingStageId === exp.id,
-                    disabled: deletingExposureId !== null || savingStageId !== null,
+                    disabled: rowBusy,
                     busy: savingStageId === exp.id,
                   }}
                 >
@@ -664,13 +724,31 @@ export default function FoodDetailScreen() {
                   </Text>
                 </Pressable>
                 <Pressable
+                  style={styles.exposureAction}
+                  onPress={() =>
+                    setEditingRatingId((current) => (current === exp.id ? null : exp.id))
+                  }
+                  disabled={rowBusy}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Change rating of ${STAGE_CONFIG[exp.stage]?.label ?? exp.stage} exposure from ${formatDate(new Date(exp.occurredAt))}`}
+                  accessibilityState={{
+                    expanded: editingRatingId === exp.id,
+                    disabled: rowBusy,
+                    busy: savingRatingId === exp.id,
+                  }}
+                >
+                  <Text style={styles.exposureActionText}>
+                    {savingRatingId === exp.id ? 'Saving…' : 'Edit rating'}
+                  </Text>
+                </Pressable>
+                <Pressable
                   style={styles.exposureDelete}
                   onPress={() => handleDeleteExposure(exp)}
-                  disabled={deletingExposureId !== null || savingStageId !== null}
+                  disabled={rowBusy}
                   accessibilityRole="button"
                   accessibilityLabel={`Delete ${STAGE_CONFIG[exp.stage]?.label ?? exp.stage} exposure from ${formatDate(new Date(exp.occurredAt))}`}
                   accessibilityState={{
-                    disabled: deletingExposureId !== null || savingStageId !== null,
+                    disabled: rowBusy,
                     busy: deletingExposureId === exp.id,
                   }}
                 >
@@ -695,16 +773,47 @@ export default function FoodDetailScreen() {
                           },
                         ]}
                         onPress={() => handleSelectExposureStage(exp, value)}
-                        disabled={savingStageId !== null}
+                        disabled={rowBusy}
                         accessibilityRole="button"
                         accessibilityLabel={`Set stage: ${config.label}`}
                         accessibilityState={{
                           selected: isSelected,
-                          disabled: savingStageId !== null,
+                          disabled: rowBusy,
                         }}
                       >
                         <Text style={styles.editChipText}>
                           {config.icon} {config.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+              {editingRatingId === exp.id && (
+                <View style={styles.editChipRow}>
+                  {RATING_CONFIG.map((option) => {
+                    const isSelected = option.value === exp.rating;
+                    return (
+                      <Pressable
+                        key={option.value}
+                        style={[
+                          styles.editChip,
+                          isSelected && {
+                            backgroundColor: theme.colors.primaryLight,
+                            borderColor: theme.colors.primaryStrong,
+                          },
+                        ]}
+                        onPress={() => handleSelectExposureRating(exp, option.value)}
+                        disabled={rowBusy}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Set rating: ${option.label}`}
+                        accessibilityState={{
+                          selected: isSelected,
+                          disabled: rowBusy,
+                        }}
+                      >
+                        <Text style={styles.editChipText}>
+                          {option.emoji} {option.label}
                         </Text>
                       </Pressable>
                     );

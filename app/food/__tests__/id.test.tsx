@@ -865,4 +865,140 @@ describe('FoodDetailScreen', () => {
     });
   });
 
+  describe('edit an exposure rating', () => {
+    const exp = (id: string, stage: string, rating: number | null) => ({
+      id,
+      stage,
+      rating,
+      notes: null,
+      occurredAt: new Date(2026, 0, 15),
+      mealType: null,
+      temperature: null,
+      texture: null,
+      setting: null,
+    });
+
+    const ratingRow = (stage: string) =>
+      screen.getByLabelText(new RegExp(`^Change rating of ${stage} exposure from `));
+
+    /** `click()` takes a literal label; the row labels embed a formatted date. */
+    const openEditor = async (stage: string) => {
+      await act(async () => {
+        fireEvent.click(ratingRow(stage));
+      });
+    };
+
+    it('offers a rating action per exposure row and opens a chip row', async () => {
+      queueLoad(FOOD, [exp('exp-1', 'smell', null), exp('exp-2', 'tolerate', 3)]);
+      await renderLoaded();
+
+      expect(ratingRow('Tolerate')).toBeTruthy();
+      // Closed until asked for — five chips per row would bury the history.
+      expect(screen.queryByLabelText('Set rating: Willing')).toBeNull();
+
+      await openEditor('Smell');
+      expect(screen.getByLabelText('Set rating: Willing')).toBeTruthy();
+    });
+
+    it('persists the picked rating scoped to that row and closes the chip row', async () => {
+      queueLoad(FOOD, [exp('exp-1', 'smell', null)]);
+      await renderLoaded();
+
+      await openEditor('Smell');
+      await click('Set rating: Willing');
+
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      const write = mockDb.writes[0] as {
+        kind: string;
+        values: Record<string, unknown>;
+        where: unknown;
+      };
+      expect(write.kind).toBe('update');
+      expect(write.values).toEqual({ rating: 4 });
+      // Scoped to the row the user named. A predicate keyed on foodId would
+      // rewrite every rating in the history with no on-screen cue.
+      expect(write.where).toEqual(eq(schema.exposures.id, 'exp-1'));
+
+      // Picking a chip is the commit, so the row closes on success.
+      await waitFor(() => expect(screen.queryByLabelText('Set rating: Willing')).toBeNull());
+      expect(alertSpy).not.toHaveBeenCalled();
+    });
+
+    it('re-picking the current rating clears it to null', async () => {
+      // The load-bearing case, and the one difference from the v0.5.160
+      // category editor: `exposures.rating` is nullable, so "not recorded"
+      // has to stay reachable or a mis-tap is permanent all over again.
+      queueLoad(FOOD, [exp('exp-1', 'smell', 4)]);
+      await renderLoaded();
+
+      await openEditor('Smell');
+      await click('Set rating: Willing');
+
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      const write = mockDb.writes[0] as { values: Record<string, unknown> };
+      expect(write.values).toEqual({ rating: null });
+
+      // The local patch followed, so re-opening offers a clean slate — a
+      // screen that only wrote `null` to the DB would still highlight the
+      // old chip and re-tapping would look like a no-op.
+      await waitFor(() => expect(screen.queryByLabelText('Set rating: Willing')).toBeNull());
+      await openEditor('Smell');
+      await click('Set rating: Willing');
+      await waitFor(() => expect(mockDb.writes).toHaveLength(2));
+      expect((mockDb.writes[1] as { values: Record<string, unknown> }).values).toEqual({
+        rating: 4,
+      });
+    });
+
+    it('replaces a different rating rather than clearing it', async () => {
+      // Regression lock: a contributor implementing the deselect as "always
+      // clear first" would make switching ratings a two-tap operation.
+      queueLoad(FOOD, [exp('exp-1', 'smell', 2)]);
+      await renderLoaded();
+
+      await openEditor('Smell');
+      await click('Set rating: Enjoyed');
+
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      expect((mockDb.writes[0] as { values: Record<string, unknown> }).values).toEqual({
+        rating: 5,
+      });
+    });
+
+    it('alerts on a failed write, keeps the old rating, and stays retryable', async () => {
+      queueLoad(FOOD, [exp('exp-1', 'smell', 2)]);
+      await renderLoaded();
+
+      // `failReads()` covers reads only; this path issues a write, so
+      // replace `update` for exactly one call.
+      const target = mockDb.db as unknown as { update: (...a: unknown[]) => unknown };
+      const realUpdate = target.update;
+      let failed = false;
+      target.update = (...args: unknown[]) => {
+        if (failed) return realUpdate(...args);
+        failed = true;
+        return {
+          set: () => ({ where: () => Promise.reject(new Error('boom')) }),
+        };
+      };
+
+      await openEditor('Smell');
+      await click('Set rating: Enjoyed');
+
+      await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+      expect(alertSpy.mock.calls[0][0]).toBe('Error');
+      // The chip row is left open so the retry is one tap, and the latch was
+      // released in `finally` so the retry actually reaches the DB.
+      expect(screen.getByLabelText('Set rating: Enjoyed')).toBeTruthy();
+
+      await click('Set rating: Enjoyed');
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      // No optimistic patch: the stored 2 survived the failure, so the
+      // retry still writes the replacement rather than a clear.
+      expect((mockDb.writes[0] as { values: Record<string, unknown> }).values).toEqual({
+        rating: 5,
+      });
+    });
+  });
+
 });

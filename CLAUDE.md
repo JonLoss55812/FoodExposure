@@ -218,9 +218,55 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.167
+v0.5.168
 
 ## Changelog
+- v0.5.168 — Feature: **correct a logged exposure's rating** in place, from the food
+  detail page's Exposure History. v0.5.167 made an exposure's *stage* editable but
+  left every other dimension fixable only by delete-and-re-log, which discards the
+  row's original `createdAt` and each optional dimension recorded with it. Rating is
+  the next field that matters: it is the only subjective signal in the schema, it is
+  what the Progress tab's "Avg Acceptance" gauge averages, and it is a column a
+  feeding therapist reads straight out of the CSV export — a mis-tapped "Refused" on
+  an exposure the child actually enjoyed is indistinguishable from a real refusal
+  once stored. Each history row gains an "Edit rating" pressable beside the v0.5.167
+  "Edit stage" and the v0.5.163 "Delete", opening a five-chip `RATING_CONFIG` row.
+  Shape follows the v0.5.161 **preparation** editor rather than the v0.5.160 category
+  one, and that is the load-bearing difference: `exposures.rating` is nullable, so
+  "not recorded" is a legal persisted state and has to stay reachable — re-tapping the
+  selected chip therefore *clears* the rating to `null` (the v0.5.137 optional-chip
+  deselect contract) instead of being a no-op close. Without it a mis-tap would be
+  permanent all over again, which is the exact defect this closes. Picking a chip is
+  the commit (no separate Save step), and confirming issues exactly one
+  `db.update(exposures).set({ rating }).where(eq(exposures.id, exp.id))` — scoped to
+  the row the user named, not the food or the child. Unlike the stage editor there is
+  no `getHighestStage` recompute, because rating feeds no derived value on this
+  screen. Local state is patched rather than reloaded, matching every other editor
+  here (the screen loads in a `useEffect`, not on focus). One structural change rides
+  along: the three per-row busy conditions, previously duplicated as
+  `deletingExposureId !== null || savingStageId !== null` at five sites, collapse into
+  a single `rowBusy` local that now also covers `savingRatingId`. That is not
+  cosmetic — the editors patch `exposuresList` rather than reloading, so two
+  concurrent per-row writes would race on the same list and one would silently clobber
+  the other; `rowBusy` disables every row action while any of them is in flight.
+  Double-tap is guarded by the v0.5.144 synchronous `createInFlightLatch`, released in
+  `finally`; on failure the chip row is left open so the retry is one tap. Chips carry
+  the v0.5.154 `minHeight: 44` floor and the established a11y train, with the
+  in-flight row reading "Saving…" under
+  `accessibilityState={{ expanded, disabled, busy }}`. +5 screen tests in
+  `app/food/__tests__/id.test.tsx`: a rating action per row opening a chip row that
+  starts closed; the happy path (exactly one update, the expected `eq` predicate, the
+  row closes); re-picking the current rating writes `null` **and** the local patch
+  follows, verified by re-opening and re-picking to get the value back (a screen that
+  only wrote null to the DB would still highlight the stale chip); picking a
+  *different* rating replaces rather than clearing, so a "always clear first"
+  implementation fails loudly; and a failed write alerts, leaves the stored rating
+  alone, and stays retryable. Mutation-verified rather than assumed: dropping the
+  clear-on-re-tap, scoping the update by `foodId`, dropping the `setExposuresList`
+  patch, and swallowing the Alert each fail exactly one test, and dropping
+  `ratingEditLatch.release()` or leaving the row open on success each fail two.
+  Bumped `APP_VERSION` to v0.5.168. 770 tests pass across 41 suites (was 765, +5).
+  TypeScript clean.
 - v0.5.167 — Feature: **correct a logged exposure's stage** in place, from the food
   detail page's Exposure History. v0.5.163 made an exposure deletable but not
   editable, so fixing a mis-tapped stage meant delete-and-re-log — which discards the
