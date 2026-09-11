@@ -218,9 +218,54 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.168
+v0.5.169
 
 ## Changelog
+- v0.5.169 — Feature: **correct a logged exposure's notes** in place, from the food
+  detail page's Exposure History. Notes is the one free-text dimension on an exposure
+  and the only place a parent records *why* a session went the way it did — which is
+  exactly the context a feeding therapist reads in the CSV export. A typo, a note
+  typed against the wrong row, or a detail remembered an hour later was previously
+  fixable only by deleting the exposure and re-logging it, which discards the row's
+  original `createdAt` and every other dimension recorded with it. With v0.5.167
+  (stage) and v0.5.168 (rating), this closes the last of the practically-correctable
+  fields named in NEXT_STEPS gap #-1; only `occurredAt` remains, and it is deliberately
+  deferred because changing it moves the row on every date-bucketed surface.
+  Unlike the stage and rating chip rows this is free text, so it follows the v0.5.145
+  **rename** editor instead: each history row gains an "Edit notes" pressable that
+  opens an inline multiline `TextInput` seeded with the stored note, plus explicit
+  Save and Cancel. Validation goes through `exposureSchema.shape.notes` rather than a
+  hand-rolled check, so the Log form and this editor agree on trim and the 500-char
+  cap and the user sees the schema's own message. Two consequences of routing through
+  the schema, and both are load-bearing: `optionalTrimmedText` trims, so a draft equal
+  to the stored note after trimming is a no-op that closes without touching the DB;
+  and it maps a blank or whitespace-only draft to `undefined`, which is persisted as
+  **`null`** — `exposures.notes` is nullable, so "not recorded" is a legal state and
+  clearing a stray note has to stay reachable, exactly as re-tapping clears the
+  v0.5.168 rating. Persisting `''` there instead would leave a row that reads as
+  noted-but-empty on every surface that gates on truthiness. Confirming issues exactly
+  one `db.update(exposures).set({ notes }).where(eq(exposures.id, exp.id))` — scoped to
+  the row the user named, not the food or the child. Local state is patched rather than
+  reloaded, matching the other editors here. On failure the editor is left open with
+  the draft intact, so the retry is one tap and nothing is retyped. `rowBusy`
+  (introduced in v0.5.168) gains the notes save, so no two per-row writes can race on
+  the same `exposuresList`. Double-tap is guarded by the v0.5.144 synchronous
+  `createInFlightLatch`, released in `finally` so neither the invalid-notes nor the
+  no-op early return can strand it. +7 screen tests in `app/food/__tests__/id.test.tsx`:
+  the editor opens seeded with the stored note; the happy path persists the *trimmed*
+  note under the expected `eq` predicate and closes; a blanked draft clears to `null`
+  and the local patch follows (verified by re-opening to an empty draft, so a screen
+  that only wrote null to the DB fails); a draft matching the stored note after
+  trimming writes nothing; an over-long note is rejected by the schema, writes nothing,
+  and leaves the editor open to shorten in place; Cancel abandons the draft and
+  re-opening reseeds from the stored value; and a failed write alerts, keeps the draft,
+  and stays retryable. Mutation-verified rather than assumed: replacing the schema
+  parse with a hand-rolled trim, persisting `''` instead of `null`, dropping the no-op
+  early return, scoping the update by `foodId`, dropping the `setExposuresList` patch,
+  swallowing the Alert, and dropping `notesEditLatch.release()` each fail exactly one
+  test, and seeding the draft from anything other than the stored row fails three.
+  Bumped `APP_VERSION` to v0.5.169. 777 tests pass across 41 suites (was 770, +7).
+  TypeScript clean.
 - v0.5.168 — Feature: **correct a logged exposure's rating** in place, from the food
   detail page's Exposure History. v0.5.167 made an exposure's *stage* editable but
   left every other dimension fixable only by delete-and-re-log, which discards the

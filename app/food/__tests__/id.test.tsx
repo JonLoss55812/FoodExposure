@@ -1001,4 +1001,174 @@ describe('FoodDetailScreen', () => {
     });
   });
 
+  describe('edit an exposure note', () => {
+    const exp = (id: string, stage: string, notes: string | null) => ({
+      id,
+      stage,
+      rating: null,
+      notes,
+      occurredAt: new Date(2026, 0, 15),
+      mealType: null,
+      temperature: null,
+      texture: null,
+      setting: null,
+    });
+
+    const notesRow = (stage: string) =>
+      screen.getByLabelText(new RegExp(`^Change notes of ${stage} exposure from `));
+
+    const openEditor = async (stage: string) => {
+      await act(async () => {
+        fireEvent.click(notesRow(stage));
+      });
+    };
+
+    /** The harness runs on jest-expo/web, so TextInputs take `fireEvent.change`. */
+    const typeNotes = (value: string) => {
+      fireEvent.change(screen.getByLabelText('Exposure notes'), {
+        target: { value },
+      });
+    };
+
+    it('opens an editor seeded with the stored note', async () => {
+      queueLoad(FOOD, [exp('exp-1', 'smell', 'spat it out')]);
+      await renderLoaded();
+
+      expect(screen.queryByLabelText('Exposure notes')).toBeNull();
+      await openEditor('Smell');
+      expect(
+        (screen.getByLabelText('Exposure notes') as HTMLTextAreaElement).value,
+      ).toBe('spat it out');
+    });
+
+    it('persists the trimmed note scoped to that row and closes the editor', async () => {
+      queueLoad(FOOD, [exp('exp-1', 'smell', 'spat it out')]);
+      await renderLoaded();
+
+      await openEditor('Smell');
+      typeNotes('  licked it, then smiled  ');
+      await click('Save exposure notes');
+
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      const write = mockDb.writes[0] as {
+        kind: string;
+        values: Record<string, unknown>;
+        where: unknown;
+      };
+      expect(write.kind).toBe('update');
+      // Trimmed by the schema, not by a hand-rolled check on this screen.
+      expect(write.values).toEqual({ notes: 'licked it, then smiled' });
+      // Scoped to the row the user named. A predicate keyed on foodId would
+      // overwrite every note in the history with no on-screen cue.
+      expect(write.where).toEqual(eq(schema.exposures.id, 'exp-1'));
+
+      await waitFor(() => expect(screen.queryByLabelText('Exposure notes')).toBeNull());
+      expect(alertSpy).not.toHaveBeenCalled();
+    });
+
+    it('clears the note to null when the draft is blanked', async () => {
+      // `notes` is nullable, so "not recorded" has to stay reachable — an
+      // editor that could only ever overwrite would make a stray note
+      // permanent, which is the defect this closes.
+      queueLoad(FOOD, [exp('exp-1', 'smell', 'spat it out')]);
+      await renderLoaded();
+
+      await openEditor('Smell');
+      typeNotes('   ');
+      await click('Save exposure notes');
+
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      expect((mockDb.writes[0] as { values: Record<string, unknown> }).values).toEqual({
+        notes: null,
+      });
+
+      // The local patch followed: re-opening shows an empty draft rather
+      // than the stale note.
+      await openEditor('Smell');
+      expect(
+        (screen.getByLabelText('Exposure notes') as HTMLTextAreaElement).value,
+      ).toBe('');
+    });
+
+    it('writes nothing when the draft matches the stored note after trimming', async () => {
+      queueLoad(FOOD, [exp('exp-1', 'smell', 'spat it out')]);
+      await renderLoaded();
+
+      await openEditor('Smell');
+      typeNotes('  spat it out  ');
+      await click('Save exposure notes');
+
+      expect(mockDb.writes).toHaveLength(0);
+      expect(screen.queryByLabelText('Exposure notes')).toBeNull();
+      expect(alertSpy).not.toHaveBeenCalled();
+    });
+
+    it('rejects an over-long note through the schema and writes nothing', async () => {
+      // The schema owns the 500-char cap; the screen must not reach the DB.
+      queueLoad(FOOD, [exp('exp-1', 'smell', null)]);
+      await renderLoaded();
+
+      await openEditor('Smell');
+      typeNotes('a'.repeat(501));
+      await click('Save exposure notes');
+
+      await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+      expect(alertSpy.mock.calls[0][0]).toBe('Invalid Notes');
+      expect(mockDb.writes).toHaveLength(0);
+      // Left open so the note can be shortened in place rather than retyped.
+      expect(screen.getByLabelText('Exposure notes')).toBeTruthy();
+    });
+
+    it('cancel abandons the draft without writing', async () => {
+      queueLoad(FOOD, [exp('exp-1', 'smell', 'spat it out')]);
+      await renderLoaded();
+
+      await openEditor('Smell');
+      typeNotes('discarded');
+      await click('Cancel editing exposure notes');
+
+      expect(mockDb.writes).toHaveLength(0);
+      expect(screen.queryByLabelText('Exposure notes')).toBeNull();
+      // Re-opening reseeds from the stored value, not the abandoned draft.
+      await openEditor('Smell');
+      expect(
+        (screen.getByLabelText('Exposure notes') as HTMLTextAreaElement).value,
+      ).toBe('spat it out');
+    });
+
+    it('alerts on a failed write, keeps the draft, and stays retryable', async () => {
+      queueLoad(FOOD, [exp('exp-1', 'smell', 'spat it out')]);
+      await renderLoaded();
+
+      const target = mockDb.db as unknown as { update: (...a: unknown[]) => unknown };
+      const realUpdate = target.update;
+      let failed = false;
+      target.update = (...args: unknown[]) => {
+        if (failed) return realUpdate(...args);
+        failed = true;
+        return {
+          set: () => ({ where: () => Promise.reject(new Error('boom')) }),
+        };
+      };
+
+      await openEditor('Smell');
+      typeNotes('licked it');
+      await click('Save exposure notes');
+
+      await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+      expect(alertSpy.mock.calls[0][0]).toBe('Error');
+      // The draft survives, so the retry is one tap and nothing is retyped.
+      expect(
+        (screen.getByLabelText('Exposure notes') as HTMLTextAreaElement).value,
+      ).toBe('licked it');
+
+      // The latch was released in `finally`, so the retry reaches the DB.
+      await click('Save exposure notes');
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      expect((mockDb.writes[0] as { values: Record<string, unknown> }).values).toEqual({
+        notes: 'licked it',
+      });
+    });
+  });
+
 });

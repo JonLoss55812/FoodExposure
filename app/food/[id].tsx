@@ -16,7 +16,7 @@ import { getThresholdForProfile } from '@/src/lib/thresholds';
 import { generateId, formatDate } from '@/src/lib/utils';
 import { deleteFoodCascade } from '@/src/lib/cascade-delete';
 import { findDuplicateFood } from '@/src/lib/food-partition';
-import { foodSchema } from '@/src/lib/validation';
+import { foodSchema, exposureSchema } from '@/src/lib/validation';
 import { createInFlightLatch } from '@/src/lib/in-flight';
 
 type ExposureRow = Pick<
@@ -49,6 +49,9 @@ export default function FoodDetailScreen() {
   const [savingStageId, setSavingStageId] = useState<string | null>(null);
   const [editingRatingId, setEditingRatingId] = useState<string | null>(null);
   const [savingRatingId, setSavingRatingId] = useState<string | null>(null);
+  const [editingNotesId, setEditingNotesId] = useState<string | null>(null);
+  const [savingNotesId, setSavingNotesId] = useState<string | null>(null);
+  const [notesDraft, setNotesDraft] = useState('');
   const [nameDraft, setNameDraft] = useState('');
   const [savingName, setSavingName] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -61,6 +64,7 @@ export default function FoodDetailScreen() {
   const exposureLatch = useRef(createInFlightLatch()).current;
   const stageEditLatch = useRef(createInFlightLatch()).current;
   const ratingEditLatch = useRef(createInFlightLatch()).current;
+  const notesEditLatch = useRef(createInFlightLatch()).current;
 
   const loadData = useCallback(async () => {
     if (!id) {
@@ -285,6 +289,67 @@ export default function FoodDetailScreen() {
     }
   };
 
+  /**
+   * Correct a logged exposure's **notes** in place (NEXT_STEPS gap #-1).
+   *
+   * Notes is the one free-text dimension on an exposure and the only place a
+   * parent records *why* a session went the way it did — which is exactly the
+   * context a feeding therapist reads in the CSV export. A typo, a note typed
+   * against the wrong row, or a detail remembered afterwards was previously
+   * only fixable by deleting the exposure and re-logging it, which discards
+   * the row's `createdAt` and every other dimension recorded with it.
+   *
+   * Unlike the stage/rating chip rows this is free text, so it follows the
+   * v0.5.145 **rename** editor instead: an inline TextInput with an explicit
+   * Save, validated through `exposureSchema.shape.notes` rather than a
+   * hand-rolled check, so the Log form and this editor agree on trim/max(500)
+   * and the user sees the schema's own message.
+   *
+   * `notes` is nullable, so clearing is a legal outcome: the schema's
+   * `optionalTrimmedText` maps a blank or whitespace-only draft to
+   * `undefined`, which is persisted as `null`. A draft equal to the stored
+   * value after trimming closes the editor without touching the DB.
+   */
+  const startEditingNotes = (exp: ExposureRow) => {
+    setNotesDraft(exp.notes ?? '');
+    setEditingNotesId(exp.id);
+  };
+
+  const handleSaveNotes = async (exp: ExposureRow) => {
+    if (!notesEditLatch.tryAcquire()) return;
+
+    const parsed = exposureSchema.shape.notes.safeParse(notesDraft);
+    if (!parsed.success) {
+      notesEditLatch.release();
+      Alert.alert('Invalid Notes', parsed.error.issues[0]?.message ?? 'Please shorten your notes.');
+      return;
+    }
+    const value = parsed.data ?? null;
+    if (value === (exp.notes ?? null)) {
+      notesEditLatch.release();
+      setEditingNotesId(null);
+      return;
+    }
+
+    setSavingNotesId(exp.id);
+    try {
+      await db.update(schema.exposures)
+        .set({ notes: value })
+        .where(eq(schema.exposures.id, exp.id));
+      setExposuresList((rows) =>
+        rows.map((row) => (row.id === exp.id ? { ...row, notes: value } : row)),
+      );
+      setEditingNotesId(null);
+    } catch (err) {
+      console.error('Failed to change exposure notes:', err);
+      Alert.alert('Error', 'Failed to save notes. Please try again.');
+      // Leave the editor open so the draft is not lost and the retry is one tap.
+    } finally {
+      notesEditLatch.release();
+      setSavingNotesId(null);
+    }
+  };
+
   const handleToggleSafeFood = async () => {
     if (!food) return;
     const next = !food.isSafeFood;
@@ -453,7 +518,10 @@ export default function FoodDetailScreen() {
    * on the same list and one would clobber the other with no on-screen cue.
    */
   const rowBusy =
-    deletingExposureId !== null || savingStageId !== null || savingRatingId !== null;
+    deletingExposureId !== null ||
+    savingStageId !== null ||
+    savingRatingId !== null ||
+    savingNotesId !== null;
 
   if (loading) {
     return (
@@ -742,6 +810,26 @@ export default function FoodDetailScreen() {
                   </Text>
                 </Pressable>
                 <Pressable
+                  style={styles.exposureAction}
+                  onPress={() =>
+                    editingNotesId === exp.id
+                      ? setEditingNotesId(null)
+                      : startEditingNotes(exp)
+                  }
+                  disabled={rowBusy}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Change notes of ${STAGE_CONFIG[exp.stage]?.label ?? exp.stage} exposure from ${formatDate(new Date(exp.occurredAt))}`}
+                  accessibilityState={{
+                    expanded: editingNotesId === exp.id,
+                    disabled: rowBusy,
+                    busy: savingNotesId === exp.id,
+                  }}
+                >
+                  <Text style={styles.exposureActionText}>
+                    {savingNotesId === exp.id ? 'Saving…' : 'Edit notes'}
+                  </Text>
+                </Pressable>
+                <Pressable
                   style={styles.exposureDelete}
                   onPress={() => handleDeleteExposure(exp)}
                   disabled={rowBusy}
@@ -818,6 +906,43 @@ export default function FoodDetailScreen() {
                       </Pressable>
                     );
                   })}
+                </View>
+              )}
+              {editingNotesId === exp.id && (
+                <View style={styles.notesEditor}>
+                  <TextInput
+                    style={styles.notesInput}
+                    value={notesDraft}
+                    onChangeText={setNotesDraft}
+                    multiline
+                    numberOfLines={3}
+                    maxLength={500}
+                    autoFocus
+                    accessibilityLabel="Exposure notes"
+                    placeholder="Notes (leave blank to clear)"
+                    placeholderTextColor={theme.colors.textTertiary}
+                  />
+                  <View style={styles.notesEditorActions}>
+                    <Pressable
+                      onPress={() => handleSaveNotes(exp)}
+                      disabled={rowBusy}
+                      accessibilityRole="button"
+                      accessibilityLabel="Save exposure notes"
+                      accessibilityState={{ disabled: rowBusy, busy: savingNotesId === exp.id }}
+                    >
+                      <Text style={styles.renameAction}>
+                        {savingNotesId === exp.id ? 'Saving…' : 'Save'}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setEditingNotesId(null)}
+                      disabled={rowBusy}
+                      accessibilityRole="button"
+                      accessibilityLabel="Cancel editing exposure notes"
+                    >
+                      <Text style={styles.renameCancel}>Cancel</Text>
+                    </Pressable>
+                  </View>
                 </View>
               )}
             </View>
@@ -922,6 +1047,25 @@ const styles = StyleSheet.create((theme) => ({
   tagText: {
     fontSize: theme.fontSize.sm,
     fontWeight: '600',
+  },
+  notesEditor: {
+    marginTop: theme.spacing.sm,
+    gap: theme.spacing.sm,
+  },
+  notesInput: {
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    fontSize: theme.fontSize.md,
+    color: theme.colors.text,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  notesEditorActions: {
+    flexDirection: 'row',
+    gap: theme.spacing.lg,
   },
   editChipRow: {
     flexDirection: 'row',
