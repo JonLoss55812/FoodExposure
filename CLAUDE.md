@@ -218,9 +218,53 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.169
+v0.5.170
 
 ## Changelog
+- v0.5.170 — Perf: add three measured indexes to the `exposures` table. The
+  migration in `src/providers/DatabaseProvider.tsx` created six tables and **zero**
+  indexes, so every child-scoped read was a full table scan of the one table that
+  grows without bound (the app's own model is 15-30 exposures per food per child,
+  across every food and every child). Measured, not assumed: a `node:sqlite`
+  harness built from the shipped `CREATE TABLE` statements verbatim, seeded to
+  9,600 exposure rows (1 family, 2 children, 120 foods, 40 exposures each — a
+  committed two-year user), running the exact SQL the drizzle call sites emit.
+  Before → after, mean over 20-50 iterations: the dashboard's "Today's Exposures"
+  count (`child_id = ? AND occurred_at >= ?`) **0.683ms → 0.012ms (58x)**; the
+  dashboard's recent-10 list (`child_id = ?` + `ORDER BY occurred_at DESC LIMIT 10`
+  joined to foods) **1.501ms → 0.035ms (43x)**; the food detail page's per-child
+  history **0.724ms → 0.095ms (7.6x)**; `deleteFoodCascade` **1.176ms → 0.326ms
+  (3.6x)**. The first two run on *every focus* of the home tab, which is the first
+  screen on every launch. Three indexes ship and no more, because only three earned
+  it: `(child_id, occurred_at)`, `(child_id, food_id, occurred_at)`, and
+  `(food_id)`. Indexes on `foods.family_id` and `children.family_id` were measured
+  and dropped — neutral at every scale tested (0.236ms → 0.222ms, inside noise), and
+  those tables are bounded. Indexes on the three `food_chains` FK columns were
+  measured and dropped for the same reason: they moved the cascades the wrong way
+  (0.326 → 0.345ms and 9.40 → 10.23ms). The composite is `(child_id, food_id,
+  occurred_at)` and not `(child_id, food_id)` because the first version **regressed**
+  the food-detail query 0.734ms → 1.653ms: with no `occurred_at` in the index the
+  planner preferred `idx_exposures_child_occurred` for the `ORDER BY` and then
+  filtered, scanning every one of that child's rows. That regression is the reason
+  this commit measures each candidate rather than adding the obvious set. Two costs
+  are recorded rather than hidden: a single-row exposure insert goes **21.45µs →
+  26.75µs** (+5µs), and `deleteChildCascade` goes **3.9ms → 9.4ms** because each
+  deleted exposure now unwinds two index rows. Both are one-off user actions behind
+  a tap or a confirm dialog; the reads they pay for run on every tab focus. Unlike
+  the `CHECK` constraints added in v0.5.123-v0.5.131, this is **not** forward-only:
+  `CREATE INDEX IF NOT EXISTS` runs inside the same `execAsync` on every launch, so
+  existing installs get the indexes on their next cold start, against the history
+  they have already accumulated — which is exactly the population that needs them.
+  Verified idempotent by executing the shipped SQL twice against a fresh in-memory
+  database and asserting all three `EXPLAIN QUERY PLAN` outputs report `SEARCH ...
+  USING INDEX`. One real defect was caught during the change and is worth recording:
+  the first draft of the explanatory comment used backticks around `exposures`, which
+  **terminated the enclosing template literal** — the full test suite still passed
+  777/777 because no test imports `DatabaseProvider`, and only `tsc --noEmit` caught
+  it. That is a concrete instance of the untested-DB-layer gap the changelog has
+  cited since v0.5.123. Bumped `APP_VERSION` to v0.5.170. 777 tests pass across 41
+  suites — unchanged, which is the point: this commit changes how fast the queries
+  run, not what they return. TypeScript clean.
 - v0.5.169 — Feature: **correct a logged exposure's notes** in place, from the food
   detail page's Exposure History. Notes is the one free-text dimension on an exposure
   and the only place a parent records *why* a session went the way it did — which is

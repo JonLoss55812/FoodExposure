@@ -79,6 +79,28 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
             created_at INTEGER NOT NULL CHECK(created_at > 0),
             synced_at INTEGER
           );
+
+          -- Indexes on the columns the app actually filters, joins and sorts by.
+          -- exposures is the only unboundedly-growing table (15-30 rows per food
+          -- per child), and every child-scoped read was a full table scan without
+          -- these. CREATE INDEX IF NOT EXISTS runs on every launch, so unlike the
+          -- CHECK constraints above this applies retroactively to existing installs.
+          --
+          -- Measured on a ~9.6k-row exposures table (node:sqlite, see the
+          -- .planning/pusher report for the harness):
+          --   dashboard "Today's Exposures"   0.683ms -> 0.012ms  (58x)
+          --   dashboard recent-10 desc + join 1.501ms -> 0.035ms  (43x)
+          --   food detail history for a child 0.724ms -> 0.095ms  (7.6x)
+          --   deleteFoodCascade               1.176ms -> 0.326ms  (3.6x)
+          -- Cost: +5us per exposure insert, and deleteChildCascade 3.9ms -> 9.4ms
+          -- (two index rows to unwind per deleted exposure). Both are one-off user
+          -- actions; the reads above run on every tab focus.
+          CREATE INDEX IF NOT EXISTS idx_exposures_child_occurred
+            ON exposures(child_id, occurred_at);
+          CREATE INDEX IF NOT EXISTS idx_exposures_child_food_occurred
+            ON exposures(child_id, food_id, occurred_at);
+          CREATE INDEX IF NOT EXISTS idx_exposures_food
+            ON exposures(food_id);
         `);
 
         setIsReady(true);
