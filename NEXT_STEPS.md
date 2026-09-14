@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.169 — 777 tests passing across 41 suites, TypeScript clean.
+Reviewed at: v0.5.172 — 795 tests passing across 41 suites, TypeScript clean.
 
 > **Read this first.** This file was last *fully* rewritten at v0.5.160 and the
 > "Recently shipped" list below lags reality. A session in between added screen
@@ -190,37 +190,66 @@ All five priorities from the original review have shipped:
   noted-but-empty on every surface that gates on truthiness. On failure the editor is
   left open with the draft intact. +7 tests, eight mutations verified.
 
+## Shipped in the v0.5.172 session (2026-09-14)
+
+- v0.5.171 — **correct a logged exposure's date** in place, the last field named in
+  gap #-1. Free-text `YYYY-MM-DD` editor per history row (the v0.5.169 notes shape),
+  validated by `exposureSchema.shape.occurredOn` and resolved by `resolveOccurredAt`
+  **passed the row's own timestamp as `now`** — that one argument makes a draft naming
+  the day already stored resolve back to the stored instant exactly (so the row keeps
+  its time of day instead of snapping to local midnight and reordering the history),
+  and makes a blank draft a no-op without needing a clear-to-null branch, which would
+  be illegal anyway since `occurredAt` is NOT NULL. The list is ordered by
+  `occurredAt desc`, so this editor — unlike the other three — **re-sorts** after the
+  patch. Seeded through a new pure `toLocalDateInput()` that reads local getters, for
+  the v0.5.166 reason. +13 tests (9 screen, 4 unit), three mutations verified.
+  **One branch was written, measured as unreachable under mutation, and deleted**: a
+  separate blank-draft guard, fully subsumed by the no-op check. Recorded rather than
+  shipped as an unfalsifiable `if`.
+- v0.5.172 — screen tests for the Settings **Preferences card and Sign Out** (+5),
+  the last uncovered paths on that screen. The load-bearing one is the v0.5.80
+  contract that Sign Out calls **both** `clearChildSelection()` and `logout()`;
+  dropping the first leaves the previous family's `selectedChildId` in MMKV, which on
+  a shared device scopes the next person's first render to a child from a family they
+  are not in, and then self-heals — a privacy leak that leaves nothing behind to catch
+  by inspection. Four mutations verified. Harness note: the feeding-profile chips are
+  labelled from `FEEDING_PROFILE_CONFIG`, whose label is the bare `ARFID`; query the
+  config's exact value, same as the v0.5.158 Progress-tab note.
+
 ## Known gaps worth doing next (discovered, deliberately not done)
 
--1. **An exposure's `occurredAt` is still not editable, and backdating has no date
-   picker.** v0.5.164 added a validated free-text `YYYY-MM-DD` field on the Log form,
-   which is the right MVP shape (no new dependency, reuses the
-   `childSchema.dateOfBirth` precedent) but it is typing, on a phone, one-handed. A
-   picker needs a package — `@react-native-community/datetimepicker` is the obvious
-   one — so it is a deliberate deferral, not an oversight.
-   **Stage (v0.5.167), rating (v0.5.168) and notes (v0.5.169) are now all correctable
-   in place** on the food detail page. That leaves exactly one field:
-   - **occurredAt** — the same free-text `YYYY-MM-DD` field the Log form has, routed
-     through the existing pure `resolveOccurredAt`. Deliberately left for last and
-     deliberately not rushed: unlike the other three, changing it moves the row on
-     *every* date-bucketed surface (the dashboard's Today card, the Progress tab's
-     trailing-7-day window, `formatRelativeDate`, and the therapist CSV's date
-     column), so it wants the same care the stage edit got — and it is the one edit
-     where the row's position in the list changes under the user, since the history is
-     ordered by `occurredAt desc`. Decide explicitly whether the list re-sorts after
-     the patch or stays put until reload; the current editors all patch in place and
-     none of them has had to think about ordering.
-   Templates for it: the v0.5.169 notes editor is the closest shape (free-text +
-   explicit Save + schema validation), and `mock-db.ts` records an update's `where`
-   predicate (v0.5.167) so a wrong-column scope is assertable.
+-1. **~~Every field on an exposure is now correctable in place.~~** Closed as of
+   v0.5.171: stage (v0.5.167), rating (v0.5.168), notes (v0.5.169) and date
+   (v0.5.171) are all editable from the food detail page's Exposure History, and an
+   exposure is deletable (v0.5.163). Two follow-ups survive.
 
-   One thing worth knowing before adding a *fourth* per-row editor: the three that
-   exist each carry their own `editingXId` / `savingXId` pair plus a latch, and the
-   render now has three near-identical conditional blocks inside the history `map`.
-   It is still readable at three; at four it is probably worth an
-   `<ExposureRowEditors>` component or a single `editing: {id, field} | null`
-   discriminated state. Judgement call, not a defect — flagged so the next session
-   makes it deliberately rather than by accretion.
+   (a) **Backdating is still typing, not a picker.** Both the Log form's v0.5.164
+   field and the v0.5.171 per-row editor take a free-text `YYYY-MM-DD`. That is the
+   right MVP shape (no new dependency, reuses the `childSchema.dateOfBirth`
+   precedent) but it is one-handed typing on a phone. A picker needs a package —
+   `@react-native-community/datetimepicker` is the obvious one — so it stays a
+   deliberate deferral, not an oversight.
+
+   (b) **Four per-row editors now share one render block, and it has stopped being
+   readable.** The v0.5.169 entry flagged this at three and called four the tipping
+   point; v0.5.171 crossed it. The history `map` now carries four near-identical
+   conditional blocks, four `editingXId` / `savingXId` pairs, four latches, and a
+   `rowBusy` that ORs four flags. Nothing is wrong with it — every path is tested and
+   mutation-verified — but the next person adding or changing a per-row field will
+   pay for the duplication. The shape to move to is a single
+   `editing: { id: string; field: 'stage' | 'rating' | 'notes' | 'date' } | null`
+   plus one `savingRow: string | null`, or an extracted `<ExposureRowEditor>`. This is
+   now a genuine refactor task with a full test net under it (30+ tests across the
+   four editors in `app/food/__tests__/id.test.tsx`), which is the best possible time
+   to do it. **Do it before adding a fifth editor.**
+
+   (c) **The date tests pin literal 2026 dates that must stay in the past.** The
+   `occurredOn` schema's not-future refine reads `Date.now()`, so
+   `app/food/__tests__/id.test.tsx`'s re-sort test uses `2026-09-12` and would have
+   failed had it been written a week earlier — it was, once, with `2026-09-20`. The
+   rest of the suite has the same shape (fixtures dated `new Date(2026, 0, 15)`). Not
+   a defect today and not worth a fake-timer rewrite, but worth knowing before
+   picking a date in a new test.
 
 -2. **`resolveOccurredAt` is only reachable from the Log form.** The
    food-detail "Bump to X" one-tap action still writes `occurredAt: new Date()`
