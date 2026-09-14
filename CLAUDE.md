@@ -218,9 +218,39 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.171
+v0.5.172
 
 ## Changelog
+- v0.5.172 — Tests: screen coverage for the Settings tab's **Preferences card and
+  Sign Out button**, the two remaining uncovered paths on that screen (the v0.5.139
+  Delete Child flow and the v0.5.0 CSV export were already covered). Sign Out is the
+  one that matters. The v0.5.80 contract is that it calls **both**
+  `clearChildSelection()` and `logout()`, and nothing pinned the first through the
+  screen: it is a single line, and dropping it leaves the previous family's
+  `selectedChildId` in MMKV, so on a shared device the next person's first render is
+  scoped to a child from a family they are not in, until `ensureSelection` self-heals
+  against the new children list. That is a privacy leak that self-repairs — the worst
+  shape to catch by inspection, because it leaves nothing on screen afterwards. The
+  same commit pins the other half of v0.5.80, that `logout()` resets `isOnboarded`:
+  every screen gate today reads `!isAuthenticated || !isOnboarded`, so a stale `true`
+  still redirects, but a future surface gating on `isOnboarded` alone would silently
+  skip the add-child step for the next person. +5 tests in a third describe block in
+  `app/(tabs)/__tests__/settings.test.tsx`, on the established seams: a theme choice
+  reaches the settings store (asserted twice so a chip row that only ever writes one
+  fixed value fails); a feeding-profile choice reaches it too — not cosmetic, it is
+  what `getThresholdForProfile` reads, so it moves the 15/20/30 target every per-food
+  progress bar is measured against; Sign Out asks first and Cancel leaves both the
+  auth state and the child selection untouched; confirming clears the auth tuple
+  **and** the selection; and confirming resets `isOnboarded`. Mutation-verified rather
+  than assumed: dropping `clearChildSelection()` from the confirm callback, making
+  `logout()` leave `isOnboarded` true, making a theme chip ignore its tap, and firing
+  the sign-out side effects before the confirm Alert instead of inside it each fail
+  exactly one test. One harness note recorded at the assertion site: the feeding
+  profile chips are labelled from `FEEDING_PROFILE_CONFIG`, whose label is the bare
+  `ARFID`, not the longer copy rendered elsewhere on the card — query by the config's
+  exact value, matching the v0.5.158 note about the Progress tab's header tag. Bumped
+  `APP_VERSION` to v0.5.172. 795 tests pass across 41 suites (was 790, +5). TypeScript
+  clean.
 - v0.5.171 — Feature: **correct a logged exposure's date** in place, from the food
   detail page's Exposure History. This is the last field named in NEXT_STEPS gap #-1;
   stage (v0.5.167), rating (v0.5.168) and notes (v0.5.169) closed the other three.

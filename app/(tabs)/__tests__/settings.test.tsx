@@ -43,6 +43,7 @@ jest.mock('@/src/db/client', () => ({
 import SettingsScreen from '../settings';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { useChildStore } from '@/src/stores/child-store';
+import { useSettingsStore } from '@/src/stores/settings-store';
 
 const EMMA = { id: 'child-1', name: 'Emma', avatarEmoji: '👧' };
 const NOAH = { id: 'child-2', name: 'Noah', avatarEmoji: '👦' };
@@ -293,5 +294,104 @@ describe('SettingsScreen — Export Data', () => {
 
     await click('Export data as CSV');
     await waitFor(() => expect(shareSpy).toHaveBeenCalled());
+  });
+});
+/**
+ * The Preferences card and the Sign Out button. Neither was covered, and the
+ * Sign Out path is the one that matters: the v0.5.80 contract is that it calls
+ * **both** `clearChildSelection()` and `logout()`. Dropping the first leaves
+ * the previous family's `selectedChildId` in MMKV, which on a shared device
+ * bleeds one family's exposure rows into the next person's first render until
+ * `ensureSelection` self-heals against the new children list. That is a
+ * privacy leak, it is a single line, and nothing pinned it through the screen.
+ * `logout()` must also reset `isOnboarded` (also v0.5.80) or the onboarding
+ * flow is skipped for the next person.
+ */
+describe('SettingsScreen — Preferences and Sign Out', () => {
+  let alertSpy: jest.SpyInstance;
+  let errorSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    mockDb = createMockDb();
+    jest.clearAllMocks();
+    alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    useAuthStore.getState().login({
+      userId: 'user-1',
+      familyId: 'fam-1',
+      email: 'anne@tonguetutor.app',
+      displayName: 'Anne',
+    });
+    useAuthStore.setState({ isOnboarded: true });
+    useChildStore.getState().selectChild(EMMA.id);
+    useSettingsStore.setState({ theme: 'system', feedingProfile: 'typical' });
+  });
+
+  afterEach(() => {
+    alertSpy.mockRestore();
+    errorSpy.mockRestore();
+    useAuthStore.getState().logout();
+    useChildStore.getState().clear();
+    useSettingsStore.setState({ theme: 'system', feedingProfile: 'typical' });
+  });
+
+  it('persists a theme choice to the settings store', async () => {
+    await renderWithChildren([EMMA]);
+    expect(useSettingsStore.getState().theme).toBe('system');
+
+    await click('Theme: Dark');
+    expect(useSettingsStore.getState().theme).toBe('dark');
+
+    await click('Theme: Light');
+    expect(useSettingsStore.getState().theme).toBe('light');
+  });
+
+  it('persists a feeding profile choice, which drives the acceptance threshold', async () => {
+    // Not cosmetic: the profile is what `getThresholdForProfile` reads, so it
+    // moves the 15/20/30 target every per-food progress bar is measured against.
+    await renderWithChildren([EMMA]);
+    expect(useSettingsStore.getState().feedingProfile).toBe('typical');
+
+    await click('Profile: ARFID');
+    expect(useSettingsStore.getState().feedingProfile).toBe('arfid');
+  });
+
+  it('asks for confirmation before signing out and changes nothing on cancel', async () => {
+    await renderWithChildren([EMMA]);
+    await click('Sign out');
+
+    expect(alertSpy).toHaveBeenCalled();
+    expect(alertSpy.mock.calls[0][0]).toBe('Sign Out');
+    await confirmAlert(alertSpy, 'Cancel');
+
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    expect(useChildStore.getState().selectedChildId).toBe(EMMA.id);
+  });
+
+  it('clears the child selection as well as the auth state on confirm', async () => {
+    await renderWithChildren([EMMA]);
+    await click('Sign out');
+    await confirmAlert(alertSpy, 'Sign Out');
+
+    const auth = useAuthStore.getState();
+    expect(auth.isAuthenticated).toBe(false);
+    expect(auth.userId).toBeNull();
+    expect(auth.familyId).toBeNull();
+    // The load-bearing half. A stale selectedChildId survives sign-out in
+    // MMKV and points at the *previous* family's child.
+    expect(useChildStore.getState().selectedChildId).toBeNull();
+  });
+
+  it('resets isOnboarded so the next person re-runs onboarding', async () => {
+    await renderWithChildren([EMMA]);
+    expect(useAuthStore.getState().isOnboarded).toBe(true);
+
+    await click('Sign out');
+    await confirmAlert(alertSpy, 'Sign Out');
+
+    // Every screen gate reads `!isAuthenticated || !isOnboarded`; leaving this
+    // true would still redirect today, but a future surface gating on
+    // isOnboarded alone would silently skip the add-child step.
+    expect(useAuthStore.getState().isOnboarded).toBe(false);
   });
 });
