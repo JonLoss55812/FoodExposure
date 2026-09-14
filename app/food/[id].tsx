@@ -13,7 +13,7 @@ import { STAGE_CONFIG, STAGE_ORDER, CATEGORY_CONFIG, FOOD_CATEGORIES, PREPARATIO
 import type { ExposureStage, FoodCategory } from '@/src/lib/constants';
 import { getNextStage, canBumpStage, getHighestStage } from '@/src/lib/stage';
 import { getThresholdForProfile } from '@/src/lib/thresholds';
-import { generateId, formatDate } from '@/src/lib/utils';
+import { generateId, formatDate, resolveOccurredAt, toLocalDateInput } from '@/src/lib/utils';
 import { deleteFoodCascade } from '@/src/lib/cascade-delete';
 import { findDuplicateFood } from '@/src/lib/food-partition';
 import { foodSchema, exposureSchema } from '@/src/lib/validation';
@@ -51,6 +51,9 @@ export default function FoodDetailScreen() {
   const [savingRatingId, setSavingRatingId] = useState<string | null>(null);
   const [editingNotesId, setEditingNotesId] = useState<string | null>(null);
   const [savingNotesId, setSavingNotesId] = useState<string | null>(null);
+  const [editingDateId, setEditingDateId] = useState<string | null>(null);
+  const [savingDateId, setSavingDateId] = useState<string | null>(null);
+  const [dateDraft, setDateDraft] = useState('');
   const [notesDraft, setNotesDraft] = useState('');
   const [nameDraft, setNameDraft] = useState('');
   const [savingName, setSavingName] = useState(false);
@@ -65,6 +68,7 @@ export default function FoodDetailScreen() {
   const stageEditLatch = useRef(createInFlightLatch()).current;
   const ratingEditLatch = useRef(createInFlightLatch()).current;
   const notesEditLatch = useRef(createInFlightLatch()).current;
+  const dateEditLatch = useRef(createInFlightLatch()).current;
 
   const loadData = useCallback(async () => {
     if (!id) {
@@ -350,6 +354,73 @@ export default function FoodDetailScreen() {
     }
   };
 
+  /**
+   * Correct a logged exposure's date. `exposures.occurredAt` is NOT NULL, so
+   * unlike notes (v0.5.169) and rating (v0.5.168) there is no clear-to-null
+   * path — a blank draft resolves back to the stored instant and closes the
+   * editor without touching the DB.
+   *
+   * The draft is validated by `exposureSchema.shape.occurredOn` (the same
+   * format / not-future / not-older-than-MAX_BACKDATE_YEARS chain the Log
+   * form's backdate field uses) and resolved by the same pure
+   * `resolveOccurredAt`, passed **the row's own timestamp** as `now`. That is
+   * the load-bearing argument: a draft naming the day the row already carries
+   * resolves back to the stored instant exactly, so re-saving an untouched
+   * date keeps the row's time of day instead of snapping it to local midnight
+   * (or to right now) and re-ordering the history under the parent.
+   *
+   * The list is ordered by `occurredAt desc`, so unlike the other three
+   * editors this one has to re-sort after the patch — otherwise the corrected
+   * row stays where it was until the screen is reloaded.
+   */
+  const startEditingDate = (exp: ExposureRow) => {
+    setDateDraft(toLocalDateInput(exp.occurredAt));
+    setEditingDateId(exp.id);
+  };
+
+  const handleSaveDate = async (exp: ExposureRow) => {
+    if (!dateEditLatch.tryAcquire()) return;
+
+    const parsed = exposureSchema.shape.occurredOn.safeParse(dateDraft);
+    if (!parsed.success) {
+      dateEditLatch.release();
+      Alert.alert('Invalid Date', parsed.error.issues[0]?.message ?? 'Please enter a valid date.');
+      return;
+    }
+    const stored = new Date(exp.occurredAt);
+    const next = resolveOccurredAt(parsed.data, stored);
+    // Covers both no-ops in one check, deliberately: a draft naming the day
+    // already stored, and a blank draft — `resolveOccurredAt` falls back to
+    // the `now` it was handed, which here is the row's own timestamp. There
+    // is no clear-to-null branch because `occurredAt` is NOT NULL; "not
+    // recorded" is not a legal state for this column.
+    if (next.getTime() === stored.getTime()) {
+      dateEditLatch.release();
+      setEditingDateId(null);
+      return;
+    }
+
+    setSavingDateId(exp.id);
+    try {
+      await db.update(schema.exposures)
+        .set({ occurredAt: next })
+        .where(eq(schema.exposures.id, exp.id));
+      setExposuresList((rows) =>
+        rows
+          .map((row) => (row.id === exp.id ? { ...row, occurredAt: next } : row))
+          .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()),
+      );
+      setEditingDateId(null);
+    } catch (err) {
+      console.error('Failed to change exposure date:', err);
+      Alert.alert('Error', 'Failed to save date. Please try again.');
+      // Leave the editor open so the draft is not lost and the retry is one tap.
+    } finally {
+      dateEditLatch.release();
+      setSavingDateId(null);
+    }
+  };
+
   const handleToggleSafeFood = async () => {
     if (!food) return;
     const next = !food.isSafeFood;
@@ -521,7 +592,8 @@ export default function FoodDetailScreen() {
     deletingExposureId !== null ||
     savingStageId !== null ||
     savingRatingId !== null ||
-    savingNotesId !== null;
+    savingNotesId !== null ||
+    savingDateId !== null;
 
   if (loading) {
     return (
@@ -830,6 +902,26 @@ export default function FoodDetailScreen() {
                   </Text>
                 </Pressable>
                 <Pressable
+                  style={styles.exposureAction}
+                  onPress={() =>
+                    editingDateId === exp.id
+                      ? setEditingDateId(null)
+                      : startEditingDate(exp)
+                  }
+                  disabled={rowBusy}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Change date of ${STAGE_CONFIG[exp.stage]?.label ?? exp.stage} exposure from ${formatDate(new Date(exp.occurredAt))}`}
+                  accessibilityState={{
+                    expanded: editingDateId === exp.id,
+                    disabled: rowBusy,
+                    busy: savingDateId === exp.id,
+                  }}
+                >
+                  <Text style={styles.exposureActionText}>
+                    {savingDateId === exp.id ? 'Saving…' : 'Edit date'}
+                  </Text>
+                </Pressable>
+                <Pressable
                   style={styles.exposureDelete}
                   onPress={() => handleDeleteExposure(exp)}
                   disabled={rowBusy}
@@ -906,6 +998,42 @@ export default function FoodDetailScreen() {
                       </Pressable>
                     );
                   })}
+                </View>
+              )}
+              {editingDateId === exp.id && (
+                <View style={styles.notesEditor}>
+                  <TextInput
+                    style={styles.notesInput}
+                    value={dateDraft}
+                    onChangeText={setDateDraft}
+                    maxLength={10}
+                    autoCapitalize="none"
+                    autoFocus
+                    accessibilityLabel="Exposure date"
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={theme.colors.textTertiary}
+                  />
+                  <View style={styles.notesEditorActions}>
+                    <Pressable
+                      onPress={() => handleSaveDate(exp)}
+                      disabled={rowBusy}
+                      accessibilityRole="button"
+                      accessibilityLabel="Save exposure date"
+                      accessibilityState={{ disabled: rowBusy, busy: savingDateId === exp.id }}
+                    >
+                      <Text style={styles.renameAction}>
+                        {savingDateId === exp.id ? 'Saving…' : 'Save'}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setEditingDateId(null)}
+                      disabled={rowBusy}
+                      accessibilityRole="button"
+                      accessibilityLabel="Cancel editing exposure date"
+                    >
+                      <Text style={styles.renameCancel}>Cancel</Text>
+                    </Pressable>
+                  </View>
                 </View>
               )}
               {editingNotesId === exp.id && (

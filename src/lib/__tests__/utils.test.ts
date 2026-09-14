@@ -8,6 +8,7 @@ import {
   deriveLocalEmailPart,
   resolveOccurredAt,
   MAX_BACKDATE_YEARS,
+  toLocalDateInput,
 } from '../utils';
 
 describe('generateId', () => {
@@ -422,5 +423,35 @@ describe('resolveOccurredAt', () => {
 
   it('exposes a backdate bound that leaves room for a real logging backlog', () => {
     expect(MAX_BACKDATE_YEARS).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('toLocalDateInput', () => {
+  it('renders a Date as its local calendar day, zero-padded', () => {
+    expect(toLocalDateInput(new Date(2026, 0, 5, 23, 59))).toBe('2026-01-05');
+    expect(toLocalDateInput(new Date(2026, 11, 31, 0, 0))).toBe('2026-12-31');
+  });
+
+  it('uses local getters, not UTC (round-trips through resolveOccurredAt)', () => {
+    // A late-evening local timestamp is the previous/next UTC day in most
+    // zones; the seeded string must name the day the parent actually sees.
+    const stored = new Date(2026, 8, 10, 23, 30);
+    const seeded = toLocalDateInput(stored);
+    expect(seeded).toBe('2026-09-10');
+    // Re-resolving the seeded value against the stored row is a true no-op.
+    expect(resolveOccurredAt(seeded, stored).getTime()).toBe(stored.getTime());
+  });
+
+  it('accepts a numeric epoch and an ISO string', () => {
+    const d = new Date(2026, 4, 7, 12, 0);
+    expect(toLocalDateInput(d.getTime())).toBe('2026-05-07');
+    expect(toLocalDateInput(d.toISOString())).toBe('2026-05-07');
+  });
+
+  it('returns an empty string for null, undefined, and unparseable input', () => {
+    expect(toLocalDateInput(null)).toBe('');
+    expect(toLocalDateInput(undefined)).toBe('');
+    expect(toLocalDateInput(new Date(NaN))).toBe('');
+    expect(toLocalDateInput('not a date')).toBe('');
   });
 });

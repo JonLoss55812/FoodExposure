@@ -1171,4 +1171,209 @@ describe('FoodDetailScreen', () => {
     });
   });
 
+  describe('edit an exposure date', () => {
+    const exp = (id: string, stage: string, occurredAt: Date) => ({
+      id,
+      stage,
+      rating: null,
+      notes: null,
+      occurredAt,
+      mealType: null,
+      temperature: null,
+      texture: null,
+      setting: null,
+    });
+
+    const dateRow = (stage: string) =>
+      screen.getByLabelText(new RegExp(`^Change date of ${stage} exposure from `));
+
+    const openEditor = async (stage: string) => {
+      await act(async () => {
+        fireEvent.click(dateRow(stage));
+      });
+    };
+
+    const typeDate = (value: string) => {
+      fireEvent.change(screen.getByLabelText('Exposure date'), {
+        target: { value },
+      });
+    };
+
+    const input = () => screen.getByLabelText('Exposure date') as HTMLInputElement;
+
+    it('opens an editor seeded with the stored date as a local YYYY-MM-DD', async () => {
+      // 23:30 local is the neighbouring UTC day in most zones; seeding from
+      // UTC would show the parent a day they never logged.
+      queueLoad(FOOD, [exp('exp-1', 'smell', new Date(2026, 8, 10, 23, 30))]);
+      await renderLoaded();
+
+      expect(screen.queryByLabelText('Exposure date')).toBeNull();
+      await openEditor('Smell');
+      expect(input().value).toBe('2026-09-10');
+    });
+
+    it('persists the backdated day at local midnight, scoped to that row', async () => {
+      queueLoad(FOOD, [exp('exp-1', 'smell', new Date(2026, 8, 10, 8, 0))]);
+      await renderLoaded();
+
+      await openEditor('Smell');
+      typeDate('2026-09-08');
+      await click('Save exposure date');
+
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      const write = mockDb.writes[0] as {
+        kind: string;
+        values: Record<string, unknown>;
+        where: unknown;
+      };
+      expect(write.kind).toBe('update');
+      // Local midnight, matching `resolveOccurredAt` and every date-bucketed
+      // surface in the app. A UTC parse would land the row on the 7th for
+      // every user west of Greenwich.
+      expect(write.values).toEqual({ occurredAt: new Date(2026, 8, 8) });
+      // Scoped to the row the user named — a foodId predicate would rewrite
+      // the whole history's dates with no on-screen cue.
+      expect(write.where).toEqual(eq(schema.exposures.id, 'exp-1'));
+
+      await waitFor(() => expect(screen.queryByLabelText('Exposure date')).toBeNull());
+      expect(alertSpy).not.toHaveBeenCalled();
+    });
+
+    it('re-sorts the history after a correction, because it is ordered by date', async () => {
+      // The other three per-row editors never move a row. This one does:
+      // pulling the older exposure ahead of the newer one must reorder the
+      // list, or the corrected row sits in the wrong place until reload.
+      queueLoad(FOOD, [
+        exp('exp-1', 'taste', new Date(2026, 8, 10)),
+        exp('exp-2', 'smell', new Date(2026, 8, 1)),
+      ]);
+      await renderLoaded();
+
+      await openEditor('Smell');
+      typeDate('2026-09-12');
+      await click('Save exposure date');
+
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      await waitFor(() => {
+        const labels = screen
+          .getAllByLabelText(/^Delete (Taste|Smell) exposure from /)
+          .map((el) => el.getAttribute('aria-label') ?? '');
+        expect(labels[0]).toContain('Smell');
+        expect(labels[1]).toContain('Taste');
+      });
+    });
+
+    it('writes nothing when the draft names the day already stored', async () => {
+      // Resolved against the row's own timestamp, so the stored time of day
+      // survives instead of snapping to local midnight (or to now) and
+      // silently reordering the history.
+      const stored = new Date(2026, 8, 10, 14, 45);
+      queueLoad(FOOD, [exp('exp-1', 'smell', stored)]);
+      await renderLoaded();
+
+      await openEditor('Smell');
+      await click('Save exposure date');
+
+      await waitFor(() => expect(screen.queryByLabelText('Exposure date')).toBeNull());
+      expect(mockDb.writes).toHaveLength(0);
+      expect(alertSpy).not.toHaveBeenCalled();
+    });
+
+    it('writes nothing when the draft is blanked, because occurredAt is NOT NULL', async () => {
+      // Unlike notes (v0.5.169) and rating (v0.5.168) there is no clear path:
+      // "not recorded" is not a legal state for this column.
+      queueLoad(FOOD, [exp('exp-1', 'smell', new Date(2026, 8, 10))]);
+      await renderLoaded();
+
+      await openEditor('Smell');
+      typeDate('   ');
+      await click('Save exposure date');
+
+      await waitFor(() => expect(screen.queryByLabelText('Exposure date')).toBeNull());
+      expect(mockDb.writes).toHaveLength(0);
+      expect(alertSpy).not.toHaveBeenCalled();
+    });
+
+    it('rejects a future date via the schema, writes nothing, and stays open', async () => {
+      queueLoad(FOOD, [exp('exp-1', 'smell', new Date(2026, 8, 10))]);
+      await renderLoaded();
+
+      const future = new Date(Date.now() + 40 * 24 * 60 * 60 * 1000);
+      await openEditor('Smell');
+      typeDate(
+        `${future.getFullYear()}-${String(future.getMonth() + 1).padStart(2, '0')}-${String(
+          future.getDate(),
+        ).padStart(2, '0')}`,
+      );
+      await click('Save exposure date');
+
+      await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+      expect(alertSpy.mock.calls[0][0]).toBe('Invalid Date');
+      expect(mockDb.writes).toHaveLength(0);
+      // Left open so the parent corrects in place instead of retyping.
+      expect(input()).toBeTruthy();
+    });
+
+    it('rejects a malformed date via the schema and writes nothing', async () => {
+      queueLoad(FOOD, [exp('exp-1', 'smell', new Date(2026, 8, 10))]);
+      await renderLoaded();
+
+      await openEditor('Smell');
+      // A calendar rollover, not a syntax error: `2026-02-30` would silently
+      // become Mar 1 under a bare `new Date(...)`.
+      typeDate('2026-02-30');
+      await click('Save exposure date');
+
+      await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+      expect(alertSpy.mock.calls[0][0]).toBe('Invalid Date');
+      expect(mockDb.writes).toHaveLength(0);
+      expect(input().value).toBe('2026-02-30');
+    });
+
+    it('abandons the draft on Cancel and reseeds from the stored value', async () => {
+      queueLoad(FOOD, [exp('exp-1', 'smell', new Date(2026, 8, 10))]);
+      await renderLoaded();
+
+      await openEditor('Smell');
+      typeDate('2026-01-01');
+      await click('Cancel editing exposure date');
+
+      await waitFor(() => expect(screen.queryByLabelText('Exposure date')).toBeNull());
+      expect(mockDb.writes).toHaveLength(0);
+      await openEditor('Smell');
+      expect(input().value).toBe('2026-09-10');
+    });
+
+    it('alerts on a failed write, keeps the draft, and stays retryable', async () => {
+      queueLoad(FOOD, [exp('exp-1', 'smell', new Date(2026, 8, 10))]);
+      await renderLoaded();
+
+      const target = mockDb.db as unknown as { update: (...a: unknown[]) => unknown };
+      const realUpdate = target.update;
+      let failed = false;
+      target.update = (...args: unknown[]) => {
+        if (failed) return realUpdate(...args);
+        failed = true;
+        return {
+          set: () => ({ where: () => Promise.reject(new Error('boom')) }),
+        };
+      };
+
+      await openEditor('Smell');
+      typeDate('2026-09-08');
+      await click('Save exposure date');
+
+      await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+      expect(alertSpy.mock.calls[0][0]).toBe('Error');
+      expect(input().value).toBe('2026-09-08');
+
+      // The latch was released in `finally`, so the retry reaches the DB.
+      await click('Save exposure date');
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      expect((mockDb.writes[0] as { values: Record<string, unknown> }).values).toEqual({
+        occurredAt: new Date(2026, 8, 8),
+      });
+    });
+  });
+
 });

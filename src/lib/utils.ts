@@ -113,3 +113,19 @@ export function resolveOccurredAt(value?: string | null, now: Date = new Date())
     local.getDate() === base.getDate();
   return isToday ? base : local;
 }
+
+/**
+ * Render a stored timestamp as the local `YYYY-MM-DD` string the backdate
+ * fields accept. Reads the *local* getters, matching `resolveOccurredAt`,
+ * which parses a named day at local midnight — a UTC formatting here would
+ * seed the editor with the previous day for every user west of Greenwich and
+ * with the next day's row for none of them, so round-tripping an untouched
+ * date would silently move it. Returns '' for anything unparseable.
+ */
+export function toLocalDateInput(value?: Date | number | string | null): string {
+  if (value === null || value === undefined) return '';
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}

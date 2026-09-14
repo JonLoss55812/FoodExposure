@@ -218,9 +218,66 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.170
+v0.5.171
 
 ## Changelog
+- v0.5.171 — Feature: **correct a logged exposure's date** in place, from the food
+  detail page's Exposure History. This is the last field named in NEXT_STEPS gap #-1;
+  stage (v0.5.167), rating (v0.5.168) and notes (v0.5.169) closed the other three.
+  It was deliberately left for last because `occurredAt` is the one dimension that
+  moves the row on *every* date-bucketed surface — the dashboard's "Today's Exposures"
+  card, the Progress tab's trailing-7-day window, `formatRelativeDate`, and the date
+  column a feeding therapist reads in the CSV export — and because the history is
+  ordered by `occurredAt desc`, so unlike the other three editors a correction changes
+  the row's position under the user. v0.5.164 made an exposure backdatable at *log*
+  time; until now a date logged wrong (or a row logged today that actually happened
+  yesterday, noticed a day later) was fixable only by delete-and-re-log, which
+  discards the row's original `createdAt` and every optional dimension recorded with
+  it. Each history row gains an "Edit date" pressable beside the v0.5.169 "Edit notes",
+  opening an inline `YYYY-MM-DD` `TextInput` (`maxLength={10}`, `autoCapitalize="none"`)
+  with explicit Save and Cancel — the free-text shape of the v0.5.169 notes editor, not
+  a chip row, and the same shape the Log form's backdate field uses. No date-picker
+  package was added, matching the v0.5.164 deferral. Three decisions are load-bearing.
+  (1) The draft is validated by **`exposureSchema.shape.occurredOn`**, the same
+  format / not-in-the-future / not-older-than-`MAX_BACKDATE_YEARS` chain the Log form
+  uses, so the two surfaces cannot disagree and a calendar rollover (`2026-02-30`) is
+  rejected as the rollover it is rather than silently becoming Mar 1. (2) The draft is
+  resolved by the same pure **`resolveOccurredAt`**, passed **the row's own timestamp**
+  as its `now` argument rather than the wall clock. That single argument does two jobs:
+  a draft naming the day the row already carries resolves back to the stored instant
+  *exactly*, so re-saving an untouched date keeps the row's time of day instead of
+  snapping it to local midnight (or to right now) and reordering the history; and a
+  blank draft falls through the same path, which is why there is no separate
+  clear-to-null branch — `exposures.occurredAt` is NOT NULL, so "not recorded" is not a
+  legal state here, unlike the nullable rating and notes. Both no-ops therefore collapse
+  into one `next.getTime() === stored.getTime()` check; a separate blank guard was
+  written first, **measured as unreachable under mutation, and deleted** rather than
+  shipped as an unfalsifiable branch. (3) The local patch **re-sorts** the list by
+  `occurredAt desc`. None of the three existing per-row editors had to think about
+  ordering; this one does, and without it a corrected row sits in the wrong place until
+  the screen reloads. The editor is seeded through a new pure exported
+  `toLocalDateInput(value)` in `src/lib/utils.ts`, which reads the **local** getters to
+  match `resolveOccurredAt`'s local-midnight parse — a UTC formatting would seed the
+  previous day for every user west of Greenwich, so round-tripping an untouched date
+  would silently move it (the same defect class v0.5.166 fixed in the CSV export).
+  Confirming issues exactly one `db.update(exposures).set({ occurredAt })` scoped by
+  `eq(exposures.id, exp.id)`. `highestStage` is deliberately *not* recomputed — date
+  feeds no derived value on this screen and `getHighestStage` is order-independent.
+  `rowBusy` gains the date save, so no two per-row writes race on the same
+  `exposuresList`; double-tap is guarded by the v0.5.144 synchronous latch, released in
+  `finally` so neither early return can strand it. On failure the editor stays open with
+  the draft intact. +9 screen tests in `app/food/__tests__/id.test.tsx` (the editor
+  seeds from a 23:30-local timestamp, which is the neighbouring UTC day in most zones;
+  the happy path persists local midnight under the expected `eq` predicate; a
+  correction re-sorts the two-row history; a draft naming the stored day and a blanked
+  draft each write nothing; a future date and a rollover date each surface the schema's
+  message and leave the editor open; Cancel reseeds; a failed write alerts and stays
+  retryable) and +4 unit tests on `toLocalDateInput` (local-getter rendering with a
+  `resolveOccurredAt` round-trip, numeric/ISO input, and the unparseable guards).
+  Mutation-verified rather than assumed: dropping the re-sort, resolving against `now`
+  instead of the stored row, and scoping the update by `foodId` each fail exactly one
+  test. Bumped `APP_VERSION` to v0.5.171. 790 tests pass across 41 suites (was 777,
+  +13). TypeScript clean.
 - v0.5.170 — Perf: add three measured indexes to the `exposures` table. The
   migration in `src/providers/DatabaseProvider.tsx` created six tables and **zero**
   indexes, so every child-scoped read was a full table scan of the one table that
