@@ -218,9 +218,53 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.172
+v0.5.173
 
 ## Changelog
+- v0.5.173 — Tests: the SQLite migration is now executed by a test. The whole data
+  layer had shipped unverified since v0.1.0 — the migration lived in a template
+  literal inside `DatabaseProvider`, a React component no test imports, which is
+  exactly how v0.5.170 shipped a stray backtick that **terminated the enclosing
+  template literal** while all 777 tests stayed green; only `tsc --noEmit` caught
+  it. Every CHECK constraint added across v0.5.123–v0.5.131, and the three indexes
+  added in v0.5.170, were therefore asserted by inspection alone. Two pieces.
+  (1) The SQL moves to `src/db/migration.ts` as an exported `MIGRATION_SQL`
+  constant; `DatabaseProvider` drops from 132 lines to 42 and now reads
+  `await expoDb.execAsync(MIGRATION_SQL)`. No behavioural change — the string is
+  byte-identical apart from dedenting. (2) New `src/db/__tests__/migration.test.ts`
+  runs that exact string against an in-memory **`node:sqlite`** database (Node 22+,
+  no native module, same SQL dialect — so the assertions are about the script, not
+  the driver; this is the same harness v0.5.170 built ad hoc for its measurements
+  and then discarded). 25 tests: the six tables exist and *only* those six (an
+  exact set, so a stray CREATE TABLE is a failure too); the script is **idempotent**
+  and a second run preserves existing rows, which is the property that stands
+  between a cold start and total data loss and was previously trusted by
+  inspection; the three `idx_exposures_*` indexes exist; each of the four hot
+  queries the call sites emit gets the *named* index it was designed for; and the
+  CHECK constraints actually reject out-of-contract rows — a 5- or 7-character
+  invite code, an over-long or empty child name, a category outside the enum, and
+  ten exposure cases (rating 0 and 6, unknown stage/temperature/texture/meal/
+  setting, epoch-zero and negative `occurred_at`, epoch-zero `created_at`). Three
+  mirror tests guard against a constraint narrowed one step too far, which is the
+  failure mode a rejection-only suite cannot see: the inclusive rating boundaries
+  1 and 5 and every value of four enums are accepted, all nine optional exposure
+  dimensions stay nullable (the app writes `?? null` and the v0.5.168/169 editors
+  clear back to `null`, so a CHECK without an `IS NULL` escape would make a bare
+  exposure un-insertable), and `foods.is_safe_food` defaults to 0 while rejecting
+  2 and -1 — the load-bearing case from v0.5.123, since drizzle's boolean mode
+  reads any non-zero as true but `eq(isSafeFood, true)` compiles to `= 1`, so such
+  a row shows in the pinned Safe Foods row and vanishes from every filtered query.
+  Mutation-verified rather than assumed: narrowing the rating CHECK to 2–4,
+  dropping the `children.name` CHECK, dropping `'eat'` from the stage enum,
+  deleting the `idx_exposures_food` index, and removing `IF NOT EXISTS` from the
+  exposures table each fail one or two tests. **One assertion was measured as
+  too weak and tightened rather than shipped:** the first draft asserted only
+  `USING INDEX` on each query plan, and reverting the composite index to
+  `(child_id, food_id)` — the exact regression v0.5.170 measured and documented —
+  left the suite **green**, because on an empty table the planner still reports an
+  index for the ORDER BY before filtering. The assertion now names the expected
+  index per query, and that mutation fails. Bumped `APP_VERSION` to v0.5.173.
+  820 tests pass across 42 suites (was 795 across 41, +25). TypeScript clean.
 - v0.5.172 — Tests: screen coverage for the Settings tab's **Preferences card and
   Sign Out button**, the two remaining uncovered paths on that screen (the v0.5.139
   Delete Child flow and the v0.5.0 CSV export were already covered). Sign Out is the
