@@ -218,9 +218,47 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.173
+v0.5.174
 
 ## Changelog
+- v0.5.174 — Refactor: the four per-row exposure editors on the food detail page now
+  share **one** piece of open-editor state instead of eight. NEXT_STEPS gap #-1 (b)
+  flagged this explicitly — "the next person adding or changing a per-row field will
+  pay for the duplication… do it before adding a fifth editor" — and named the shape
+  to move to. v0.5.167 (stage), v0.5.168 (rating), v0.5.169 (notes) and v0.5.171
+  (date) each landed as its own `editingXId` / `savingXId` pair plus its own
+  `createInFlightLatch`, so the history `map` carried eight id-valued state slots,
+  four latches, and a `rowBusy` that ORed five terms. Replaced by
+  `editing: { id, field } | null`, `saving: { id, field } | null`, one `rowEditLatch`,
+  and three tiny readers (`isEditing`, `isSaving`, `toggleEditing`). `rowBusy` drops
+  from five terms to two. Behaviour is unchanged by construction: every one of the 63
+  existing tests across the four editors passes **untouched**, which is what made the
+  refactor safe to do now rather than later. Two things worth recording. (1) The
+  collapse is not merely tidier — it makes an invariant unrepresentable that was
+  previously held only by convention: with per-field ids, two *rows* could be open at
+  once, and nothing but the `rowBusy` gating stopped two writes from racing on the
+  `exposuresList` patch that every editor applies instead of reloading. One slot
+  cannot express that state. Likewise one latch replaces four that were already
+  mutually exclusive, where four only let a bug in that gating go unnoticed. (2) The
+  collapse introduces exactly one new way to be wrong that the old shape could not
+  have: forgetting to discriminate on `field`, so opening any editor opens all four
+  on that row. **Measured, not assumed** — dropping the `field` comparison from
+  `isEditing` left all 63 existing tests green. +4 tests in a new describe block pin
+  it: opening the stage chip row and opening the rating chip row each leave the notes
+  and date inputs absent, opening the notes editor leaves the date input and both chip
+  rows absent, and opening a second field *closes* the first (the shared slot holds
+  one field, so switching must swap rather than accumulate — otherwise a row grows an
+  editor per tap and the notes draft stays mounted under the date input). With those
+  in place the mutation fails 4 tests, and making `toggleEditing` never close fails 13.
+  One mutation is recorded as surviving rather than papered over: dropping the
+  `saving !== null` term from `rowBusy` leaves the suite green, because
+  react-native-web does not serialize `accessibilityState.disabled` to `aria-disabled`
+  (the v0.5.146 harness note) and the single latch already prevents the concurrency
+  the flag guards — so the disabled state is not observable from a DOM test. The same
+  is true of `isSaving`'s field discrimination, whose only effect is which of the four
+  action labels reads "Saving…" during a write that resolves in the same tick.
+  Bumped `APP_VERSION` to v0.5.174. 824 tests pass across 42 suites (was 820, +4).
+  TypeScript clean.
 - v0.5.173 — Tests: the SQLite migration is now executed by a test. The whole data
   layer had shipped unverified since v0.1.0 — the migration lived in a template
   literal inside `DatabaseProvider`, a React component no test imports, which is

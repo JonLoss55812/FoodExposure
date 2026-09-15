@@ -1376,4 +1376,75 @@ describe('FoodDetailScreen', () => {
     });
   });
 
+
+  describe('only one row editor is open at a time (v0.5.173)', () => {
+    // v0.5.173 collapsed the four `editingXId` / `savingXId` pairs into one
+    // `editing: { id, field }`. That is strictly safer for cross-*row* state —
+    // two rows open at once is now unrepresentable — but it introduces one new
+    // way to be wrong that the per-field ids could not be: forgetting to
+    // discriminate on `field`, so opening any editor opens all four on that
+    // row. Measured: dropping the `field` comparison from `isEditing` left the
+    // whole suite green before these tests existed.
+    const exp = (id: string, stage: string) => ({
+      id,
+      stage,
+      rating: null,
+      notes: 'crunchy',
+      occurredAt: new Date(2026, 0, 15),
+      mealType: null,
+      temperature: null,
+      texture: null,
+      setting: null,
+    });
+
+    const open = async (field: string, stage: string) => {
+      await act(async () => {
+        fireEvent.click(
+          screen.getByLabelText(new RegExp(`^Change ${field} of ${stage} exposure from `)),
+        );
+      });
+    };
+
+    it.each([
+      ['stage', 'Set stage: Touch'],
+      ['rating', 'Set rating: Enjoyed'],
+    ])('opening the %s chip row leaves the notes and date editors closed', async (field, chip) => {
+      queueLoad(FOOD, [exp('exp-1', 'smell')]);
+      await renderLoaded();
+
+      await open(field, 'Smell');
+
+      expect(screen.getByLabelText(chip)).toBeTruthy();
+      expect(screen.queryByLabelText('Exposure notes')).toBeNull();
+      expect(screen.queryByLabelText('Exposure date')).toBeNull();
+    });
+
+    it('opening the notes editor leaves the date editor and both chip rows closed', async () => {
+      queueLoad(FOOD, [exp('exp-1', 'smell')]);
+      await renderLoaded();
+
+      await open('notes', 'Smell');
+
+      expect(screen.getByLabelText('Exposure notes')).toBeTruthy();
+      expect(screen.queryByLabelText('Exposure date')).toBeNull();
+      expect(screen.queryByLabelText('Set stage: Touch')).toBeNull();
+      expect(screen.queryByLabelText('Set rating: Enjoyed')).toBeNull();
+    });
+
+    it('opening a second field closes the first', async () => {
+      // The shared `editing` slot holds one field, so switching fields must
+      // swap rather than accumulate — otherwise the row grows an editor per
+      // tap and the notes draft stays mounted under the date input.
+      queueLoad(FOOD, [exp('exp-1', 'smell')]);
+      await renderLoaded();
+
+      await open('notes', 'Smell');
+      expect(screen.getByLabelText('Exposure notes')).toBeTruthy();
+
+      await open('date', 'Smell');
+      expect(screen.getByLabelText('Exposure date')).toBeTruthy();
+      expect(screen.queryByLabelText('Exposure notes')).toBeNull();
+    });
+  });
+
 });

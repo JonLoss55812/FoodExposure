@@ -27,6 +27,12 @@ type ExposureRow = Pick<
 /** PREPARATIONS are stored lowercase; every surface displays them title-cased. */
 const titleCase = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
+/** The four per-row exposure fields that are correctable in place. */
+type ExposureEditField = 'stage' | 'rating' | 'notes' | 'date';
+
+/** Which row's which field is currently open for editing, or being saved. */
+type ExposureEdit = { id: string; field: ExposureEditField };
+
 export default function FoodDetailScreen() {
   const { theme } = useUnistyles();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -45,14 +51,24 @@ export default function FoodDetailScreen() {
   const [editingPrep, setEditingPrep] = useState(false);
   const [savingPrep, setSavingPrep] = useState(false);
   const [deletingExposureId, setDeletingExposureId] = useState<string | null>(null);
-  const [editingStageId, setEditingStageId] = useState<string | null>(null);
-  const [savingStageId, setSavingStageId] = useState<string | null>(null);
-  const [editingRatingId, setEditingRatingId] = useState<string | null>(null);
-  const [savingRatingId, setSavingRatingId] = useState<string | null>(null);
-  const [editingNotesId, setEditingNotesId] = useState<string | null>(null);
-  const [savingNotesId, setSavingNotesId] = useState<string | null>(null);
-  const [editingDateId, setEditingDateId] = useState<string | null>(null);
-  const [savingDateId, setSavingDateId] = useState<string | null>(null);
+  // One open editor and one in-flight write across the whole history list,
+  // rather than a pair of ids per field. Four fields on an exposure row are
+  // correctable (v0.5.167-v0.5.171) and only one can ever be open or saving at
+  // a time — `rowBusy` below disables every row action while any write is in
+  // flight, precisely because the editors patch `exposuresList` instead of
+  // reloading. Eight booleans-by-id encoded that invariant only by convention;
+  // this pair makes it unrepresentable to have two rows open at once.
+  const [editing, setEditing] = useState<ExposureEdit | null>(null);
+  const [saving, setSaving] = useState<ExposureEdit | null>(null);
+  const isEditing = (id: string, field: ExposureEditField) =>
+    editing?.id === id && editing.field === field;
+  const isSaving = (id: string, field: ExposureEditField) =>
+    saving?.id === id && saving.field === field;
+  /** Open this row's field, or close it if it is the one already open. */
+  const toggleEditing = (id: string, field: ExposureEditField) =>
+    setEditing((current) =>
+      current?.id === id && current.field === field ? null : { id, field },
+    );
   const [dateDraft, setDateDraft] = useState('');
   const [notesDraft, setNotesDraft] = useState('');
   const [nameDraft, setNameDraft] = useState('');
@@ -65,10 +81,10 @@ export default function FoodDetailScreen() {
   const categoryLatch = useRef(createInFlightLatch()).current;
   const prepLatch = useRef(createInFlightLatch()).current;
   const exposureLatch = useRef(createInFlightLatch()).current;
-  const stageEditLatch = useRef(createInFlightLatch()).current;
-  const ratingEditLatch = useRef(createInFlightLatch()).current;
-  const notesEditLatch = useRef(createInFlightLatch()).current;
-  const dateEditLatch = useRef(createInFlightLatch()).current;
+  // One latch for all four per-row editors: they are mutually exclusive by
+  // construction (see `rowBusy`), so four separate latches only let a bug in
+  // that gating go unnoticed.
+  const rowEditLatch = useRef(createInFlightLatch()).current;
 
   const loadData = useCallback(async () => {
     if (!id) {
@@ -210,15 +226,15 @@ export default function FoodDetailScreen() {
    * NOT NULL, so "unset" is not a legal persisted state.
    */
   const handleSelectExposureStage = async (exp: ExposureRow, next: ExposureStage) => {
-    if (!stageEditLatch.tryAcquire()) return;
+    if (!rowEditLatch.tryAcquire()) return;
 
     if (next === exp.stage) {
-      stageEditLatch.release();
-      setEditingStageId(null);
+      rowEditLatch.release();
+      setEditing(null);
       return;
     }
 
-    setSavingStageId(exp.id);
+    setSaving({ id: exp.id, field: 'stage' });
     try {
       await db.update(schema.exposures)
         .set({ stage: next })
@@ -233,14 +249,14 @@ export default function FoodDetailScreen() {
       );
       setExposuresList(updated);
       setHighestStage(getHighestStage(updated));
-      setEditingStageId(null);
+      setEditing(null);
     } catch (err) {
       console.error('Failed to change exposure stage:', err);
       Alert.alert('Error', 'Failed to change stage. Please try again.');
       // Leave the row open so the retry is one tap rather than a re-open.
     } finally {
-      stageEditLatch.release();
-      setSavingStageId(null);
+      rowEditLatch.release();
+      setSaving(null);
     }
   };
 
@@ -268,11 +284,11 @@ export default function FoodDetailScreen() {
    * derived value on this screen.
    */
   const handleSelectExposureRating = async (exp: ExposureRow, next: number) => {
-    if (!ratingEditLatch.tryAcquire()) return;
+    if (!rowEditLatch.tryAcquire()) return;
 
     const value = next === exp.rating ? null : next;
 
-    setSavingRatingId(exp.id);
+    setSaving({ id: exp.id, field: 'rating' });
     try {
       await db.update(schema.exposures)
         .set({ rating: value })
@@ -282,14 +298,14 @@ export default function FoodDetailScreen() {
       setExposuresList((rows) =>
         rows.map((row) => (row.id === exp.id ? { ...row, rating: value } : row)),
       );
-      setEditingRatingId(null);
+      setEditing(null);
     } catch (err) {
       console.error('Failed to change exposure rating:', err);
       Alert.alert('Error', 'Failed to change rating. Please try again.');
       // Leave the row open so the retry is one tap rather than a re-open.
     } finally {
-      ratingEditLatch.release();
-      setSavingRatingId(null);
+      rowEditLatch.release();
+      setSaving(null);
     }
   };
 
@@ -316,26 +332,26 @@ export default function FoodDetailScreen() {
    */
   const startEditingNotes = (exp: ExposureRow) => {
     setNotesDraft(exp.notes ?? '');
-    setEditingNotesId(exp.id);
+    setEditing({ id: exp.id, field: 'notes' });
   };
 
   const handleSaveNotes = async (exp: ExposureRow) => {
-    if (!notesEditLatch.tryAcquire()) return;
+    if (!rowEditLatch.tryAcquire()) return;
 
     const parsed = exposureSchema.shape.notes.safeParse(notesDraft);
     if (!parsed.success) {
-      notesEditLatch.release();
+      rowEditLatch.release();
       Alert.alert('Invalid Notes', parsed.error.issues[0]?.message ?? 'Please shorten your notes.');
       return;
     }
     const value = parsed.data ?? null;
     if (value === (exp.notes ?? null)) {
-      notesEditLatch.release();
-      setEditingNotesId(null);
+      rowEditLatch.release();
+      setEditing(null);
       return;
     }
 
-    setSavingNotesId(exp.id);
+    setSaving({ id: exp.id, field: 'notes' });
     try {
       await db.update(schema.exposures)
         .set({ notes: value })
@@ -343,14 +359,14 @@ export default function FoodDetailScreen() {
       setExposuresList((rows) =>
         rows.map((row) => (row.id === exp.id ? { ...row, notes: value } : row)),
       );
-      setEditingNotesId(null);
+      setEditing(null);
     } catch (err) {
       console.error('Failed to change exposure notes:', err);
       Alert.alert('Error', 'Failed to save notes. Please try again.');
       // Leave the editor open so the draft is not lost and the retry is one tap.
     } finally {
-      notesEditLatch.release();
-      setSavingNotesId(null);
+      rowEditLatch.release();
+      setSaving(null);
     }
   };
 
@@ -375,15 +391,15 @@ export default function FoodDetailScreen() {
    */
   const startEditingDate = (exp: ExposureRow) => {
     setDateDraft(toLocalDateInput(exp.occurredAt));
-    setEditingDateId(exp.id);
+    setEditing({ id: exp.id, field: 'date' });
   };
 
   const handleSaveDate = async (exp: ExposureRow) => {
-    if (!dateEditLatch.tryAcquire()) return;
+    if (!rowEditLatch.tryAcquire()) return;
 
     const parsed = exposureSchema.shape.occurredOn.safeParse(dateDraft);
     if (!parsed.success) {
-      dateEditLatch.release();
+      rowEditLatch.release();
       Alert.alert('Invalid Date', parsed.error.issues[0]?.message ?? 'Please enter a valid date.');
       return;
     }
@@ -395,12 +411,12 @@ export default function FoodDetailScreen() {
     // is no clear-to-null branch because `occurredAt` is NOT NULL; "not
     // recorded" is not a legal state for this column.
     if (next.getTime() === stored.getTime()) {
-      dateEditLatch.release();
-      setEditingDateId(null);
+      rowEditLatch.release();
+      setEditing(null);
       return;
     }
 
-    setSavingDateId(exp.id);
+    setSaving({ id: exp.id, field: 'date' });
     try {
       await db.update(schema.exposures)
         .set({ occurredAt: next })
@@ -410,14 +426,14 @@ export default function FoodDetailScreen() {
           .map((row) => (row.id === exp.id ? { ...row, occurredAt: next } : row))
           .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()),
       );
-      setEditingDateId(null);
+      setEditing(null);
     } catch (err) {
       console.error('Failed to change exposure date:', err);
       Alert.alert('Error', 'Failed to save date. Please try again.');
       // Leave the editor open so the draft is not lost and the retry is one tap.
     } finally {
-      dateEditLatch.release();
-      setSavingDateId(null);
+      rowEditLatch.release();
+      setSaving(null);
     }
   };
 
@@ -588,12 +604,7 @@ export default function FoodDetailScreen() {
    * `exposuresList` rather than reloading, so two concurrent writes would race
    * on the same list and one would clobber the other with no on-screen cue.
    */
-  const rowBusy =
-    deletingExposureId !== null ||
-    savingStageId !== null ||
-    savingRatingId !== null ||
-    savingNotesId !== null ||
-    savingDateId !== null;
+  const rowBusy = deletingExposureId !== null || saving !== null;
 
   if (loading) {
     return (
@@ -847,78 +858,74 @@ export default function FoodDetailScreen() {
               <View style={styles.exposureActions}>
                 <Pressable
                   style={styles.exposureAction}
-                  onPress={() =>
-                    setEditingStageId((current) => (current === exp.id ? null : exp.id))
-                  }
+                  onPress={() => toggleEditing(exp.id, 'stage')}
                   disabled={rowBusy}
                   accessibilityRole="button"
                   accessibilityLabel={`Change stage of ${STAGE_CONFIG[exp.stage]?.label ?? exp.stage} exposure from ${formatDate(new Date(exp.occurredAt))}`}
                   accessibilityState={{
-                    expanded: editingStageId === exp.id,
+                    expanded: isEditing(exp.id, 'stage'),
                     disabled: rowBusy,
-                    busy: savingStageId === exp.id,
+                    busy: isSaving(exp.id, 'stage'),
                   }}
                 >
                   <Text style={styles.exposureActionText}>
-                    {savingStageId === exp.id ? 'Saving…' : 'Edit stage'}
+                    {isSaving(exp.id, 'stage') ? 'Saving…' : 'Edit stage'}
                   </Text>
                 </Pressable>
                 <Pressable
                   style={styles.exposureAction}
-                  onPress={() =>
-                    setEditingRatingId((current) => (current === exp.id ? null : exp.id))
-                  }
+                  onPress={() => toggleEditing(exp.id, 'rating')}
                   disabled={rowBusy}
                   accessibilityRole="button"
                   accessibilityLabel={`Change rating of ${STAGE_CONFIG[exp.stage]?.label ?? exp.stage} exposure from ${formatDate(new Date(exp.occurredAt))}`}
                   accessibilityState={{
-                    expanded: editingRatingId === exp.id,
+                    expanded: isEditing(exp.id, 'rating'),
                     disabled: rowBusy,
-                    busy: savingRatingId === exp.id,
+                    busy: isSaving(exp.id, 'rating'),
                   }}
                 >
                   <Text style={styles.exposureActionText}>
-                    {savingRatingId === exp.id ? 'Saving…' : 'Edit rating'}
+                    {isSaving(exp.id, 'rating') ? 'Saving…' : 'Edit rating'}
                   </Text>
                 </Pressable>
                 <Pressable
                   style={styles.exposureAction}
                   onPress={() =>
-                    editingNotesId === exp.id
-                      ? setEditingNotesId(null)
+                    isEditing(exp.id, 'notes')
+                      ? setEditing(null)
                       : startEditingNotes(exp)
                   }
                   disabled={rowBusy}
                   accessibilityRole="button"
                   accessibilityLabel={`Change notes of ${STAGE_CONFIG[exp.stage]?.label ?? exp.stage} exposure from ${formatDate(new Date(exp.occurredAt))}`}
                   accessibilityState={{
-                    expanded: editingNotesId === exp.id,
+                    expanded: isEditing(exp.id, 'notes'),
                     disabled: rowBusy,
-                    busy: savingNotesId === exp.id,
+                    busy: isSaving(exp.id, 'notes'),
                   }}
                 >
                   <Text style={styles.exposureActionText}>
-                    {savingNotesId === exp.id ? 'Saving…' : 'Edit notes'}
+                    {isSaving(exp.id, 'notes') ? 'Saving…' : 'Edit notes'}
                   </Text>
                 </Pressable>
                 <Pressable
                   style={styles.exposureAction}
                   onPress={() =>
-                    editingDateId === exp.id
-                      ? setEditingDateId(null)
+                    isEditing(exp.id, 'date')
+                      ? setEditing(null)
                       : startEditingDate(exp)
                   }
                   disabled={rowBusy}
                   accessibilityRole="button"
                   accessibilityLabel={`Change date of ${STAGE_CONFIG[exp.stage]?.label ?? exp.stage} exposure from ${formatDate(new Date(exp.occurredAt))}`}
                   accessibilityState={{
-                    expanded: editingDateId === exp.id,
+                    expanded: isEditing(exp.id, 'date'),
                     disabled: rowBusy,
-                    busy: savingDateId === exp.id,
+                    busy: isSaving(exp.id, 'date'),
                   }}
                 >
                   <Text style={styles.exposureActionText}>
-                    {savingDateId === exp.id ? 'Saving…' : 'Edit date'}
+                    {isSaving(exp.id, 'date') ? 'Saving…' : 'Edit date'}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -937,7 +944,7 @@ export default function FoodDetailScreen() {
                   </Text>
                 </Pressable>
               </View>
-              {editingStageId === exp.id && (
+              {isEditing(exp.id, 'stage') && (
                 <View style={styles.editChipRow}>
                   {STAGE_ORDER.map((value) => {
                     const config = STAGE_CONFIG[value];
@@ -969,7 +976,7 @@ export default function FoodDetailScreen() {
                   })}
                 </View>
               )}
-              {editingRatingId === exp.id && (
+              {isEditing(exp.id, 'rating') && (
                 <View style={styles.editChipRow}>
                   {RATING_CONFIG.map((option) => {
                     const isSelected = option.value === exp.rating;
@@ -1000,7 +1007,7 @@ export default function FoodDetailScreen() {
                   })}
                 </View>
               )}
-              {editingDateId === exp.id && (
+              {isEditing(exp.id, 'date') && (
                 <View style={styles.notesEditor}>
                   <TextInput
                     style={styles.notesInput}
@@ -1019,14 +1026,14 @@ export default function FoodDetailScreen() {
                       disabled={rowBusy}
                       accessibilityRole="button"
                       accessibilityLabel="Save exposure date"
-                      accessibilityState={{ disabled: rowBusy, busy: savingDateId === exp.id }}
+                      accessibilityState={{ disabled: rowBusy, busy: isSaving(exp.id, 'date') }}
                     >
                       <Text style={styles.renameAction}>
-                        {savingDateId === exp.id ? 'Saving…' : 'Save'}
+                        {isSaving(exp.id, 'date') ? 'Saving…' : 'Save'}
                       </Text>
                     </Pressable>
                     <Pressable
-                      onPress={() => setEditingDateId(null)}
+                      onPress={() => setEditing(null)}
                       disabled={rowBusy}
                       accessibilityRole="button"
                       accessibilityLabel="Cancel editing exposure date"
@@ -1036,7 +1043,7 @@ export default function FoodDetailScreen() {
                   </View>
                 </View>
               )}
-              {editingNotesId === exp.id && (
+              {isEditing(exp.id, 'notes') && (
                 <View style={styles.notesEditor}>
                   <TextInput
                     style={styles.notesInput}
@@ -1056,14 +1063,14 @@ export default function FoodDetailScreen() {
                       disabled={rowBusy}
                       accessibilityRole="button"
                       accessibilityLabel="Save exposure notes"
-                      accessibilityState={{ disabled: rowBusy, busy: savingNotesId === exp.id }}
+                      accessibilityState={{ disabled: rowBusy, busy: isSaving(exp.id, 'notes') }}
                     >
                       <Text style={styles.renameAction}>
-                        {savingNotesId === exp.id ? 'Saving…' : 'Save'}
+                        {isSaving(exp.id, 'notes') ? 'Saving…' : 'Save'}
                       </Text>
                     </Pressable>
                     <Pressable
-                      onPress={() => setEditingNotesId(null)}
+                      onPress={() => setEditing(null)}
                       disabled={rowBusy}
                       accessibilityRole="button"
                       accessibilityLabel="Cancel editing exposure notes"
