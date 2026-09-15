@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.172 — 795 tests passing across 41 suites, TypeScript clean.
+Reviewed at: v0.5.174 — 824 tests passing across 42 suites, TypeScript clean.
 
 > **Read this first.** This file was last *fully* rewritten at v0.5.160 and the
 > "Recently shipped" list below lags reality. A session in between added screen
@@ -216,6 +216,35 @@ All five priorities from the original review have shipped:
   labelled from `FEEDING_PROFILE_CONFIG`, whose label is the bare `ARFID`; query the
   config's exact value, same as the v0.5.158 Progress-tab note.
 
+## Shipped in the v0.5.174 session (2026-09-15)
+
+- v0.5.173 — **the SQLite migration is now executed by a test.** This closes the
+  single largest untested surface in the repo: the migration lived in a template
+  literal inside `DatabaseProvider`, a React component no test imports, which is
+  exactly how v0.5.170 shipped a stray backtick that *terminated the enclosing
+  literal* while all 777 tests stayed green — only `tsc` caught it. Every CHECK
+  constraint from v0.5.123–v0.5.131 and every index from v0.5.170 had been
+  asserted by inspection alone. The SQL moves to `src/db/migration.ts` as
+  `MIGRATION_SQL` (provider 132 → 42 lines, string byte-identical apart from
+  dedenting) and `src/db/__tests__/migration.test.ts` runs it against in-memory
+  **`node:sqlite`** — Node 22+, no native module, same dialect, and the same
+  harness v0.5.170 built ad hoc then discarded. **Use it for any future DB-layer
+  work; that layer is no longer untestable.** 25 tests: exact table set,
+  idempotency *and* row preservation across a re-run, the three indexes, the
+  named index the planner picks for each of the four hot queries, the CHECK
+  constraints rejecting 15 out-of-contract values, and — the half a
+  rejection-only suite cannot see — three mirror tests that a constraint
+  narrowed one step too far would fail (inclusive rating boundaries, every enum
+  member, all nine optional dimensions still nullable).
+  **One assertion was measured as too weak and tightened rather than shipped:**
+  asserting only `USING INDEX` per query plan left the v0.5.170
+  `(child_id, food_id)` regression **green**, because on an empty table the
+  planner still reports an index for the `ORDER BY` before filtering. The
+  assertion now names the expected index per query. If you add a query-plan
+  test, name the index.
+- v0.5.174 — **the four per-row exposure editors share one open-editor slot**
+  (closes gap #-1 (b)). See that entry for the detail that matters.
+
 ## Known gaps worth doing next (discovered, deliberately not done)
 
 -1. **~~Every field on an exposure is now correctable in place.~~** Closed as of
@@ -230,18 +259,23 @@ All five priorities from the original review have shipped:
    `@react-native-community/datetimepicker` is the obvious one — so it stays a
    deliberate deferral, not an oversight.
 
-   (b) **Four per-row editors now share one render block, and it has stopped being
-   readable.** The v0.5.169 entry flagged this at three and called four the tipping
-   point; v0.5.171 crossed it. The history `map` now carries four near-identical
-   conditional blocks, four `editingXId` / `savingXId` pairs, four latches, and a
-   `rowBusy` that ORs four flags. Nothing is wrong with it — every path is tested and
-   mutation-verified — but the next person adding or changing a per-row field will
-   pay for the duplication. The shape to move to is a single
-   `editing: { id: string; field: 'stage' | 'rating' | 'notes' | 'date' } | null`
-   plus one `savingRow: string | null`, or an extracted `<ExposureRowEditor>`. This is
-   now a genuine refactor task with a full test net under it (30+ tests across the
-   four editors in `app/food/__tests__/id.test.tsx`), which is the best possible time
-   to do it. **Do it before adding a fifth editor.**
+   (b) **~~Four per-row editors now share one render block.~~** Closed in
+   v0.5.174: `editing: { id, field } | null` + `saving: { id, field } | null` +
+   one `rowEditLatch` replace the eight id-valued slots and four latches, and
+   `rowBusy` drops from five terms to two. All 63 existing editor tests passed
+   untouched. **The one thing to know before touching it:** the collapse
+   introduces exactly one new way to be wrong that per-field ids could not —
+   forgetting to discriminate on `field`, so opening any editor opens all four
+   on the row. That mutation left all 63 tests green when measured, so +4 tests
+   in `only one row editor is open at a time (v0.5.173)` now pin it. Keep them
+   if you extract an `<ExposureRowEditor>` component later; the render block is
+   still long, it is just no longer holding eight pieces of state.
+   Two mutations survive and are deliberate, not oversights: dropping the
+   `saving !== null` term from `rowBusy`, and `isSaving`'s field
+   discrimination. Both are unobservable from a DOM test — react-native-web
+   does not serialize `accessibilityState.disabled`, and the single latch
+   already prevents the concurrency `rowBusy` guards. Do not contrive tests
+   for them.
 
    (c) **The date tests pin literal 2026 dates that must stay in the past.** The
    `occurredOn` schema's not-future refine reads `Date.now()`, so
@@ -257,7 +291,8 @@ All five priorities from the original review have shipped:
    in-the-moment action — but if backdating turns out to matter there too, the
    helper is already pure and tested.
 
-0. **Pre-existing `--noUnusedLocals` error.**
+0. **Pre-existing `--noUnusedLocals` error.** *(Still open at v0.5.174 —
+   confirmed unrelated to the two files that session touched.)*
    `app/onboarding/__tests__/index.test.tsx:136` declares `errorSpy` and never
    reads it, so `npx tsc --noEmit --noUnusedLocals` fails on it. Plain
    `npx tsc --noEmit` (the project's standard check) is clean. One-word fix
