@@ -4,177 +4,210 @@ Guidance for Claude Code when working on TongueTutor (FoodExposure).
 
 ## Project Overview
 
-**TongueTutor** is a mobile app (Expo + React Native) for tracking children's food exposure and literacy. Parents log foods their child has tried, mark allergies/aversions, and track nutrition/behavior over time. The app uses local SQLite storage with Convex backend support (future). Built for iOS and Android.
+**TongueTutor** is an offline-first mobile app (Expo + React Native) built on evidence-based
+pediatric feeding therapy. Parents log *exposures* — a food presented to a child at one of six
+SOS hierarchy stages (tolerate → interact → smell → touch → taste → eat) — and the app tracks
+exposure counts against an acceptance threshold that varies by feeding profile (15/20/30).
 
-**Current state:** Core app stable (1.0.0) with 130+ tests passing, good coverage. Backend uses Convex + Drizzle ORM. Recently refactored with input validation, error handling, N+1 query fixes, and SafeAreaView. Ready for feature expansion or deployment.
+All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
+scaffolded backend that nothing in `app/` calls yet.
+
+**Current state:** `APP_VERSION` is `v0.5.174` (`src/lib/constants.ts`). 824 tests pass across
+42 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
+per-version history and the rationale behind non-obvious decisions.
 
 ## Tech Stack
 
 | Layer | Tech | Details |
 |-------|------|---------|
-| **Mobile App** | Expo 55, React Native 0.83, TypeScript, Unistyles 3.1, React Query 5 | Typed routes, bottom tabs (settings/foods/progress/log) |
-| **Local Storage** | SQLite (expo-sqlite), react-native-mmkv | Per-child food log, allergen tracking |
-| **Backend** | Convex + Drizzle ORM | Real-time sync (future) |
-| **Testing** | Jest 30, React Native Testing Library, Jest-Expo | 130+ tests, 6 suites |
-| **Runtime** | Bun (package manager + scripts, not npm) | `bun.lock` included |
-| **Sentry** | Error tracking + session tracking | Configured in app.json plugins |
+| **App** | Expo 55, React Native 0.83, TypeScript 5.9, Expo Router | Typed routes; 5 bottom tabs (index/log/foods/progress/settings) |
+| **Styling** | Unistyles 3.1 | Theme tokens in `src/styles/theme.ts` |
+| **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
+| **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
+| **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 824 tests, 42 suites |
+| **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
 
-- **Onboarding:** Add child (name, age, photo)
-- **Food Log:** Log foods tried, date, reaction notes
-- **Allergen Tracking:** Mark known allergies and aversions
-- **Progress Charts:** Visualize exposure over time (with trends)
-- **Settings:** App config, data export, privacy
-- **Multi-child:** Support multiple children (future roadmap)
+- **Onboarding:** create a family (first launch) or join one with a 6-character invite code.
+- **Log Exposure:** pick child + food + stage, plus optional rating, meal, temperature,
+  texture, setting, notes and a backdated date.
+- **Foods:** searchable/filterable list with per-food exposure counts; "⭐ Safe Foods" pinned row.
+- **Food detail:** rename, change category/preparation, toggle safe-food, one-tap stage bump,
+  per-exposure edit (stage/rating/notes/date) and delete, plus delete-food cascade.
+- **Progress:** exposures-toward-threshold bars, stage distribution, category tiles, avg rating.
+- **Settings:** theme, feeding profile, CSV export via the system share sheet, delete child, sign out.
+
+There is **no allergen tracking** and **no photo capture** — both were early ideas that were
+never built. Multi-child *is* supported (`ChildSelector` on the dashboard).
 
 ## Directory Structure
 
 ```
-app/
-├── (tabs)/              # Main tabbed navigation
-│   ├── index.tsx       (Foods — main list)
-│   ├── foods.tsx       (Foods tab)
-│   ├── progress.tsx    (Charts + trends)
-│   ├── log.tsx         (Activity log)
-│   └── settings.tsx    (App settings)
-├── food/               # Food detail pages
-│   ├── add.tsx         (Add new food)
-│   ├── [id].tsx        (View/edit food)
-│   └── _layout.tsx
-├── child/              # Child management
-│   ├── add.tsx         (Add child)
-│   ├── [id].tsx        (Edit child)
-│   └── _layout.tsx
-├── onboarding/         # First-time user flow
-│   ├── index.tsx       (Start)
-│   ├── add-child.tsx
-│   └── join.tsx
-└── _layout.tsx         # Root layout
+app/                       # Expo Router pages (tests colocated in __tests__/)
+├── (tabs)/
+│   ├── index.tsx          Dashboard (today's count, stage distribution, recent activity)
+│   ├── foods.tsx          Food library
+│   ├── progress.tsx       Charts + per-food threshold progress
+│   ├── log.tsx            Log Exposure form (the app's primary write path)
+│   └── settings.tsx       Theme, feeding profile, CSV export, family management
+├── food/{add,[id]}.tsx    Add food / food detail
+├── child/add.tsx          Add child (hosts the shared ChildForm)
+├── onboarding/{index,add-child,join}.tsx
+└── _layout.tsx            Root layout (providers + theme registration)
 
 src/
-├── hooks/              # Custom hooks (useFood, useChild, etc.)
-├── components/         # Reusable UI components
-├── utils/              # Helpers (date, calculation)
-├── db/                 # SQLite setup + queries
-├── theme/              # Unistyles theme tokens
-└── types/              # TypeScript types
+├── components/            Button, FoodCard, ExposureCard, StageIndicator, ProgressBar, …
+├── db/                    client.ts, schema.ts (Drizzle), migration.ts (MIGRATION_SQL)
+├── lib/                   Pure helpers — the bulk of the test suite lives against these
+├── providers/             Convex, React Query, Database (runs MIGRATION_SQL on boot)
+├── stores/                zustand + MMKV: auth-store, child-store, settings-store
+├── styles/                Unistyles theme + contrast tests
+└── test-utils/            mock-db.ts, screen-helpers.tsx (excluded from coverage)
 
-convex/                # Backend functions (future)
-├── schema.ts          (Drizzle ORM)
-└── functions.ts       (API routes)
-
-tests/                 # Jest test suites
-├── components/
-├── db/
-├── hooks/
-└── utils/
+convex/                    Scaffolded backend — not called by the app
 ```
+
+There is no `src/hooks/`, `src/utils/`, `src/theme/`, `src/types/` or top-level `tests/`
+directory. Tests are colocated in `__tests__/` next to the code they cover.
 
 ## How to Run
 
-**Mobile (iOS Simulator):**
+Bun is the project's declared package manager (`bun.lock` is committed), but **npm works and
+is what recent sessions have used** — `node_modules/` and `package-lock.json` are gitignored.
+
 ```bash
-bun install
-bun ios
-# Opens Expo Go on iOS simulator
+npm install          # or: bun install
+npm run test         # 824 tests, 42 suites
+npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
-**Android:**
+Running the app:
+
 ```bash
-bun android
+npm run ios          # expo start --ios
+npm run android      # expo start --android
+npm run web          # expo start --web
+npm start            # expo start
 ```
 
-**Web:**
-```bash
-bun web
-```
+Unistyles 3.1 needs NitroModules, so **Expo Go will not work** — `npm run ios` / `npm run
+android` build a dev client. Only `npm run web` runs without native tooling.
 
-**Tests:**
-```bash
-bun run test            # Run all tests
-bun run test:watch      # Watch mode
-bun run test:coverage   # Coverage report
-```
+Configuration is optional. Copy `.env.example` to `.env` if you want telemetry or Convex;
+every one of these is safe to leave unset:
+
+| Variable | Read by | If unset |
+|----------|---------|----------|
+| `EXPO_PUBLIC_SENTRY_DSN` | `src/lib/sentry.ts` | Sentry init is skipped |
+| `EXPO_PUBLIC_POSTHOG_API_KEY` | `src/lib/posthog.ts` | PostHog init is skipped |
+| `EXPO_PUBLIC_POSTHOG_HOST` | `src/lib/posthog.ts` | Defaults to `https://us.i.posthog.com` |
+| `EXPO_PUBLIC_CONVEX_URL` | `src/providers/ConvexProvider.tsx` | Falls back to a placeholder URL (harmless — nothing queries Convex) |
 
 ## Important Notes
 
-- **Bun, not npm:** This project uses Bun as the package manager. All scripts use `bun run`.
-- **Never `bun test`:** bare `bun test` invokes Bun's *built-in* test runner, which hangs on
-  this jest-expo suite. Always `bun run test` (or `npx jest`) so the `package.json` script runs.
-- **Fallback install:** if Bun is unavailable, plain `npm install` works (no `--legacy-peer-deps`
-  needed as of v0.5.143). `node_modules/` and `package-lock.json` are gitignored.
-- **SQLite on device:** Data is stored locally in SQLite. Sync to Convex is planned.
-- **Expo Router:** Typed routes enabled (`experiments.typedRoutes: true`). Routes must match file structure.
-- **Unistyles 3.1:** NitroModules required. Cannot use Expo Go — must use `bun ios` / `bun android`.
-- **Multi-child support:** Schema designed for multiple children, but UI currently assumes single child (refactor in progress).
+- **Never bare `bun test`:** it invokes Bun's *built-in* test runner, which hangs on this
+  jest-expo suite. Use `bun run test` / `npm run test` / `npx jest`.
+- **Jest 30 flag:** the filter flag is `--testPathPatterns` (plural). To run one area:
+  `npx jest --testPathPatterns=src/components`.
+- **Web preset:** the suite runs under `jest-expo/web` + jsdom, not on a device. Two known
+  limits are load-bearing when writing tests: react-native-web does not serialize
+  `accessibilityState.selected`/`.disabled` to the DOM, and computed layout is unavailable —
+  so chip highlights and tap-target sizes are not assertable from a test.
+- **Expo Router:** typed routes are enabled (`app.json` → `experiments.typedRoutes`). Some
+  route strings still need an `as any` cast (e.g. the `/(tabs)` group root).
+- **Forward-only DB constraints:** the migration runs `CREATE TABLE IF NOT EXISTS`, so the
+  `CHECK` constraints added across v0.5.123–v0.5.131 only apply to fresh installs. The
+  `CREATE INDEX IF NOT EXISTS` statements (v0.5.170) *do* reach existing installs.
 
 ## Database Schema (SQLite)
 
-```sql
-children (id, name, birth_date, photo_url)
-foods (id, name, category, allergen_flags)
-logs (id, child_id, food_id, date, reaction, notes)
+Six tables, defined in `src/db/schema.ts` (Drizzle) and created by `MIGRATION_SQL` in
+`src/db/migration.ts`. Every table carries `created_at` and a nullable `synced_at` reserved
+for the future Convex sync.
+
+```
+families     (id, name, invite_code, …)
+users        (id, family_id, email, display_name, avatar_url, …)
+children     (id, family_id, name, date_of_birth, avatar_emoji, notes, …)
+foods        (id, family_id, name, category, default_preparation, image_url, is_safe_food, …)
+exposures    (id, child_id, food_id, stage, rating, preparation, temperature, texture,
+              meal_type, setting, notes, logged_by, occurred_at, …)
+food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …)
 ```
 
-See `src/db/` for detailed setup.
+`exposures` is the only unbounded table and carries the three indexes added in v0.5.170.
+`src/db/__tests__/migration.test.ts` executes `MIGRATION_SQL` against an in-memory
+`node:sqlite` database, so the constraints and indexes are covered by tests, not inspection.
 
 ## Testing
 
-- **130+ tests** across 6 suites (components, db, hooks, utils)
-- **43.8% line coverage** (good for MVP)
-- Use `jest --testPathPattern=src/components` to run component tests only
-- All tests use React Native Testing Library conventions
+- **824 tests across 42 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+  tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
+- Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
+  drizzle builder with a FIFO queue of canned reads and recorded writes) and
+  `screen-helpers.tsx` (`SafeArea`, `click`, `confirmAlert`, `pressAlertButton`).
+- The established seams a new screen test needs: mock `expo-router` to a `mock`-prefixed
+  router spy, mock `@/src/db/client` **with a getter** so each test's fresh db is picked up,
+  spy on `Alert.alert` so copy is assertable, and reset the zustand stores via `logout()`.
+- **Mutation-check new tests.** The changelog records, repeatedly, that a test which passes
+  with the code it claims to cover deleted is worse than no test. Several were removed rather
+  than shipped green-but-vacuous.
 
 ## Conventions
 
-- **Allergen flags:** Store as comma-separated in schema, parse as array in app
-- **Child reference:** All logs include child_id (future multi-child support)
-- **Date format:** ISO 8601 in database, formatted on display
-- **Navigation:** Use Expo Router's `Link` component, not React Navigation directly
-- **Styles:** Unistyles tokens in `src/theme/themes.ts` (not inline or Tailwind)
-
-## Key Hooks
-
-- `useChild()` — Get current child from context
-- `useFood(id)` — Fetch food by ID
-- `useFoods()` — List all foods
-- `useLog()` — Activity log
-- `useProgress()` — Calculate exposure trends
+- **Pure helpers over inline logic.** Screen logic worth testing gets extracted to `src/lib/`
+  as a pure function — that is what makes it verifiable without a render harness.
+- **Optional fields round-trip as absent.** Forms write `?? null`; the zod schemas map blank
+  or whitespace-only optional text to `undefined`. Never persist `''` for "not recorded".
+- **Dates:** ISO 8601 in the CSV export with an explicit local offset; `occurred_at` is a
+  millisecond epoch. Every date-bucketed surface uses the **local** calendar day.
+- **Navigation:** `useRouter()` + `router.push`/`replace`. The codebase does not use `<Link>`.
+- **Styles:** Unistyles tokens from `src/styles/theme.ts`. No inline colours — v0.5.153–v0.5.156
+  removed the last hardcoded hex literals and `src/styles/__tests__/contrast.test.ts` asserts
+  every text/surface pairing clears WCAG AA.
+- **Writes are latch-guarded.** Every async write handler holds a synchronous
+  `createInFlightLatch()` (`src/lib/in-flight.ts`), released in `finally`. For confirm dialogs
+  the latch is acquired *inside* the callback, never in the function that opens the Alert.
 
 ## Build & Deployment
 
-```bash
-# EAS build (Expo's CI/CD)
-bun run eas:build:ios
-bun run eas:build:android
+EAS profiles are defined in `eas.json` (development / preview / production). There are **no
+`eas:*` npm scripts** — invoke the CLI directly:
 
-# Publish to App Store / Play Store
-# (Set up with EAS Account)
+```bash
+npx eas build --platform ios --profile production
+npx eas build --platform android --profile production
 ```
 
-See `eas.json` for build profiles.
+Both `app.json` (`extra.eas.projectId`) and `eas.json`'s submit block still carry
+`YOUR_*` placeholders, so nothing can actually be built or submitted until an EAS account is
+configured.
 
 ## Known Limitations
 
-- Single child assumption in UI (refactor planned)
-- No cloud sync yet (Convex wiring in progress)
-- Charts are basic (could add more detail)
-- No multi-user / parental consent flows
+- **No cloud sync.** `convex/` is scaffolded and unreferenced; `synced_at` is never written.
+- **No auth.** "Sign in" is a local display name; emails are synthesized offline
+  (`deriveLocalEmailPart`) and `users.email` has no UNIQUE constraint.
+- **Charts are simple** — bars and tiles, no time-series plots.
+- **Date entry is free text** (`YYYY-MM-DD`), not a picker; no date-picker package is installed.
+- **30 `npm audit` advisories are unfixable** — see the v0.5.165 changelog entry; the three
+  root advisories have no patched version published.
 
 ## Next Priority
 
-v1.0.0 is stable with 130+ tests passing. Next: wire Convex backend to replace local-only SQLite storage.
+See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
+larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify tests pass: `bun run test` — expect 570+, 28 suites, no failures
-2. Inspect `convex/schema.ts` and `convex/functions.ts` — see what's scaffolded
-3. Pick first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`
-4. Update `src/hooks/useChild.ts` (or similar) to call Convex instead of SQLite
-5. Keep SQLite as fallback during transition — do not remove local storage yet
-6. Commit: `feat: wire $ENDPOINT endpoint to Convex backend`
-7. Update this file with next endpoint
+1. Verify the baseline first: `npm run test` — expect 824 tests, 42 suites, no failures.
+2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
+3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
+4. Keep SQLite as fallback during the transition — do not remove local storage.
+5. Commit as `feat: wire $ENDPOINT endpoint to Convex backend` and update this file.
 
-**Do not:** break existing tests, change `app.json`/`eas.json` without understanding EAS pipeline, deploy to App Store until all endpoints are wired.
+**Do not:** break existing tests, change `app.json` / `eas.json` without understanding the EAS
+pipeline, or ship a test that still passes when the code it covers is deleted.
 
 ## Research Background (Food Exposure Methods)
 
