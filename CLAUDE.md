@@ -12,8 +12,8 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.175` (`src/lib/constants.ts`). 830 tests pass across
-42 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
+**Current state:** `APP_VERSION` is `v0.5.176` (`src/lib/constants.ts`). 843 tests pass across
+43 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
 ## Tech Stack
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 830 tests, 42 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 843 tests, 43 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 830 tests, 42 suites
+npm run test         # 843 tests, 43 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -143,7 +143,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **830 tests across 42 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **843 tests across 43 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -200,7 +200,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 830 tests, 42 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 843 tests, 43 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -251,9 +251,54 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.175
+v0.5.176
 
 ## Changelog
+- v0.5.176 — Feature: **merge one food into another, losslessly** — closes NEXT_STEPS
+  gap #2. v0.5.136 blocks *new* duplicate food names, but a family that accumulated
+  "Brocolli" and "Broccoli" before that guard existed had no lossless way out. The
+  v0.5.145 rename refuses a colliding name by design (a rename must not be a back door
+  around the uniqueness guard), and the only removal path, `deleteFoodCascade`, discards
+  every exposure logged against the twin — the exact history the 15/20/30 acceptance
+  threshold is counted from, forked stage progression, and two part-histories in the
+  therapist's CSV. So the parent's choice was: live with the typo, or throw away half
+  the evidence. Two pieces. (1) New pure-ish `src/lib/merge-foods.ts` exporting
+  `mergeFoods(db, sourceFoodId, targetFoodId)` behind a narrow structural `MergeFoodsDb`
+  interface (the `CascadeDeleteDb` precedent, and for the same reason — a fake runner
+  satisfies it in tests while the real drizzle instance assigns without a cast). Five
+  steps, and the ordering is load-bearing in the same way `deleteFoodCascade`'s is: every
+  reassignment happens first and the source `foods` row is removed **last**, so a
+  mid-sequence failure leaves a retryable state rather than rows whose parent is gone.
+  Step 4 is not bookkeeping — `food_chains` references `foods` twice, so rewriting both
+  columns can turn a legitimate `dup -> keep` chain into a self-referential
+  `keep -> keep` row that means nothing, and those are swept before the source row goes.
+  Three guards run before any write: blank/non-string ids on either side, and
+  `source === target` — without that last one a merge-into-self would reassign every
+  exposure to a row it is about to delete, destroying the whole food. (2) Wired into the
+  **rename-collision Alert** on the food detail page, which is the only place a parent
+  actually meets their legacy duplicates: they typed the corrected spelling and it is
+  already taken. The Alert gains a Merge action whose copy says the history survives
+  ("nothing is lost") — without that, "merge" reads as "lose one of them" and the parent
+  picks Delete Food instead. Merging asks a **second** time, because it is destructive to
+  *this* row, and names both sides; the latch is acquired inside the confirm callback and
+  never in the function that opens the Alert (the v0.5.144 placement rule — acquiring at
+  the top strands it the moment the parent taps Cancel). On success the screen
+  `replace`s to the Foods tab rather than popping, because this food no longer exists and
+  going "back" to it lands on the v0.5.6 not-found state, which reads as a failed merge.
+  +9 unit tests in a new `src/lib/__tests__/merge-foods.test.ts` (step order, the exposure
+  reassignment and its direction, both `food_chains` columns each scoped to its own
+  column, the self-chain sweep, the source-row delete, two mid-sequence failure points,
+  merge-into-self, and the blank/non-string id matrix) and +4 screen tests in
+  `app/food/__tests__/id.test.tsx` (the collision now offers Merge as well as Cancel and
+  the copy promises the history survives; the second confirm names both foods and
+  cancelling writes nothing; the happy path issues the five writes in order with the
+  exposures moving to the target and then replaces to the Foods tab; a failed merge alerts
+  and stays on the screen). Mutation-verified rather than assumed: swapping the merge
+  direction, deleting the exposures instead of reassigning them, deleting the source row
+  first, dropping the merge-into-self guard, dropping the self-chain sweep, making the
+  collision refuse-only again, merging without the second confirm, and swallowing the
+  failure Alert each fail between one and seven tests. Bumped `APP_VERSION` to v0.5.176.
+  843 tests pass across 43 suites (was 830 across 42, +13). TypeScript clean.
 - v0.5.175 — Feature: **rename a child in place** from Settings → Family. `children.name`
   was the last permanent-or-destructive field in the app. Foods became correctable across
   v0.5.145 (name), v0.5.160 (category) and v0.5.161 (preparation), and every field on an

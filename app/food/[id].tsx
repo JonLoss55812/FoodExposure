@@ -15,6 +15,7 @@ import { getNextStage, canBumpStage, getHighestStage } from '@/src/lib/stage';
 import { getThresholdForProfile } from '@/src/lib/thresholds';
 import { generateId, formatDate, resolveOccurredAt, toLocalDateInput } from '@/src/lib/utils';
 import { deleteFoodCascade } from '@/src/lib/cascade-delete';
+import { mergeFoods } from '@/src/lib/merge-foods';
 import { findDuplicateFood } from '@/src/lib/food-partition';
 import { foodSchema, exposureSchema } from '@/src/lib/validation';
 import { createInFlightLatch } from '@/src/lib/in-flight';
@@ -78,6 +79,7 @@ export default function FoodDetailScreen() {
   const bumpLatch = useRef(createInFlightLatch()).current;
   const deleteLatch = useRef(createInFlightLatch()).current;
   const renameLatch = useRef(createInFlightLatch()).current;
+  const mergeLatch = useRef(createInFlightLatch()).current;
   const categoryLatch = useRef(createInFlightLatch()).current;
   const prepLatch = useRef(createInFlightLatch()).current;
   const exposureLatch = useRef(createInFlightLatch()).current;
@@ -457,6 +459,46 @@ export default function FoodDetailScreen() {
     setEditingName(true);
   };
 
+  /**
+   * Fold this food into the one it collides with, keeping every exposure.
+   *
+   * Asks a second time, because this is destructive to *this* row: the merge
+   * deletes it, and the copy has to say where the history went so a parent
+   * does not read "merge" as "delete". The latch is acquired inside the
+   * confirm callback, never in the function that opens the Alert — acquiring
+   * at the top would strand it the moment the parent taps Cancel (the
+   * v0.5.144 placement rule).
+   */
+  const handleMergeInto = (targetId: string, targetName: string) => {
+    if (!food || mergeLatch.busy) return;
+    const sourceName = food.name;
+    Alert.alert(
+      'Merge Foods?',
+      `Every exposure logged against "${sourceName}" will move to "${targetName}", and "${sourceName}" will be removed. Nothing is lost.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Merge',
+          onPress: async () => {
+            if (!mergeLatch.tryAcquire()) return;
+            try {
+              await mergeFoods(db, food.id, targetId);
+              // This screen's row no longer exists, so replace rather than
+              // push — going "back" to a deleted food is the v0.5.6 not-found
+              // state, which reads as a failure.
+              router.replace('/(tabs)/foods' as never);
+            } catch (err) {
+              console.error('Failed to merge foods:', err);
+              Alert.alert('Error', 'Failed to merge foods. Please try again.');
+            } finally {
+              mergeLatch.release();
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleSaveName = async () => {
     if (!food || !renameLatch.tryAcquire()) return;
 
@@ -484,9 +526,24 @@ export default function FoodDetailScreen() {
         .where(eq(schema.foods.familyId, food.familyId));
       const duplicate = findDuplicateFood(siblings, nextName, food.id);
       if (duplicate) {
+        // The collision is the only place a parent actually meets the legacy
+        // duplicates v0.5.136 was added too late to prevent — they typed the
+        // corrected spelling and it is already taken. Refusing is right (a
+        // rename must not be a back door around the uniqueness guard), but
+        // refusing was previously the *only* answer, and the only exit left
+        // was Delete Food, which discards the twin's whole exposure history.
+        // Offering the merge here makes the lossless fix reachable at the
+        // exact moment the parent is trying to make one.
         Alert.alert(
           'Already Added',
-          `"${duplicate.name}" is already in your food library. Pick a different name.`,
+          `"${duplicate.name}" is already in your food library. You can merge this food into it — every exposure logged here moves across and nothing is lost.`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Merge',
+              onPress: () => handleMergeInto(duplicate.id, duplicate.name),
+            },
+          ]
         );
         return;
       }

@@ -20,7 +20,7 @@ import { Alert } from 'react-native';
 import { eq } from 'drizzle-orm';
 import * as schema from '@/src/db/schema';
 import { createMockDb, type MockDb } from '@/src/test-utils/mock-db';
-import { click, confirmAlert } from '@/src/test-utils/screen-helpers';
+import { click, confirmAlert, pressAlertButton } from '@/src/test-utils/screen-helpers';
 
 const mockRouter = { replace: jest.fn(), back: jest.fn(), push: jest.fn() };
 const mockParams = { id: 'food-1' };
@@ -163,6 +163,100 @@ describe('FoodDetailScreen', () => {
       expect(alertSpy.mock.calls[0][1]).toContain('Pear');
       expect(mockDb.writes).toHaveLength(0);
       expect(screen.getByLabelText('Food name')).toBeTruthy();
+    });
+
+    /**
+     * The collision is the only place a parent meets the legacy duplicates
+     * that v0.5.136 shipped too late to prevent: they typed the corrected
+     * spelling and it is already taken. Refusing the rename is right, but it
+     * used to be the *only* answer, and the only exit left was Delete Food —
+     * which discards the twin's exposures, i.e. the history the 15/20/30
+     * acceptance threshold is counted from. The merge offer makes the
+     * lossless fix reachable at the moment the parent is trying to make one.
+     */
+    it('offers to merge into the colliding food rather than only refusing', async () => {
+      queueLoad();
+      await renderLoaded();
+      mockDb.queueSelect([
+        { id: 'food-1', name: 'Apple' },
+        { id: 'food-2', name: 'Pear' },
+      ]);
+      await startRename('pear');
+
+      await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+      const actions = (alertSpy.mock.calls[0][2] ?? []) as { text: string }[];
+      expect(actions.map((a) => a.text)).toEqual(['Cancel', 'Merge']);
+      // The copy has to say the history survives, or "merge" reads as "lose
+      // one of them" and the parent picks the destructive path instead.
+      expect(alertSpy.mock.calls[0][1]).toContain('nothing is lost');
+    });
+
+    it('confirms a second time before merging, and cancelling writes nothing', async () => {
+      queueLoad();
+      await renderLoaded();
+      mockDb.queueSelect([
+        { id: 'food-1', name: 'Apple' },
+        { id: 'food-2', name: 'Pear' },
+      ]);
+      await startRename('pear');
+      await confirmAlert(alertSpy, 'Merge');
+
+      // Destructive to *this* row, so it asks again and names both sides.
+      await waitFor(() => expect(alertSpy.mock.calls[1][0]).toBe('Merge Foods?'));
+      expect(alertSpy.mock.calls[1][1]).toContain('Apple');
+      expect(alertSpy.mock.calls[1][1]).toContain('Pear');
+
+      await pressAlertButton(alertSpy, 'Cancel');
+      expect(mockDb.writes).toHaveLength(0);
+      expect(mockRouter.replace).not.toHaveBeenCalled();
+    });
+
+    it('moves every exposure to the surviving food, drops this row, and leaves the screen', async () => {
+      queueLoad();
+      await renderLoaded();
+      mockDb.queueSelect([
+        { id: 'food-1', name: 'Apple' },
+        { id: 'food-2', name: 'Pear' },
+      ]);
+      await startRename('pear');
+      await confirmAlert(alertSpy, 'Merge');
+      await pressAlertButton(alertSpy, 'Merge');
+
+      await waitFor(() => expect(mockDb.writes.length).toBeGreaterThan(0));
+      const kinds = mockDb.writes.map((w) => w.kind);
+      // Reassignments first, the source row last: a mid-sequence failure must
+      // leave a retryable state, not rows whose parent is already gone.
+      expect(kinds).toEqual(['update', 'update', 'update', 'delete', 'delete']);
+      // The load-bearing half — the exposures move rather than being deleted.
+      expect((mockDb.writes[0] as { values: unknown }).values).toEqual({ foodId: 'food-2' });
+
+      // This food no longer exists, so replace: going "back" to it would land
+      // on the v0.5.6 not-found state, which reads as a failed merge.
+      await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/(tabs)/foods'));
+    });
+
+    it('alerts and stays on the screen when the merge fails', async () => {
+      queueLoad();
+      await renderLoaded();
+      mockDb.queueSelect([
+        { id: 'food-1', name: 'Apple' },
+        { id: 'food-2', name: 'Pear' },
+      ]);
+      await startRename('pear');
+      await confirmAlert(alertSpy, 'Merge');
+
+      const dbRef = mockDb.db as { update: (...a: unknown[]) => unknown };
+      const realUpdate = dbRef.update;
+      dbRef.update = () => ({
+        set: () => ({ where: () => Promise.reject(new Error('merge failed')) }),
+      });
+      await pressAlertButton(alertSpy, 'Merge');
+
+      await waitFor(() =>
+        expect(alertSpy.mock.calls.some((c) => c[0] === 'Error')).toBe(true)
+      );
+      expect(mockRouter.replace).not.toHaveBeenCalled();
+      dbRef.update = realUpdate;
     });
 
     it('allows a case-only fix, which collides only with the food itself', async () => {
