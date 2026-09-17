@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.174 — 824 tests passing across 42 suites, TypeScript clean.
+Reviewed at: v0.5.176 — 843 tests passing across 43 suites, TypeScript clean.
 
 > **Read this first.** This file was last *fully* rewritten at v0.5.160 and the
 > "Recently shipped" list below lags reality. A session in between added screen
@@ -245,6 +245,28 @@ All five priorities from the original review have shipped:
 - v0.5.174 — **the four per-row exposure editors share one open-editor slot**
   (closes gap #-1 (b)). See that entry for the detail that matters.
 
+## Shipped in the v0.5.176 session (2026-09-17)
+
+- v0.5.175 — **rename a child in place** from Settings → Family. `children.name` was
+  the last permanent-or-destructive field in the app: foods became correctable across
+  v0.5.145/160/161 and every field on an exposure across v0.5.167–v0.5.171, but a
+  mistyped child name could only be "fixed" by Delete Child, which cascades away every
+  exposure that child has ever logged. Inline `TextInput` per row (the v0.5.169
+  notes-editor shape), validated through `childSchema.shape.name`. **Deliberately no
+  uniqueness guard**, unlike the food rename's `findDuplicateFood(..., excludeId)`:
+  `children` has no uniqueness contract on the add path either, so one here would reject
+  a rename that Add Child allows — do not "fix" that by adding one. +6 tests, seven
+  mutations verified.
+- v0.5.176 — **merge one food into another, losslessly** (closes gap #2). New
+  `src/lib/merge-foods.ts`; wired into the **rename-collision Alert**, which is the only
+  place a parent actually meets their legacy duplicates. Two things to know before
+  touching it. (a) The source `foods` row is deleted **last** and the merge-into-self
+  guard is load-bearing, not defensive noise: without it every exposure is reassigned to
+  a row the last step then deletes. (b) Step 4 (`DELETE FROM food_chains WHERE
+  source_food_id = target_food_id`) exists because rewriting both FK columns can turn a
+  legitimate `dup -> keep` chain into a meaningless `keep -> keep` row. +13 tests, eight
+  mutations verified.
+
 ## Known gaps worth doing next (discovered, deliberately not done)
 
 -1. **~~Every field on an exposure is now correctable in place.~~** Closed as of
@@ -284,6 +306,21 @@ All five priorities from the original review have shipped:
    rest of the suite has the same shape (fixtures dated `new Date(2026, 0, 15)`). Not
    a defect today and not worth a fake-timer rewrite, but worth knowing before
    picking a date in a new test.
+
+-1.5. **A child's `dateOfBirth` and `notes` are still write-only.** Both are
+   captured by `ChildForm` on Add Child / onboarding and land in SQLite, and
+   then **no surface in the app ever reads them back** — not Settings, not the
+   dashboard, not the CSV export. Same defect class v0.5.161 closed for a
+   food's `defaultPreparation` ("a value set on Add Food was write-only from
+   the moment it was saved"). v0.5.175 made the *name* correctable but
+   deliberately stopped there to stay inside one session's budget. The honest
+   fix is not another inline editor bolted onto the Settings row — it is a
+   `app/child/[id].tsx` detail screen reusing `ChildForm` in an edit mode
+   (seed defaults from the row, issue an `update` instead of an `insert`, skip
+   the `selectChild` call), with the Settings row navigating to it. That would
+   also give DOB somewhere to be *displayed*, which is the actual reason a
+   parent typed it. Budget it as a whole task: `ChildForm` is shared by two
+   hosts and 34 tests, so the refactor needs its own verification pass.
 
 -2. **`resolveOccurredAt` is only reachable from the Log form.** The
    food-detail "Bump to X" one-tap action still writes `occurredAt: new Date()`
@@ -394,10 +431,19 @@ All five priorities from the original review have shipped:
    `ProgressBar`'s `current/target` label, so assert `'2/15'`, not a
    phrase like "2 exposures".
 
-2. **Legacy duplicate foods are not deduped.** v0.5.136 guards new adds only.
-   With v0.5.138 a parent can now delete a twin manually, but that discards the
-   twin's exposures; a merge migration (reassign exposures to the surviving row)
-   is still the lossless fix if it ever matters. Not worth it pre-production.
+2. **~~Legacy duplicate foods are not deduped.~~** Closed in v0.5.176 —
+   `mergeFoods` reassigns the twin's exposures to the surviving row instead of
+   discarding them, offered from the rename-collision Alert. Two follow-ups
+   survive, neither urgent. (a) The merge is only reachable from a rename
+   *collision*. A parent who never tries to rename still sees both rows on the
+   Foods tab with no hint they are the same food; a "looks like a duplicate"
+   prompt on the Foods list (reusing `findDuplicateFood` over the loaded list)
+   would surface it, but that is proactive UI on a problem the guard has
+   already stopped creating. (b) The merge keeps the *target* row's category,
+   preparation and `isSafeFood` wholesale and discards the source's. That is
+   the right default (the parent picked the surviving name deliberately) and
+   all three are now editable in place, but it is a silent choice — worth a
+   line in the confirm copy if anyone reports surprise.
 3. **~~No food rename/edit UI.~~** **Fully closed as of v0.5.161** — name
    (v0.5.145), category (v0.5.160) and default preparation (v0.5.161) are all
    editable in place. `isSafeFood` was already toggleable from v0.3.0, so every
