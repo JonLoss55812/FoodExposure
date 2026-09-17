@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.174` (`src/lib/constants.ts`). 824 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.175` (`src/lib/constants.ts`). 830 tests pass across
 42 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 824 tests, 42 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 830 tests, 42 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 824 tests, 42 suites
+npm run test         # 830 tests, 42 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -143,7 +143,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **824 tests across 42 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **830 tests across 42 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -200,7 +200,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 824 tests, 42 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 830 tests, 42 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -251,9 +251,46 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.174
+v0.5.175
 
 ## Changelog
+- v0.5.175 — Feature: **rename a child in place** from Settings → Family. `children.name`
+  was the last permanent-or-destructive field in the app. Foods became correctable across
+  v0.5.145 (name), v0.5.160 (category) and v0.5.161 (preparation), and every field on an
+  exposure across v0.5.167–v0.5.171 — but a mistyped child name could only be "fixed" by
+  Delete Child, which cascades away every exposure that child has ever logged, i.e. the
+  exact history the 15/20/30 acceptance threshold is counted from. The name is not
+  cosmetic either: it is what the dashboard's `ChildSelector`, this card, and the
+  therapist-facing CSV's filename slug all render. Each child row gains a "Rename"
+  pressable beside the v0.5.139 "Delete", swapping the row for an inline `TextInput`
+  (`maxLength={50}`) with explicit Save and Cancel — the v0.5.169 notes-editor shape, and
+  the same shape the v0.5.145 food rename uses. Three decisions are load-bearing.
+  (1) Validation goes through **`childSchema.shape.name`** rather than a hand-rolled
+  check, so Add Child and this editor agree on trim and the 1..50 bounds and the user
+  sees the schema's own message; because the schema trims, a draft equal to the stored
+  name after trimming collapses into the same no-op early return rather than needing its
+  own branch. (2) There is deliberately **no uniqueness guard**, unlike the food rename's
+  `findDuplicateFood(..., excludeId)`: `children` carries no uniqueness contract on the
+  add path either, so adding one here would reject a rename that Add Child allows —
+  the two surfaces must not disagree. (3) The update is scoped by
+  `eq(children.id, child.id)` and the local `childrenList` is **patched** rather than
+  reloaded, matching the food-detail editors; this screen loads on focus and nothing else
+  on it reads the children query. A `rowBusy` local disables Rename and Delete on every
+  row while any per-row write is in flight, so two writes cannot race on the same patch,
+  and double-tap is guarded by a v0.5.144 synchronous `createInFlightLatch` released in
+  `finally` so neither early return can strand it. On failure the editor stays open with
+  the draft intact, so the retry is one tap and nothing is retyped. +6 screen tests in
+  `app/(tabs)/__tests__/settings.test.tsx` (the editor starts closed and opens seeded per
+  row, leaving the sibling row alone; the happy path persists the *trimmed* name under the
+  expected `eq` predicate and the local patch follows; a whitespace-only draft is rejected
+  by the schema, writes nothing and stays open; a draft matching the stored name after
+  trimming writes nothing; Cancel abandons the draft and re-opening reseeds; a failed write
+  alerts, keeps the draft, and stays retryable). Mutation-verified rather than assumed:
+  dropping the no-op early return, scoping the update by `familyId`, dropping the
+  `setChildrenList` patch, swallowing the Alert, and dropping `renameChildLatch.release()`
+  each fail exactly one test, and skipping the schema parse or seeding the draft from
+  anything other than the stored row each fail two. Bumped `APP_VERSION` to v0.5.175.
+  830 tests pass across 42 suites (was 824, +6). TypeScript clean.
 - v0.5.174 — Refactor: the four per-row exposure editors on the food detail page now
   share **one** piece of open-editor state instead of eight. NEXT_STEPS gap #-1 (b)
   flagged this explicitly — "the next person adding or changing a per-row field will

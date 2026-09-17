@@ -17,9 +17,11 @@
  * one, so every tab screen test will need that wrapper.
  */
 import React from 'react';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import { Alert, Share } from 'react-native';
+import { eq } from 'drizzle-orm';
 import { createMockDb, type MockDb } from '@/src/test-utils/mock-db';
+import * as schema from '@/src/db/schema';
 import { SafeArea, click, confirmAlert } from '@/src/test-utils/screen-helpers';
 
 const mockRouter = { replace: jest.fn(), back: jest.fn(), push: jest.fn() };
@@ -393,5 +395,158 @@ describe('SettingsScreen — Preferences and Sign Out', () => {
     // true would still redirect today, but a future surface gating on
     // isOnboarded alone would silently skip the add-child step.
     expect(useAuthStore.getState().isOnboarded).toBe(false);
+  });
+});
+
+/**
+ * Rename a child in place, from the Settings → Family card.
+ *
+ * `children.name` was the last permanent-or-destructive field in the app.
+ * Foods became renameable in v0.5.145 and every field on an exposure became
+ * correctable across v0.5.167–v0.5.171, but a mistyped child name could only
+ * be "fixed" by Delete Child, which cascades away every exposure that child
+ * has ever logged — the exact history the 15/20/30 acceptance threshold is
+ * counted from. The name is also what every child-facing surface renders:
+ * the dashboard's ChildSelector, this card, and the therapist-facing CSV's
+ * filename slug.
+ */
+describe('SettingsScreen — Rename Child', () => {
+  let alertSpy: jest.SpyInstance;
+  let errorSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    mockDb = createMockDb();
+    jest.clearAllMocks();
+    alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    useAuthStore.getState().login({
+      userId: 'user-1',
+      familyId: 'fam-1',
+      email: 'anne@tonguetutor.app',
+      displayName: 'Anne',
+    });
+    useChildStore.getState().selectChild(EMMA.id);
+  });
+
+  afterEach(() => {
+    alertSpy.mockRestore();
+    errorSpy.mockRestore();
+    useAuthStore.getState().logout();
+    useChildStore.getState().clear();
+  });
+
+  function nameInput() {
+    return screen.getByLabelText("Child's name") as HTMLInputElement;
+  }
+
+  async function typeName(value: string) {
+    await act(async () => {
+      fireEvent.change(nameInput(), { target: { value } });
+    });
+  }
+
+  it('opens an editor seeded with the stored name, per child', async () => {
+    await renderWithChildren([EMMA, NOAH]);
+    expect(screen.getByLabelText('Rename Emma')).toBeTruthy();
+    expect(screen.getByLabelText('Rename Noah')).toBeTruthy();
+    // Closed until asked for.
+    expect(screen.queryByLabelText("Child's name")).toBeNull();
+
+    await click('Rename Emma');
+    expect(nameInput().value).toBe('Emma');
+    // Only the row that was opened.
+    expect(screen.getByLabelText('Delete Noah')).toBeTruthy();
+  });
+
+  it('persists the trimmed name scoped to that child and closes', async () => {
+    await renderWithChildren([EMMA, NOAH]);
+    await click('Rename Emma');
+    await typeName('  Emmaline  ');
+    await click('Save name for Emma');
+
+    expect(mockDb.writes).toHaveLength(1);
+    const write = mockDb.writes[0];
+    expect(write.kind).toBe('update');
+    // The schema trims; a stored "  Emmaline  " would render with the padding
+    // on every surface and slug oddly into the CSV filename.
+    expect((write as { values: unknown }).values).toEqual({ name: 'Emmaline' });
+    // Scoped to the row the user named — not the family, not the selection.
+    expect((write as { where: unknown }).where).toEqual(eq(schema.children.id, EMMA.id));
+
+    // The local patch follows, so the card does not need a reload to be right.
+    await waitFor(() => expect(screen.getByText(/Emmaline/)).toBeTruthy());
+    expect(screen.queryByLabelText("Child's name")).toBeNull();
+    // The sibling row is untouched.
+    expect(screen.getByText(/Noah/)).toBeTruthy();
+  });
+
+  it('rejects a whitespace-only name through the schema and writes nothing', async () => {
+    await renderWithChildren([EMMA]);
+    await click('Rename Emma');
+    await typeName('   ');
+    await click('Save name for Emma');
+
+    expect(mockDb.writes).toHaveLength(0);
+    expect(alertSpy.mock.calls[0][0]).toBe('Invalid Name');
+    // Left open so the name can be corrected in place rather than retyped.
+    expect(nameInput()).toBeTruthy();
+  });
+
+  it('treats a draft equal to the stored name after trimming as a no-op', async () => {
+    await renderWithChildren([EMMA]);
+    await click('Rename Emma');
+    await typeName('  Emma  ');
+    await click('Save name for Emma');
+
+    expect(mockDb.writes).toHaveLength(0);
+    expect(alertSpy).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByLabelText("Child's name")).toBeNull());
+  });
+
+  it('abandons the draft on cancel and reseeds from the stored name', async () => {
+    await renderWithChildren([EMMA]);
+    await click('Rename Emma');
+    await typeName('Discarded');
+    await click('Cancel renaming Emma');
+
+    expect(mockDb.writes).toHaveLength(0);
+    expect(screen.queryByLabelText("Child's name")).toBeNull();
+    expect(screen.getByText(/Emma/)).toBeTruthy();
+
+    await click('Rename Emma');
+    expect(nameInput().value).toBe('Emma');
+  });
+
+  it('alerts and stays retryable when the write fails', async () => {
+    await renderWithChildren([EMMA]);
+    await click('Rename Emma');
+    await typeName('Emmaline');
+
+    // failReads() only covers reads; this screen's rename issues none.
+    const dbRef = mockDb.db as { update: (...a: unknown[]) => unknown };
+    const realUpdate = dbRef.update;
+    let failed = false;
+    dbRef.update = (...args: unknown[]) => {
+      if (!failed) {
+        failed = true;
+        return {
+          set: () => ({ where: () => Promise.reject(new Error('write failed')) }),
+        };
+      }
+      return realUpdate(...args);
+    };
+
+    await click('Save name for Emma');
+    await waitFor(() =>
+      expect(alertSpy.mock.calls.some((c) => c[0] === 'Error')).toBe(true)
+    );
+    // Not optimistic, and left open with the draft intact so the retry is
+    // one tap rather than a re-open and a retype.
+    expect(mockDb.writes).toHaveLength(0);
+    expect(nameInput().value).toBe('Emmaline');
+    // The latch was released in `finally`, so the retry goes through.
+    await click('Save name for Emma');
+    await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+    expect((mockDb.writes[0] as { values: unknown }).values).toEqual({ name: 'Emmaline' });
   });
 });

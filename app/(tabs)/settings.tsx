@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, Alert } from 'react-native';
+import { View, Text, TextInput, ScrollView, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -14,6 +14,7 @@ import { APP_VERSION } from '@/src/lib/constants';
 import { exportChildData } from '@/src/lib/export';
 import { deleteChildCascade } from '@/src/lib/cascade-delete';
 import { createInFlightLatch } from '@/src/lib/in-flight';
+import { childSchema } from '@/src/lib/validation';
 
 type ChildRow = Pick<typeof schema.children.$inferSelect, 'id' | 'name' | 'avatarEmoji'>;
 
@@ -25,9 +26,13 @@ export default function SettingsScreen() {
   const [exporting, setExporting] = useState(false);
   const [childrenList, setChildrenList] = useState<ChildRow[]>([]);
   const [deletingChildId, setDeletingChildId] = useState<string | null>(null);
+  const [editingChildId, setEditingChildId] = useState<string | null>(null);
+  const [savingChildId, setSavingChildId] = useState<string | null>(null);
+  const [nameDraft, setNameDraft] = useState('');
   // The state flags lag a render behind the tap; the latches are synchronous.
   const exportLatch = useRef(createInFlightLatch()).current;
   const deleteChildLatch = useRef(createInFlightLatch()).current;
+  const renameChildLatch = useRef(createInFlightLatch()).current;
 
   const loadChildren = useCallback(async () => {
     if (!familyId) {
@@ -54,6 +59,59 @@ export default function SettingsScreen() {
       loadChildren();
     }, [loadChildren])
   );
+
+  /**
+   * A child's name was the last permanent-or-destructive field in the app:
+   * foods gained rename/category/preparation editing (v0.5.145/160/161) and
+   * every field on an exposure became correctable (v0.5.167-171), but a
+   * mistyped child name could only be "fixed" by Delete Child — which
+   * cascades away every exposure that child has ever logged, i.e. the exact
+   * history the 15/20/30 acceptance threshold is counted from.
+   *
+   * Validation goes through `childSchema.shape.name` rather than a
+   * hand-rolled check, so Add Child and this editor agree on trim and the
+   * 1..50 bounds and the user sees the schema's own message. Unlike the food
+   * rename there is deliberately **no** uniqueness guard: `children` carries
+   * no uniqueness contract on add either (two children may legitimately share
+   * a name), so adding one here would reject a rename the add path allows.
+   */
+  const handleSaveChildName = async (child: ChildRow) => {
+    if (!renameChildLatch.tryAcquire()) return;
+
+    const parsed = childSchema.shape.name.safeParse(nameDraft);
+    if (!parsed.success) {
+      renameChildLatch.release();
+      Alert.alert('Invalid Name', parsed.error.issues[0]?.message ?? "Please enter the child's name.");
+      return;
+    }
+    const nextName = parsed.data;
+    // The schema trims, so a draft equal to the stored name after trimming is
+    // a no-op that closes without touching the DB.
+    if (nextName === child.name) {
+      renameChildLatch.release();
+      setEditingChildId(null);
+      return;
+    }
+
+    setSavingChildId(child.id);
+    try {
+      await db
+        .update(schema.children)
+        .set({ name: nextName })
+        .where(eq(schema.children.id, child.id));
+      // Patched rather than reloaded: the screen loads on focus, and nothing
+      // else on it depends on the children query.
+      setChildrenList((rows) => rows.map((c) => (c.id === child.id ? { ...c, name: nextName } : c)));
+      setEditingChildId(null);
+    } catch (err) {
+      console.error('Failed to rename child:', err);
+      // Leave the editor open with the draft intact so the retry is one tap.
+      Alert.alert('Error', 'Failed to rename child. Please try again.');
+    } finally {
+      renameChildLatch.release();
+      setSavingChildId(null);
+    }
+  };
 
   const handleDeleteChild = (child: ChildRow) => {
     if (deleteChildLatch.busy) return;
@@ -152,24 +210,74 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           {childrenList.map((child) => {
             const isDeleting = deletingChildId === child.id;
+            const isSaving = savingChildId === child.id;
+            const isEditing = editingChildId === child.id;
+            // No two per-row writes may race on the same `childrenList` patch.
+            const rowBusy = !!deletingChildId || !!savingChildId;
             return (
               <View key={child.id}>
-                <View style={styles.row}>
-                  <Text style={styles.label}>
-                    {child.avatarEmoji} {child.name}
-                  </Text>
-                  <Pressable
-                    onPress={() => handleDeleteChild(child)}
-                    disabled={!!deletingChildId}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Delete ${child.name}`}
-                    accessibilityState={{ disabled: !!deletingChildId, busy: isDeleting }}
-                  >
-                    <Text style={styles.deleteChildText}>
-                      {isDeleting ? 'Deleting…' : 'Delete'}
+                {isEditing ? (
+                  <View style={styles.editRow}>
+                    <TextInput
+                      style={styles.nameInput}
+                      value={nameDraft}
+                      onChangeText={setNameDraft}
+                      placeholder="Child's name"
+                      maxLength={50}
+                      accessibilityLabel="Child's name"
+                    />
+                    <View style={styles.editActions}>
+                      <Pressable
+                        onPress={() => handleSaveChildName(child)}
+                        disabled={rowBusy}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Save name for ${child.name}`}
+                        accessibilityState={{ disabled: rowBusy, busy: isSaving }}
+                      >
+                        <Text style={styles.saveChildText}>{isSaving ? 'Saving…' : 'Save'}</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => setEditingChildId(null)}
+                        disabled={rowBusy}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Cancel renaming ${child.name}`}
+                      >
+                        <Text style={styles.cancelChildText}>Cancel</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.row}>
+                    <Text style={styles.label}>
+                      {child.avatarEmoji} {child.name}
                     </Text>
-                  </Pressable>
-                </View>
+                    <View style={styles.editActions}>
+                      <Pressable
+                        onPress={() => {
+                          setNameDraft(child.name);
+                          setEditingChildId(child.id);
+                        }}
+                        disabled={rowBusy}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Rename ${child.name}`}
+                        accessibilityState={{ disabled: rowBusy }}
+                      >
+                        <Text style={styles.renameChildText}>Rename</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => handleDeleteChild(child)}
+                        disabled={rowBusy}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Delete ${child.name}`}
+                        accessibilityState={{ disabled: rowBusy, busy: isDeleting }}
+                      >
+                        <Text style={styles.deleteChildText}>
+                          {isDeleting ? 'Deleting…' : 'Delete'}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                )}
                 <View style={styles.divider} />
               </View>
             );
@@ -364,6 +472,40 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.fontSize.sm,
     fontWeight: '600',
     color: theme.colors.error,
+  },
+  renameChildText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.primaryStrong,
+  },
+  saveChildText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.primaryStrong,
+  },
+  cancelChildText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+  },
+  editActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
+  editRow: {
+    padding: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  nameInput: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    fontSize: theme.fontSize.md,
+    color: theme.colors.text,
+    minHeight: 44,
   },
   themeRow: {
     flexDirection: 'row',
