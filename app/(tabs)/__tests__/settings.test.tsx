@@ -550,3 +550,96 @@ describe('SettingsScreen — Rename Child', () => {
     expect((mockDb.writes[0] as { values: unknown }).values).toEqual({ name: 'Emmaline' });
   });
 });
+
+/**
+ * v0.5.178 — `children.dateOfBirth` and `notes` have been captured since
+ * v0.1.0 and read back by no surface in the app (NEXT_STEPS gap #-1.5, the
+ * same write-only defect v0.5.161 closed for a food's default preparation).
+ * The Family card is the first place a parent sees what they typed.
+ */
+describe('SettingsScreen — child date of birth and notes (v0.5.178)', () => {
+  let alertSpy: jest.SpyInstance;
+  let errorSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    mockDb = createMockDb();
+    jest.clearAllMocks();
+    alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    useAuthStore.getState().login({
+      userId: 'user-1',
+      familyId: 'fam-1',
+      email: 'anne@tonguetutor.app',
+      displayName: 'Anne',
+    });
+    useChildStore.getState().selectChild(EMMA.id);
+  });
+
+  afterEach(() => {
+    alertSpy.mockRestore();
+    errorSpy.mockRestore();
+    useAuthStore.getState().logout();
+    useChildStore.getState().clear();
+  });
+
+  /**
+   * Derived from the wall clock rather than a literal, so the assertion does
+   * not silently start describing a different age as the year turns over —
+   * the trap NEXT_STEPS gap #-1(c) records for the date fixtures.
+   */
+  function isoMonthsAgo(months: number) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - months);
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }
+
+  it('shows a toddler age in whole months beside the name', async () => {
+    await renderWithChildren([{ ...EMMA, dateOfBirth: isoMonthsAgo(9) }]);
+    expect(screen.getByText('Emma', { exact: false })).toBeTruthy();
+    expect(screen.getByText('9 months')).toBeTruthy();
+  });
+
+  it('shows years and months once the child is over two', async () => {
+    await renderWithChildren([{ ...EMMA, dateOfBirth: isoMonthsAgo(28) }]);
+    expect(screen.getByText('2y 4m')).toBeTruthy();
+  });
+
+  it('shows the notes a parent recorded on the add screen', async () => {
+    await renderWithChildren([{ ...EMMA, notes: 'Gags on purees' }]);
+    expect(screen.getByText('Gags on purees')).toBeTruthy();
+  });
+
+  it('renders each child against its own row rather than the first one', async () => {
+    await renderWithChildren([
+      { ...EMMA, dateOfBirth: isoMonthsAgo(9), notes: 'Gags on purees' },
+      { ...NOAH, dateOfBirth: isoMonthsAgo(28), notes: 'Loves crunchy food' },
+    ]);
+    expect(screen.getByText('9 months')).toBeTruthy();
+    expect(screen.getByText('2y 4m')).toBeTruthy();
+    expect(screen.getByText('Gags on purees')).toBeTruthy();
+    expect(screen.getByText('Loves crunchy food')).toBeTruthy();
+  });
+
+  it('collapses both lines when neither was recorded', async () => {
+    // The common case — both fields are optional on the add path — so the row
+    // must not grow an empty line or a placeholder.
+    await renderWithChildren([EMMA]);
+    expect(screen.getByLabelText('Delete Emma')).toBeTruthy();
+    expect(screen.queryByText('Newborn')).toBeNull();
+    expect(screen.queryByText('0 months')).toBeNull();
+  });
+
+  it('shows nothing rather than a negative age for a malformed or future date', async () => {
+    // The column has no format constraint, so a legacy or synced row can hold
+    // one even though `childSchema` rejects it on the add path.
+    await renderWithChildren([
+      { ...EMMA, dateOfBirth: '12/05/2020' },
+      { ...NOAH, dateOfBirth: '2099-01-01' },
+    ]);
+    expect(screen.getByLabelText('Delete Emma')).toBeTruthy();
+    expect(screen.getByLabelText('Delete Noah')).toBeTruthy();
+    expect(screen.queryByText('12/05/2020')).toBeNull();
+    expect(screen.queryByText(/^-/)).toBeNull();
+  });
+});

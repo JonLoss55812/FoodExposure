@@ -9,6 +9,7 @@ import {
   resolveOccurredAt,
   MAX_BACKDATE_YEARS,
   toLocalDateInput,
+  formatChildAge,
 } from '../utils';
 
 describe('generateId', () => {
@@ -453,5 +454,56 @@ describe('toLocalDateInput', () => {
     expect(toLocalDateInput(undefined)).toBe('');
     expect(toLocalDateInput(new Date(NaN))).toBe('');
     expect(toLocalDateInput('not a date')).toBe('');
+  });
+});
+
+describe('formatChildAge', () => {
+  const now = new Date(2026, 8, 18); // 18 Sep 2026, local
+
+  it('returns null for an absent date of birth', () => {
+    expect(formatChildAge(undefined, now)).toBeNull();
+    expect(formatChildAge(null, now)).toBeNull();
+    expect(formatChildAge('', now)).toBeNull();
+    expect(formatChildAge('   ', now)).toBeNull();
+  });
+
+  it('returns null for a non-string or malformed date of birth', () => {
+    // `childSchema.dateOfBirth` rejects these at the add path, but the column
+    // has no format constraint, so a legacy or synced row can still carry one.
+    expect(formatChildAge(42 as unknown as string, now)).toBeNull();
+    expect(formatChildAge('12/05/2020', now)).toBeNull();
+    expect(formatChildAge('yesterday', now)).toBeNull();
+    expect(formatChildAge('2026-02-30', now)).toBeNull();
+    expect(formatChildAge('2026-13-01', now)).toBeNull();
+  });
+
+  it('returns null for a date of birth in the future', () => {
+    // Better to show nothing than "-2 months old".
+    expect(formatChildAge('2027-01-01', now)).toBeNull();
+  });
+
+  it('describes a baby under a month old as a newborn', () => {
+    expect(formatChildAge('2026-09-18', now)).toBe('Newborn');
+    expect(formatChildAge('2026-09-01', now)).toBe('Newborn');
+  });
+
+  it('counts whole months for a baby under two', () => {
+    expect(formatChildAge('2026-08-18', now)).toBe('1 month');
+    expect(formatChildAge('2026-03-18', now)).toBe('6 months');
+    expect(formatChildAge('2025-09-18', now)).toBe('12 months');
+    expect(formatChildAge('2024-10-18', now)).toBe('23 months');
+  });
+
+  it('does not round a month up before the day of the month is reached', () => {
+    // 17 Aug -> 18 Sep is a full month; 19 Aug -> 18 Sep is not.
+    expect(formatChildAge('2026-08-19', now)).toBe('Newborn');
+    expect(formatChildAge('2026-08-17', now)).toBe('1 month');
+  });
+
+  it('switches to years and months at two', () => {
+    expect(formatChildAge('2024-09-18', now)).toBe('2y');
+    expect(formatChildAge('2024-05-18', now)).toBe('2y 4m');
+    expect(formatChildAge('2018-09-17', now)).toBe('8y');
+    expect(formatChildAge('2018-07-18', now)).toBe('8y 2m');
   });
 });

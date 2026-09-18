@@ -6,6 +6,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { eq } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
+import { formatChildAge } from '@/src/lib/utils';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { useChildStore } from '@/src/stores/child-store';
 import { useSettingsStore } from '@/src/stores/settings-store';
@@ -16,7 +17,10 @@ import { deleteChildCascade } from '@/src/lib/cascade-delete';
 import { createInFlightLatch } from '@/src/lib/in-flight';
 import { childSchema } from '@/src/lib/validation';
 
-type ChildRow = Pick<typeof schema.children.$inferSelect, 'id' | 'name' | 'avatarEmoji'>;
+type ChildRow = Pick<
+  typeof schema.children.$inferSelect,
+  'id' | 'name' | 'avatarEmoji' | 'dateOfBirth' | 'notes'
+>;
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -45,6 +49,8 @@ export default function SettingsScreen() {
           id: schema.children.id,
           name: schema.children.name,
           avatarEmoji: schema.children.avatarEmoji,
+          dateOfBirth: schema.children.dateOfBirth,
+          notes: schema.children.notes,
         })
         .from(schema.children)
         .where(eq(schema.children.familyId, familyId));
@@ -214,6 +220,7 @@ export default function SettingsScreen() {
             const isEditing = editingChildId === child.id;
             // No two per-row writes may race on the same `childrenList` patch.
             const rowBusy = !!deletingChildId || !!savingChildId;
+            const childAge = formatChildAge(child.dateOfBirth);
             return (
               <View key={child.id}>
                 {isEditing ? (
@@ -248,9 +255,25 @@ export default function SettingsScreen() {
                   </View>
                 ) : (
                   <View style={styles.row}>
-                    <Text style={styles.label}>
-                      {child.avatarEmoji} {child.name}
-                    </Text>
+                    <View style={styles.childIdentity}>
+                      <Text style={styles.label}>
+                        {child.avatarEmoji} {child.name}
+                      </Text>
+                      {/*
+                        `dateOfBirth` and `notes` have been captured since
+                        v0.1.0 and read back by nothing — this is the first
+                        surface that shows a parent what they typed. Both
+                        collapse when absent, which is the common case: they
+                        are optional on the add path and most parents skip
+                        them.
+                      */}
+                      {childAge ? <Text style={styles.childMeta}>{childAge}</Text> : null}
+                      {child.notes ? (
+                        <Text style={styles.childMeta} numberOfLines={2}>
+                          {child.notes}
+                        </Text>
+                      ) : null}
+                    </View>
                     <View style={styles.editActions}>
                       <Pressable
                         onPress={() => {
@@ -487,6 +510,14 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.fontSize.sm,
     fontWeight: '600',
     color: theme.colors.textSecondary,
+  },
+  childIdentity: {
+    flex: 1,
+    gap: 2,
+  },
+  childMeta: {
+    fontSize: 12,
+    color: theme.colors.textTertiary,
   },
   editActions: {
     flexDirection: 'row',

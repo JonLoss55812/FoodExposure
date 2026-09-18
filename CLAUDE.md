@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.177` (`src/lib/constants.ts`). 859 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.178` (`src/lib/constants.ts`). 872 tests pass across
 43 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 843 tests, 43 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 872 tests, 43 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 843 tests, 43 suites
+npm run test         # 872 tests, 43 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -143,7 +143,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **843 tests across 43 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **872 tests across 43 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -200,7 +200,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 843 tests, 43 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 872 tests, 43 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -251,9 +251,55 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.177
+v0.5.178
 
 ## Changelog
+- v0.5.178 — Feature: **a child's date of birth and notes stop being write-only.**
+  Both have been captured by `ChildForm` on Add Child and onboarding since v0.1.0, land
+  in SQLite, and are then read back by **no surface in the app** — not Settings, not the
+  dashboard, not the CSV export (NEXT_STEPS gap #-1.5). Same defect class v0.5.161 closed
+  for a food's `defaultPreparation` ("a value set on Add Food was write-only from the
+  moment it was saved"), on the field a parent is most likely to have filled in during
+  onboarding and never seen since. Two pieces. (1) New pure `formatChildAge(dateOfBirth,
+  now?)` in `src/lib/utils.ts`. Under two the age is reported in **whole months**, which
+  is the unit feeding therapy actually works in for that range — a 9-month-old and an
+  18-month-old are at completely different points of the hierarchy and "1 year" flattens
+  them together; over two it switches to years-and-months. Three decisions are
+  load-bearing. The date is parsed at **local** midnight, matching `resolveOccurredAt`
+  and `toLocalDateInput` — a UTC parse shifts the birthday a day for every user west of
+  Greenwich, which flips the answer outright on the day before a monthly boundary. The
+  current month is **not counted until the day of the month is reached**, so a child born
+  on the 19th is not a month old on the 18th. And blank, non-string, malformed, rollover
+  (`2026-02-30`) and **future** dates all return `null` rather than a placeholder:
+  `childSchema.dateOfBirth` rejects every one of those on the add path (format v0.5.79,
+  future v0.5.87, implausibly-old v0.5.100) but the SQLite column carries no format
+  constraint, so a legacy or future-synced row can still hold one — and a row that reads
+  "-2 months old" is worse than a row that reads nothing. (2) The Settings → Family rows
+  gain the age and the notes beneath the child's name (notes at `numberOfLines={2}`),
+  with the query projection widened to carry both columns. Both lines **collapse when
+  absent**, which is the common case — the two fields are optional on the add path and
+  most parents skip them, so the row must not grow an empty line or a placeholder. This
+  is deliberately the *read* half only: NEXT_STEPS records that the honest way to make
+  these two fields **editable** is an `app/child/[id].tsx` detail screen reusing
+  `ChildForm` in an edit mode, not a third inline editor bolted onto the Settings row,
+  and that is a whole task of its own — `ChildForm` is shared by two hosts and 34 tests.
+  Making the data visible is independently valuable and independently verifiable, and it
+  gives the future detail screen its helper ready-made. +8 unit tests in
+  `src/lib/__tests__/utils.test.ts` (absent/blank, non-string and malformed, future, the
+  newborn floor, whole months including the 12- and 23-month boundaries, the
+  day-of-month rounding in both directions, and the years-and-months switch with and
+  without a remainder) and +6 screen tests in `app/(tabs)/__tests__/settings.test.tsx`
+  (a toddler age in months, a years-and-months age, the notes, each child rendered
+  against **its own** row rather than the first one, both lines collapsing when neither
+  was recorded, and a malformed or future date rendering nothing). The screen fixtures
+  derive their dates from the wall clock rather than pinning a literal, so the assertions
+  do not silently start describing a different age as the year turns over — the trap
+  NEXT_STEPS gap #-1(c) records for the existing date fixtures. Mutation-verified rather
+  than assumed: rendering the raw `dateOfBirth` instead of the formatted age fails four
+  tests, dropping the notes line fails two, and reading the age off `childrenList[0]`
+  instead of the row, dropping the future guard, and dropping the day-of-month
+  adjustment each fail exactly one. Bumped `APP_VERSION` to v0.5.178. 872 tests pass
+  across 43 suites (was 859, +13). TypeScript clean.
 - v0.5.177 — Feature: **the Foods tab now says when two rows are the same food**, and
   offers the lossless merge in place — closes the surviving follow-up (a) of NEXT_STEPS
   gap #2. v0.5.176 made `mergeFoods` lossless, but it is reachable **only from a rename

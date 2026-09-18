@@ -129,3 +129,70 @@ export function toLocalDateInput(value?: Date | number | string | null): string 
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
+
+/**
+ * Render a child's `dateOfBirth` as a human age, or `null` when there is
+ * nothing trustworthy to show.
+ *
+ * `children.dateOfBirth` has been captured since v0.1.0 and read back by
+ * nothing — the same write-only defect v0.5.161 closed for a food's
+ * `defaultPreparation`. This is what gives it somewhere to be displayed,
+ * which is the actual reason a parent typed it.
+ *
+ * Under two, the age is reported in **whole months**, which is the unit
+ * feeding therapy actually works in for that range (a 9-month-old and an
+ * 18-month-old are at completely different points of the hierarchy, and "1
+ * year" flattens them together). Over two, years-and-months reads better.
+ *
+ * Returns `null` rather than a placeholder for blank, non-string, malformed
+ * and future dates. `childSchema.dateOfBirth` rejects all of those at the add
+ * path (format v0.5.79, future v0.5.87, implausibly-old v0.5.100), but the
+ * SQLite column carries no format constraint, so a legacy or future-synced row
+ * can still hold one — and a row that renders "-2 months old" is worse than a
+ * row that renders nothing.
+ *
+ * Parsed at **local** midnight (`new Date(y, m - 1, d)`), matching
+ * `resolveOccurredAt` and `toLocalDateInput`: a UTC parse would shift the
+ * birthday a day for every user west of Greenwich, which flips the answer on
+ * the day before a monthly boundary.
+ */
+export function formatChildAge(
+  dateOfBirth: string | null | undefined,
+  now: Date = new Date(),
+): string | null {
+  if (typeof dateOfBirth !== 'string') return null;
+  const value = dateOfBirth.trim();
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+
+  const [, y, m, d] = match;
+  const year = Number(y);
+  const month = Number(m);
+  const day = Number(d);
+  const born = new Date(year, month - 1, day);
+  // Rejects calendar rollovers (2026-02-30 would silently become Mar 1), the
+  // same round-trip guard `childSchema.dateOfBirth` uses.
+  if (
+    born.getFullYear() !== year ||
+    born.getMonth() !== month - 1 ||
+    born.getDate() !== day
+  ) {
+    return null;
+  }
+
+  const reference = now instanceof Date && !Number.isNaN(now.getTime()) ? now : new Date();
+  if (born.getTime() > reference.getTime()) return null;
+
+  let months =
+    (reference.getFullYear() - born.getFullYear()) * 12 +
+    (reference.getMonth() - born.getMonth());
+  // Do not count the current month until the day of the month is reached.
+  if (reference.getDate() < born.getDate()) months -= 1;
+
+  if (months < 1) return 'Newborn';
+  if (months < 24) return months === 1 ? '1 month' : `${months} months`;
+
+  const years = Math.floor(months / 12);
+  const rest = months % 12;
+  return rest === 0 ? `${years}y` : `${years}y ${rest}m`;
+}
