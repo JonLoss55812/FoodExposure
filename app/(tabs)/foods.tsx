@@ -12,7 +12,9 @@ import { useAuthStore } from '@/src/stores/auth-store';
 import { useChildStore } from '@/src/stores/child-store';
 import { FOOD_CATEGORIES, CATEGORY_CONFIG, getCategoryConfig } from '@/src/lib/constants';
 import type { FoodCategory, ExposureStage } from '@/src/lib/constants';
-import { partitionSafeFoods, getEmptyStateKind, buildFoodsWithStats, filterFoods } from '@/src/lib/food-partition';
+import { partitionSafeFoods, getEmptyStateKind, buildFoodsWithStats, filterFoods, findDuplicateFoodGroups } from '@/src/lib/food-partition';
+import { mergeFoods } from '@/src/lib/merge-foods';
+import { createInFlightLatch } from '@/src/lib/in-flight';
 
 type FoodWithStats = typeof schema.foods.$inferSelect & {
   exposureCount: number;
@@ -30,6 +32,7 @@ export default function FoodsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const hasLoadedRef = useRef(false);
+  const mergeLatch = useRef(createInFlightLatch()).current;
 
   const loadFoods = useCallback(async () => {
     if (!familyId) return;
@@ -73,6 +76,53 @@ export default function FoodsScreen() {
   const filteredFoods = filterFoods(foods, searchQuery, selectedCategory);
 
   const { safeFoods, otherFoods } = partitionSafeFoods(filteredFoods);
+
+  /**
+   * Duplicates are a property of the *library*, not of the current filter, so
+   * this reads `foods` rather than `filteredFoods` — a parent who has typed a
+   * search that hides one of the twins must not be told the problem went away.
+   * Only the first group is offered at a time: merging is destructive to one
+   * row, and a queue of confirm dialogs is the wrong shape for it. The banner
+   * simply reappears while any duplicate remains.
+   */
+  const duplicateGroups = findDuplicateFoodGroups(foods);
+  const duplicateGroup = duplicateGroups[0];
+
+  /**
+   * The survivor is the group's first member, which is its first row in the
+   * `asc(name)` load order. Every member of a group normalizes to the same
+   * name, so they differ only in casing or padding — which makes "which
+   * spelling survives" genuinely low-stakes, and the name is editable in place
+   * afterwards either way. The latch is acquired inside the confirm callback,
+   * never in the function that opens the Alert (the v0.5.144 placement rule):
+   * acquiring at the top would strand it the moment the parent taps Cancel.
+   */
+  const handleMergeDuplicates = () => {
+    if (!duplicateGroup || mergeLatch.busy) return;
+    const [target, source] = duplicateGroup;
+    Alert.alert(
+      'Merge Duplicates?',
+      `"${source.name}" and "${target.name}" are the same food. Every exposure logged against "${source.name}" will move to "${target.name}", and "${source.name}" will be removed. Nothing is lost.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Merge',
+          onPress: async () => {
+            if (!mergeLatch.tryAcquire()) return;
+            try {
+              await mergeFoods(db, source.id, target.id);
+              await loadFoods();
+            } catch (err) {
+              console.error('Failed to merge duplicate foods:', err);
+              Alert.alert('Error', 'Failed to merge foods. Please try again.');
+            } finally {
+              mergeLatch.release();
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const renderFoodItem = useCallback(({ item }: { item: FoodWithStats }) => (
     <View style={styles.cardWrapper}>
@@ -135,6 +185,22 @@ export default function FoodsScreen() {
           <Text style={styles.addButtonText}>+ Add</Text>
         </Pressable>
       </View>
+
+      {duplicateGroup ? (
+        <View style={styles.duplicateBanner} testID="duplicate-banner">
+          <Text style={styles.duplicateText}>
+            {`"${duplicateGroup[0].name}" is in your library ${duplicateGroup.length} times. Merging keeps every logged exposure.`}
+          </Text>
+          <Pressable
+            style={styles.duplicateAction}
+            onPress={handleMergeDuplicates}
+            accessibilityRole="button"
+            accessibilityLabel={`Merge duplicates of ${duplicateGroup[0].name}`}
+          >
+            <Text style={styles.duplicateActionText}>Merge</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       {/* Search */}
       <View style={styles.searchContainer}>
@@ -297,6 +363,31 @@ const styles = StyleSheet.create((theme) => ({
   },
   cardWrapper: {
     marginBottom: theme.spacing.sm,
+  },
+  duplicateBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.primaryLight,
+  },
+  duplicateText: {
+    flex: 1,
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+  },
+  duplicateAction: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: theme.spacing.md,
+  },
+  duplicateActionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.primaryStrong,
   },
   safeSection: {
     marginBottom: theme.spacing.md,

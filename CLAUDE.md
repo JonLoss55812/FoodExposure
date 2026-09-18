@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.176` (`src/lib/constants.ts`). 843 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.177` (`src/lib/constants.ts`). 859 tests pass across
 43 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -251,9 +251,54 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.176
+v0.5.177
 
 ## Changelog
+- v0.5.177 — Feature: **the Foods tab now says when two rows are the same food**, and
+  offers the lossless merge in place — closes the surviving follow-up (a) of NEXT_STEPS
+  gap #2. v0.5.176 made `mergeFoods` lossless, but it is reachable **only from a rename
+  collision**: the parent has to independently decide to rename one twin, type the
+  other's exact spelling, and be told it is taken. A family that accumulated "apple" and
+  "Apple" before the v0.5.136 guard existed therefore sees two rows on the Foods tab,
+  both counting toward the 15/20/30 acceptance threshold separately, with no hint they
+  are the same food and no reason to ever try renaming. Two pieces. (1) New pure
+  `findDuplicateFoodGroups(foods)` in `src/lib/food-partition.ts` — groups by the same
+  trimmed-and-lowercased key `findDuplicateFood` compares on and returns only the groups
+  of two or more, in first-seen order (so an `asc(name)` load yields a stable,
+  alphabetical result). Deliberately **exact after normalizing, not fuzzy**: it reports
+  the casing/whitespace twins the pre-v0.5.136 add path could create and stays silent on
+  near-misses like "Brocolli" vs "Broccoli", which are two different strings a parent may
+  be keeping apart on purpose — offering to fold one into the other on a guess risks
+  destroying a row that was wanted. Rows with a blank or non-string name are skipped
+  rather than grouped with each other: two rows that both normalize to `''` are corrupt,
+  not duplicates, and merging on the strength of a *missing* name would discard a row for
+  no reason. (2) A banner above the search box naming the food and its copy count, with a
+  Merge action. Three decisions are load-bearing. It reads **`foods`, not
+  `filteredFoods`** — duplication is a property of the library, not of the current
+  filter, so a search that hides one twin must not read as "the problem went away".
+  Only the **first** group is offered at a time and only **one** twin is folded per tap:
+  merging is destructive to a row, and a queue of confirm dialogs is the wrong shape for
+  it; the banner simply reappears while any duplicate remains. The **survivor is the
+  group's first member** — every member normalizes to the same name, so they differ only
+  in casing or padding, which makes "which spelling survives" genuinely low-stakes, and
+  the name is editable in place afterwards either way. The confirm names both spellings
+  and promises the history survives ("Nothing is lost"), and the latch is acquired inside
+  the confirm callback and never in the function that opens the Alert (the v0.5.144
+  placement rule). On success the screen reloads rather than patching local state,
+  because a merge changes two rows and every per-food exposure count on the screen.
+  +10 unit tests in `src/lib/__tests__/food-partition.test.ts` (no groups for distinct
+  names or an empty list, case and whitespace twins, the near-miss negative, a group of
+  three, two distinct collisions each as their own group in first-seen order, order
+  preserved within a group, and the corrupt-name matrix both alone and interleaved with a
+  real pair) and +6 screen tests in `app/(tabs)/__tests__/foods.test.tsx` (the banner
+  stays absent with no twins; it names the food and count when one exists; it survives a
+  search that hides a twin; the confirm names both spellings and Cancel writes nothing;
+  the happy path issues the five merge writes in order with the exposures moving onto the
+  survivor and then reloads without the twin; a failed merge alerts and keeps both rows
+  retryable). Mutation-verified rather than assumed: reading `filteredFoods` instead of
+  `foods`, swapping the merge direction, dropping the post-merge reload and swallowing the
+  failure Alert each fail exactly one test. Bumped `APP_VERSION` to v0.5.177.
+  859 tests pass across 43 suites (was 843, +16). TypeScript clean.
 - v0.5.176 — Feature: **merge one food into another, losslessly** — closes NEXT_STEPS
   gap #2. v0.5.136 blocks *new* duplicate food names, but a family that accumulated
   "Brocolli" and "Broccoli" before that guard existed had no lossless way out. The

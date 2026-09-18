@@ -92,6 +92,45 @@ export function findDuplicateFood<T extends FoodNameable>(
   );
 }
 
+/**
+ * Group a family's foods by their normalized (trimmed, lowercased) name and
+ * return only the names that more than one row answers to.
+ *
+ * v0.5.136 blocks *new* duplicate names and v0.5.176 made merging them
+ * lossless — but the merge is only reachable from a rename **collision**, so a
+ * family that accumulated "apple" and "Apple" before the guard existed sees
+ * two rows on the Foods tab with no hint they are the same food and no reason
+ * to ever try renaming one. This is what lets the Foods tab say so.
+ *
+ * Deliberately exact-after-normalizing, matching `findDuplicateFood`: it
+ * reports the casing/whitespace twins the pre-v0.5.136 add path could create,
+ * and stays silent on near-misses like "Brocolli" vs "Broccoli". Those are two
+ * different strings, and a parent may be keeping them apart on purpose —
+ * offering to fold one into the other on a fuzzy guess risks destroying a row
+ * the parent wanted.
+ *
+ * Rows with a blank or non-string name are skipped entirely rather than
+ * grouped with each other: they are corrupt, not duplicates, and merging on
+ * the strength of a *missing* name would discard a row for no reason.
+ *
+ * Groups and their members are returned in first-seen order, so a caller
+ * rendering `asc(name)`-ordered rows gets a stable, alphabetical result.
+ */
+export function findDuplicateFoodGroups<T extends FoodNameable>(
+  foods: readonly T[],
+): T[][] {
+  const byName = new Map<string, T[]>();
+  for (const food of foods) {
+    if (typeof food.name !== 'string') continue;
+    const key = food.name.trim().toLowerCase();
+    if (!key) continue;
+    const existing = byName.get(key);
+    if (existing) existing.push(food);
+    else byName.set(key, [food]);
+  }
+  return [...byName.values()].filter((group) => group.length > 1);
+}
+
 export type FoodStats = {
   exposureCount: number;
   highestStage?: ExposureStage;

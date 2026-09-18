@@ -6,6 +6,7 @@ import {
   resolveSelectedFoodId,
   computeStageCounts,
   findDuplicateFood,
+  findDuplicateFoodGroups,
 } from '../food-partition';
 
 type F = { id: string; name: string; isSafeFood: boolean };
@@ -406,5 +407,80 @@ describe('resolveSelectedFoodId', () => {
   it('matches ids exactly rather than by prefix or case', () => {
     expect(resolveSelectedFoodId(foods, 'A')).toBe('');
     expect(resolveSelectedFoodId([{ id: 'abc' }], 'ab')).toBe('');
+  });
+});
+
+describe('findDuplicateFoodGroups', () => {
+  const row = (id: string, name: string) => ({ id, name });
+
+  it('returns no groups for a library with distinct names', () => {
+    expect(findDuplicateFoodGroups([row('1', 'Apple'), row('2', 'Pear')])).toEqual([]);
+  });
+
+  it('returns no groups for an empty list', () => {
+    expect(findDuplicateFoodGroups([])).toEqual([]);
+  });
+
+  it('groups rows whose names differ only by case', () => {
+    const a = row('1', 'Apple');
+    const b = row('2', 'apple');
+    expect(findDuplicateFoodGroups([a, b, row('3', 'Pear')])).toEqual([[a, b]]);
+  });
+
+  it('groups rows whose names differ only by surrounding whitespace', () => {
+    const a = row('1', 'Apple');
+    const b = row('2', '  Apple  ');
+    expect(findDuplicateFoodGroups([a, b])).toEqual([[a, b]]);
+  });
+
+  it('does not group near-misses that are genuinely different foods', () => {
+    // The load-bearing negative: "Brocolli" and "Broccoli" normalize
+    // differently, so the banner must stay silent rather than offering to
+    // merge two foods a parent deliberately keeps apart.
+    expect(findDuplicateFoodGroups([row('1', 'Brocolli'), row('2', 'Broccoli')])).toEqual([]);
+    expect(findDuplicateFoodGroups([row('1', 'Apple'), row('2', 'Apples')])).toEqual([]);
+  });
+
+  it('keeps every member of a group of three', () => {
+    const rows = [row('1', 'Apple'), row('2', 'APPLE'), row('3', 'apple ')];
+    expect(findDuplicateFoodGroups(rows)).toEqual([rows]);
+  });
+
+  it('returns each distinct collision as its own group, in first-seen order', () => {
+    const a1 = row('1', 'Pear');
+    const b1 = row('2', 'Apple');
+    const b2 = row('3', 'apple');
+    const a2 = row('4', 'pear');
+    expect(findDuplicateFoodGroups([a1, b1, b2, a2])).toEqual([
+      [a1, a2],
+      [b1, b2],
+    ]);
+  });
+
+  it('preserves input order within a group', () => {
+    const first = row('z', 'Apple');
+    const second = row('a', 'apple');
+    expect(findDuplicateFoodGroups([first, second])[0]).toEqual([first, second]);
+  });
+
+  it('skips rows with a non-string or blank name rather than grouping them together', () => {
+    // Two rows that both normalize to '' are not duplicates of each other —
+    // they are corrupt, and offering to merge them would destroy a row on the
+    // strength of a missing name.
+    const rows = [
+      row('1', '   '),
+      { id: '2', name: null as unknown as string },
+      { id: '3', name: undefined as unknown as string },
+      { id: '4', name: 42 as unknown as string },
+    ];
+    expect(findDuplicateFoodGroups(rows)).toEqual([]);
+  });
+
+  it('still groups the valid rows when a corrupt row sits between them', () => {
+    const a = row('1', 'Apple');
+    const b = row('3', 'apple');
+    expect(
+      findDuplicateFoodGroups([a, { id: '2', name: null as unknown as string }, b]),
+    ).toEqual([[a, b]]);
   });
 });

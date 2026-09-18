@@ -26,7 +26,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { Alert } from 'react-native';
 import { createMockDb, type MockDb } from '@/src/test-utils/mock-db';
-import { SafeArea, click } from '@/src/test-utils/screen-helpers';
+import { SafeArea, click, confirmAlert } from '@/src/test-utils/screen-helpers';
 
 const mockRouter = { replace: jest.fn(), back: jest.fn(), push: jest.fn() };
 jest.mock('expo-router', () => ({
@@ -232,5 +232,120 @@ describe('FoodsScreen', () => {
     await waitFor(() => expect(alertSpy).toHaveBeenCalled());
     expect(alertSpy.mock.calls[0][0]).toBe('Error');
     expect(screen.queryByText('Apple')).toBeNull();
+  });
+
+  /**
+   * The duplicate banner (NEXT_STEPS gap #2(a)). v0.5.176 made merging
+   * lossless but reachable only from a rename *collision*, so a family with
+   * legacy casing twins had no way to discover the problem existed.
+   */
+  describe('duplicate banner', () => {
+    const APPLE_LOWER = food({ id: 'food-9', name: 'apple', category: 'fruit' });
+
+    it('stays absent when no two foods share a name', async () => {
+      queueLoad([APPLE, BROCCOLI]);
+      renderScreen();
+
+      await waitFor(() => expect(screen.getByText('Apple')).toBeTruthy());
+      expect(screen.queryByLabelText('Merge duplicates of Apple')).toBeNull();
+    });
+
+    it('names the food and its copy count when a casing twin exists', async () => {
+      queueLoad([APPLE, APPLE_LOWER, BROCCOLI]);
+      renderScreen();
+
+      await waitFor(() =>
+        expect(screen.getByLabelText('Merge duplicates of Apple')).toBeTruthy(),
+      );
+      expect(
+        screen.getByText(
+          '"Apple" is in your library 2 times. Merging keeps every logged exposure.',
+        ),
+      ).toBeTruthy();
+    });
+
+    it('stays visible when a search hides one of the twins', async () => {
+      // Duplication is a property of the library, not of the current filter —
+      // a filter that hides one twin must not read as "the problem is gone".
+      queueLoad([APPLE, APPLE_LOWER, BROCCOLI]);
+      renderScreen();
+
+      await waitFor(() => expect(screen.getByText('Broccoli')).toBeTruthy());
+      await search('Broccoli');
+
+      expect(screen.getByLabelText('Merge duplicates of Apple')).toBeTruthy();
+    });
+
+    it('names both spellings in the confirm and writes nothing on Cancel', async () => {
+      queueLoad([APPLE, APPLE_LOWER]);
+      renderScreen();
+
+      await waitFor(() =>
+        expect(screen.getByLabelText('Merge duplicates of Apple')).toBeTruthy(),
+      );
+      await click('Merge duplicates of Apple');
+
+      expect(alertSpy).toHaveBeenCalled();
+      const [title, body] = alertSpy.mock.calls[0];
+      expect(title).toBe('Merge Duplicates?');
+      expect(body).toContain('"apple"');
+      expect(body).toContain('"Apple"');
+      expect(body).toContain('Nothing is lost');
+      expect(mockDb.writes).toHaveLength(0);
+    });
+
+    it('merges the later twin into the first and reloads without it', async () => {
+      queueLoad([APPLE, APPLE_LOWER]);
+      // The reload that follows a successful merge.
+      queueLoad([APPLE]);
+      renderScreen();
+
+      await waitFor(() =>
+        expect(screen.getByLabelText('Merge duplicates of Apple')).toBeTruthy(),
+      );
+      await click('Merge duplicates of Apple');
+      await confirmAlert(alertSpy, 'Merge');
+
+      // mergeFoods issues its five writes; the last is the source row delete.
+      await waitFor(() => expect(mockDb.writes.length).toBe(5));
+      expect(mockDb.writes.map((w) => w.kind)).toEqual([
+        'update',
+        'update',
+        'update',
+        'delete',
+        'delete',
+      ]);
+      // The exposures reassignment moves rows onto the *surviving* row.
+      const first = mockDb.writes[0];
+      expect(first.kind === 'update' && first.values).toEqual({ foodId: APPLE.id });
+      await waitFor(() =>
+        expect(screen.queryByLabelText('Merge duplicates of Apple')).toBeNull(),
+      );
+    });
+
+    it('alerts and keeps both rows when the merge fails', async () => {
+      queueLoad([APPLE, APPLE_LOWER]);
+      renderScreen();
+
+      await waitFor(() =>
+        expect(screen.getByLabelText('Merge duplicates of Apple')).toBeTruthy(),
+      );
+      // `failReads()` covers reads only, so the merge's catch block is
+      // reached by replacing `update` for the duration of the attempt — the
+      // v0.5.159 inline pattern.
+      const realUpdate = (mockDb.db as { update: unknown }).update;
+      (mockDb.db as { update: unknown }).update = () => {
+        throw new Error('update failed');
+      };
+      await click('Merge duplicates of Apple');
+      await confirmAlert(alertSpy, 'Merge');
+      (mockDb.db as { update: unknown }).update = realUpdate;
+
+      await waitFor(() =>
+        expect(alertSpy.mock.calls.some((c) => c[0] === 'Error')).toBe(true),
+      );
+      // Still offered, so the retry is one tap.
+      expect(screen.getByLabelText('Merge duplicates of Apple')).toBeTruthy();
+    });
   });
 });
