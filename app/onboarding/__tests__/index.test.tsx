@@ -133,7 +133,7 @@ describe('OnboardingScreen', () => {
   });
 
   it('leaves the parent signed out and on this screen when the write fails', async () => {
-    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => {});
     let failNext = true;
     (mockDb.db as { insert: unknown }).insert = () => ({
       values: (values: unknown) => {
