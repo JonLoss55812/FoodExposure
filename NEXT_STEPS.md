@@ -1,6 +1,9 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.176 — 843 tests passing across 43 suites, TypeScript clean.
+Reviewed at: v0.5.178 — 872 tests passing across 43 suites, TypeScript clean.
+`npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
+so a new unused binding will now show up against a clean baseline rather than hiding
+behind a pre-existing failure.
 
 > **Read this first.** This file was last *fully* rewritten at v0.5.160 and the
 > "Recently shipped" list below lags reality. A session in between added screen
@@ -267,6 +270,42 @@ All five priorities from the original review have shipped:
   legitimate `dup -> keep` chain into a meaningless `keep -> keep` row. +13 tests, eight
   mutations verified.
 
+## Shipped in the v0.5.178 session (2026-09-18)
+
+- v0.5.177 — **duplicate foods are now visible on the Foods tab**, with the
+  v0.5.176 lossless merge offered in place. Closes gap #2 follow-up (a).
+- v0.5.178 — **a child's `dateOfBirth` and `notes` are read back** for the
+  first time, on the Settings -> Family rows, via a new pure `formatChildAge`.
+  Half-closes gap #-1.5 (read half only; the edit half still wants a detail
+  screen — see the entry).
+- chore — the long-standing `--noUnusedLocals` failure (gap #0) is fixed, so
+  that strict check now passes from a clean baseline.
+
+**Discovered this session and deliberately not done:**
+
+- **A fresh pusher worktree still has no `node_modules`.** `npm install` took
+  ~1 minute and exited 0, and `jest` is not on PATH until it finishes, so
+  `npm run test` fails with `jest: not found` before then. Budget the minute;
+  use `npx jest`. (Already recorded under gap #6, restated because it cost
+  time again.)
+- **`--testPathPatterns` is a regex, and `app/(tabs)/` contains regex
+  groups.** `--testPathPatterns="tabs/__tests__/foods"` silently matches
+  **zero** files and jest exits 1 with "No tests found" — which looks
+  identical to a green run if you are grepping for `✕`. This wasted a full
+  mutation-testing round that reported four mutations as "caught" when
+  nothing had run at all. Match on the bare filename (`foods.test`) instead,
+  and always assert on the `Tests:` summary line rather than the absence of
+  failures.
+- **`mockDb.writes` is a discriminated union**, so `writes[0].values` does not
+  type-check — narrow on `kind` first (`w.kind === 'update' && w.values`).
+  The existing suites avoid this by asserting `writes.map(w => w.kind)`, which
+  is why it had not come up.
+- **The merge banner's survivor choice is silent**, the same wrinkle gap #2(b)
+  records for the rename-collision merge: the first row's spelling wins and the
+  other's category / preparation / `isSafeFood` are discarded. Low stakes here
+  (group members differ only in casing) and all three fields are editable in
+  place, but it is worth a line in the confirm copy if anyone reports surprise.
+
 ## Known gaps worth doing next (discovered, deliberately not done)
 
 -1. **~~Every field on an exposure is now correctable in place.~~** Closed as of
@@ -307,7 +346,20 @@ All five priorities from the original review have shipped:
    a defect today and not worth a fake-timer rewrite, but worth knowing before
    picking a date in a new test.
 
--1.5. **A child's `dateOfBirth` and `notes` are still write-only.** Both are
+-1.5. **A child's `dateOfBirth` and `notes` are readable but still not
+   editable.** *(Half closed in v0.5.178.)* The **read** half shipped: a new
+   pure `formatChildAge(dateOfBirth, now?)` in `src/lib/utils.ts` (whole
+   months under two — the unit feeding therapy works in for that range —
+   years-and-months above it, local-midnight parse, no month counted until
+   the day of the month is reached, `null` rather than a placeholder for
+   blank / non-string / malformed / rollover / future input) and the
+   Settings -> Family rows now show the age and the notes beneath each
+   child's name, both collapsing when absent. **What survives is the edit
+   half**, and the shape below is still the right one — do not bolt a third
+   inline editor onto the Settings row. `formatChildAge` is ready-made for
+   the detail screen when it lands. Original entry follows.
+
+   **A child's `dateOfBirth` and `notes` are still write-only.** Both are
    captured by `ChildForm` on Add Child / onboarding and land in SQLite, and
    then **no surface in the app ever reads them back** — not Settings, not the
    dashboard, not the CSV export. Same defect class v0.5.161 closed for a
@@ -328,13 +380,11 @@ All five priorities from the original review have shipped:
    in-the-moment action — but if backdating turns out to matter there too, the
    helper is already pure and tested.
 
-0. **Pre-existing `--noUnusedLocals` error.** *(Still open at v0.5.174 —
-   confirmed unrelated to the two files that session touched.)*
-   `app/onboarding/__tests__/index.test.tsx:136` declares `errorSpy` and never
-   reads it, so `npx tsc --noEmit --noUnusedLocals` fails on it. Plain
-   `npx tsc --noEmit` (the project's standard check) is clean. One-word fix
-   (drop the binding, keep the `jest.spyOn` call); left alone in v0.5.162 only
-   to avoid touching another session's test file mid-refactor.
+0. **~~Pre-existing `--noUnusedLocals` error.~~** Closed in v0.5.178 —
+   `app/onboarding/__tests__/index.test.tsx:136` kept the `jest.spyOn` call
+   (it silences the handler's expected `console.error`) and dropped the unused
+   binding; `afterEach`'s `jest.restoreAllMocks()` already tore it down. Both
+   `npx tsc --noEmit` and `npx tsc --noEmit --noUnusedLocals` are clean.
 
 1. **Screen tests: 6 screens covered, harness proven.** v0.5.146 built
    `src/test-utils/mock-db.ts` (structural fake of the drizzle builder:
@@ -434,12 +484,22 @@ All five priorities from the original review have shipped:
 2. **~~Legacy duplicate foods are not deduped.~~** Closed in v0.5.176 —
    `mergeFoods` reassigns the twin's exposures to the surviving row instead of
    discarding them, offered from the rename-collision Alert. Two follow-ups
-   survive, neither urgent. (a) The merge is only reachable from a rename
-   *collision*. A parent who never tries to rename still sees both rows on the
-   Foods tab with no hint they are the same food; a "looks like a duplicate"
-   prompt on the Foods list (reusing `findDuplicateFood` over the loaded list)
-   would surface it, but that is proactive UI on a problem the guard has
-   already stopped creating. (b) The merge keeps the *target* row's category,
+   survive, neither urgent. ~~(a) The merge is only reachable from a rename
+   *collision*.~~ Closed in v0.5.178: a new pure `findDuplicateFoodGroups`
+   (`src/lib/food-partition.ts`) groups the library on the same normalized key
+   `findDuplicateFood` compares on, and the Foods tab shows a banner naming the
+   food and its copy count with a Merge action wired to `mergeFoods`. Three
+   things to know before touching it. It reads **`foods`, not `filteredFoods`**
+   — duplication is a property of the library, not of the current filter, and a
+   search that hides one twin must not read as "the problem went away"; a test
+   pins this. It offers **one group and folds one twin per tap** (the banner
+   reappears while any duplicate remains) rather than queuing confirm dialogs
+   over a destructive action. And the grouping is **exact after normalizing,
+   deliberately not fuzzy** — it catches "apple"/"Apple" and stays silent on
+   "Brocolli"/"Broccoli", which are two different strings a parent may be
+   keeping apart on purpose. If anyone asks for fuzzy matching, that is a
+   different feature with a much worse failure mode (folding away a row that
+   was wanted), not a missing case here. (b) The merge keeps the *target* row's category,
    preparation and `isSafeFood` wholesale and discards the source's. That is
    the right default (the parent picked the surviving name deliberately) and
    all three are now editable in place, but it is a silent choice — worth a
