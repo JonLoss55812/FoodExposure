@@ -9,7 +9,10 @@ export function initSentry() {
     dsn: SENTRY_DSN,
     tracesSampleRate: 1.0,
     enableAutoSessionTracking: true,
-    attachScreenshot: true,
+    // Off on purpose: every screen in this app shows a child's name, feeding
+    // notes or exposure history, and an error-event screenshot would ship that
+    // to a third party. Stack traces are enough to debug from.
+    attachScreenshot: false,
     environment: __DEV__ ? 'development' : 'production',
   });
 }

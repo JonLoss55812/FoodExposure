@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.178` (`src/lib/constants.ts`). 872 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.179` (`src/lib/constants.ts`). 872 tests pass across
 43 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -251,9 +251,19 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.178
+v0.5.179
 
 ## Changelog
+- v0.5.179 — Security/privacy: Sentry no longer attaches a **screenshot** to error
+  events (`attachScreenshot: false` in `src/lib/sentry.ts`). Every screen in this app
+  renders a child's name, feeding notes, or exposure history, so a screenshot on any
+  captured error shipped a minor's feeding data to a third-party service. It had been
+  `true` since the initial commit with no recorded rationale. Only matters when
+  `EXPO_PUBLIC_SENTRY_DSN` is set. The existing config test now pins `false`;
+  mutation-verified (reverting to `true` fails it). Found by the 2026-09-27 security
+  audit — see `.planning/pusher/security-2026-09-27.md` for the rest, notably that
+  every `convex/` function is unauthenticated and must not be deployed as-is.
+  Bumped `APP_VERSION` to v0.5.179. 872 tests pass across 43 suites. TypeScript clean.
 - v0.5.178 — Feature: **a child's date of birth and notes stop being write-only.**
   Both have been captured by `ChildForm` on Add Child and onboarding since v0.1.0, land
   in SQLite, and are then read back by **no surface in the app** — not Settings, not the

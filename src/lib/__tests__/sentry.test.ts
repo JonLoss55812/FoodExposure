@@ -42,7 +42,7 @@ describe('lib/sentry', () => {
       expect(config.dsn).toBe('https://abc@o123.ingest.sentry.io/456');
       expect(config.tracesSampleRate).toBe(1.0);
       expect(config.enableAutoSessionTracking).toBe(true);
-      expect(config.attachScreenshot).toBe(true);
+      expect(config.attachScreenshot).toBe(false);
       expect(['development', 'production']).toContain(config.environment);
     });
   });
