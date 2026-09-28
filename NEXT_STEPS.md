@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.178 — 872 tests passing across 43 suites, TypeScript clean.
+Reviewed at: v0.5.181 — 881 tests passing across 44 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -305,6 +305,27 @@ All five priorities from the original review have shipped:
   other's category / preparation / `isSafeFood` are discarded. Low stakes here
   (group members differ only in casing) and all three fields are editable in
   place, but it is worth a line in the confirm copy if anyone reports surprise.
+
+## Shipped in the v0.5.181 session (2026-09-28)
+
+- v0.5.180 — `generateId` / `generateInviteCode` use **expo-crypto**. `uuid` v4
+  throws without a global `crypto.getRandomValues`, which Hermes lacks and nothing
+  polyfilled, so every insert path would fail on a device build (the jest web
+  preset has a global crypto, so the suite could not see it). Invite codes also
+  moved off `Math.random`. `uuid` removed from `package.json`.
+- v0.5.181 — Sentry `beforeBreadcrumb` / `beforeSend` redact drizzle's
+  `params:` section (child names, notes) while keeping the SQL and stack.
+  Closes audit finding #3.
+
+**Unverified and worth a human check:** the Hermes crash in v0.5.180 is inferred
+from the `uuid` and Expo sources, not observed on a device. **The first native
+build (`npm run ios` / `android`) should confirm that onboarding, Add Food and
+Log Exposure all insert.** More generally, this shows a blind spot: the suite runs
+on `jest-expo/web`, so any native-only global (crypto, TextEncoder, structuredClone)
+is invisible to it. If a dev build is ever available, a smoke run of the
+onboarding path is the cheapest way to cover that class.
+
+`bun.lock` still lists `uuid` (not regenerated, v0.5.143 precedent).
 
 ## Known gaps worth doing next (discovered, deliberately not done)
 
