@@ -12,8 +12,8 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.179` (`src/lib/constants.ts`). 872 tests pass across
-43 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
+**Current state:** `APP_VERSION` is `v0.5.180` (`src/lib/constants.ts`). 875 tests pass across
+44 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
 ## Tech Stack
@@ -251,9 +251,28 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.179
+v0.5.180
 
 ## Changelog
+- v0.5.180 — Fix: `generateId` and `generateInviteCode` now draw randomness from
+  **expo-crypto** (`randomUUID` / `getRandomValues`). `generateId` called `uuid`'s
+  `v4()`, whose `rng.js` throws "crypto.getRandomValues() not supported" when no global
+  `crypto` exists — and Hermes provides none, Expo's winter runtime does not polyfill it,
+  and nothing in the app installed `react-native-get-random-values`. Every insert in the
+  app (onboarding, Add Child, Add Food, Log Exposure, stage bump) calls `generateId`
+  first, so on a device build each would have hit its catch and toasted "Failed to …".
+  The jest web preset has a global `crypto`, which is why 872 green tests never saw it.
+  expo-crypto was already a declared dependency and was imported nowhere. The invite code
+  moves off `Math.random` onto `getRandomValues` in the same change (noted by the
+  2026-09-27 audit; it is the only thing gating a family join). The charset has 32
+  entries, which divides 256, so `byte % 32` is unbiased — a test pins that arithmetic
+  so a future charset edit that breaks it fails. `uuid` is removed from `package.json`
+  and from jest's `transformIgnorePatterns` (nothing else imports it). +3 tests in a new
+  `src/lib/__tests__/utils-random-source.test.ts` that mock expo-crypto and assert the
+  helpers return what it produced; mutation-verified (reverting to `uuid` fails 1,
+  reverting to `Math.random` fails 2). Device behaviour is inferred from the `uuid` and
+  Expo sources, not observed — no native build is possible here. `bun.lock` not
+  regenerated (v0.5.143 precedent). 875 tests pass across 44 suites. TypeScript clean.
 - v0.5.179 — Security/privacy: Sentry no longer attaches a **screenshot** to error
   events (`attachScreenshot: false` in `src/lib/sentry.ts`). Every screen in this app
   renders a child's name, feeding notes, or exposure history, so a screenshot on any

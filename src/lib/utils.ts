@@ -1,16 +1,21 @@
-import { v4 as uuidv4 } from 'uuid';
+import * as Crypto from 'expo-crypto';
 
+// Randomness comes from expo-crypto, not `uuid` or Math.random. `uuid` reads a
+// global `crypto.getRandomValues`, which Hermes does not provide, so on device
+// every insert threw before reaching SQLite; Math.random is not a CSPRNG.
 export function generateId(): string {
-  return uuidv4();
+  return Crypto.randomUUID();
 }
 
 export const INVITE_CODE_CHARSET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const INVITE_CODE_LENGTH = 6;
 
 export function generateInviteCode(): string {
+  // The charset has 32 entries, which divides 256, so `byte % 32` is unbiased.
+  const bytes = Crypto.getRandomValues(new Uint8Array(INVITE_CODE_LENGTH));
   let code = '';
   for (let i = 0; i < INVITE_CODE_LENGTH; i++) {
-    code += INVITE_CODE_CHARSET.charAt(Math.floor(Math.random() * INVITE_CODE_CHARSET.length));
+    code += INVITE_CODE_CHARSET.charAt(bytes[i] % INVITE_CODE_CHARSET.length);
   }
   return code;
 }
