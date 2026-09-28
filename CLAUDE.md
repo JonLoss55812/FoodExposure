@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.180` (`src/lib/constants.ts`). 875 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.181` (`src/lib/constants.ts`). 881 tests pass across
 44 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 872 tests, 43 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 881 tests, 44 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 872 tests, 43 suites
+npm run test         # 881 tests, 44 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -143,7 +143,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **872 tests across 43 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **881 tests across 44 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -200,7 +200,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 872 tests, 43 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 881 tests, 44 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -251,9 +251,25 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.180
+v0.5.181
 
 ## Changelog
+- v0.5.181 — Security/privacy: Sentry no longer receives the **bound values of a failed
+  query**. drizzle's `DrizzleQueryError` message is `Failed query: <sql>\nparams: <values>`,
+  and every write handler logs `console.error('Failed to …:', err)` (the v0.5.34
+  convention), which Sentry's console integration records as a breadcrumb — so a failed
+  exposure insert shipped the child id and the free-text feeding notes to a third party
+  on the next reported event (2026-09-27 audit finding #3). `src/lib/sentry.ts` gains a
+  pure `redactQueryParams` plus `scrubBreadcrumb` / `scrubEvent`, wired as
+  `beforeBreadcrumb` / `beforeSend`. The audit left this unfixed because it "trades away
+  debugging detail"; this version keeps the SQL and the stack and drops only the values,
+  which is the part nobody debugs from. The redaction runs from `params:` to the first
+  `\n    at ` stack frame or the end of the text, **not** to end-of-line — a note can span
+  lines, and a single-line match leaks every line after the first. Raw `Error` arguments
+  in `data.arguments` are replaced by their redacted stack string. +6 tests in
+  `src/lib/__tests__/sentry.test.ts`; mutation-verified — a single-line regex, dropping
+  either hook, and skipping the `arguments` rewrite each fail exactly one. Only matters
+  when `EXPO_PUBLIC_SENTRY_DSN` is set. 881 tests pass across 44 suites. TypeScript clean.
 - v0.5.180 — Fix: `generateId` and `generateInviteCode` now draw randomness from
   **expo-crypto** (`randomUUID` / `getRandomValues`). `generateId` called `uuid`'s
   `v4()`, whose `rng.js` throws "crypto.getRandomValues() not supported" when no global
