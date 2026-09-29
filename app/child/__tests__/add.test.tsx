@@ -194,14 +194,7 @@ describe('AddChildScreen', () => {
   });
 
   it('alerts on a failed insert, leaves the selection alone, and stays retryable', async () => {
-    let failNext = true;
-    (mockDb.db as { insert: unknown }).insert = () => ({
-      values: (values: unknown) => {
-        if (failNext) return Promise.reject(new Error('insert failed'));
-        mockDb.writes.push({ kind: 'insert', values });
-        return Promise.resolve();
-      },
-    });
+    mockDb.failNextWrite();
 
     render(<AddChildScreen />);
     type("Child's name", 'Emma');
@@ -213,7 +206,6 @@ describe('AddChildScreen', () => {
 
     // The v0.5.144 latch is released in `finally`, so the retry gets through
     // rather than being stranded by the first failure.
-    failNext = false;
     await tapAdd();
     await waitFor(() => expect(mockDb.writes).toHaveLength(1));
     expect(useChildStore.getState().selectedChildId).toBe(insertedValues().id);

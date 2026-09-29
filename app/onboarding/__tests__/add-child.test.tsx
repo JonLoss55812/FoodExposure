@@ -166,14 +166,7 @@ describe('AddChildOnboardingScreen', () => {
 
   it('alerts on a failed insert, stays in onboarding, and stays retryable', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    let failNext = true;
-    (mockDb.db as { insert: unknown }).insert = () => ({
-      values: (values: unknown) => {
-        if (failNext) return Promise.reject(new Error('insert failed'));
-        mockDb.writes.push({ kind: 'insert', values });
-        return Promise.resolve();
-      },
-    });
+    mockDb.failNextWrite();
 
     render(<AddChildOnboardingScreen />);
     type("Child's name", 'Emma');
@@ -187,7 +180,6 @@ describe('AddChildOnboardingScreen', () => {
     expect(mockRouter.replace).not.toHaveBeenCalled();
 
     // The latch is released in `finally`, so the retry gets through.
-    failNext = false;
     await tapStart();
     await waitFor(() => expect(mockDb.writes).toHaveLength(1));
     expect(useAuthStore.getState().isOnboarded).toBe(true);

@@ -12,8 +12,8 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.181` (`src/lib/constants.ts`). 881 tests pass across
-44 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
+**Current state:** `APP_VERSION` is `v0.5.182` (`src/lib/constants.ts`). 884 tests pass across
+45 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
 ## Tech Stack
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 881 tests, 44 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 884 tests, 45 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 881 tests, 44 suites
+npm run test         # 884 tests, 45 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -143,7 +143,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **881 tests across 44 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **884 tests across 45 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -200,7 +200,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 881 tests, 44 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 884 tests, 45 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -251,9 +251,22 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.181
+v0.5.182
 
 ## Changelog
+- v0.5.182 — Tests (harness): `createMockDb()` gains **`failNextWrite(error?)`** — the
+  next insert, update or delete rejects without being recorded, and every write after
+  it succeeds. NEXT_STEPS gap #1 asked for this once a third suite copied the
+  fail-once-then-retry closure; three had (`child/add`, `onboarding/add-child`,
+  `onboarding/index`), each carrying the same eight lines that reached into the fake
+  and re-implemented `writes.push`. Those three now call the helper. The helper
+  applies to whichever write kind comes next, which is what "reach the catch block,
+  then prove the latch was released" actually needs. The ~13 remaining overrides in
+  `food/[id]`, `foods`, `log` and `settings` are **not** migrated: most fail a
+  specific write kind or inspect arguments before failing, so they are not the same
+  shape. +3 tests in `src/test-utils/__tests__/mock-db.test.ts`; mutation-verified
+  (making the helper fail every write rather than one fails 5 tests, including each
+  migrated suite's retry assertion). 884 tests pass across 45 suites. TypeScript clean.
 - v0.5.181 — Security/privacy: Sentry no longer receives the **bound values of a failed
   query**. drizzle's `DrizzleQueryError` message is `Failed query: <sql>\nparams: <values>`,
   and every write handler logs `console.error('Failed to …:', err)` (the v0.5.34

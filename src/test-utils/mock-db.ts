@@ -30,6 +30,13 @@ export type MockDb = {
   selectCount: () => number;
   /** Make every subsequent read reject, to exercise a screen's catch block. */
   failReads: (error?: Error) => void;
+  /**
+   * Make the next write — insert, update or delete, whichever comes first —
+   * reject without being recorded; every write after it succeeds normally.
+   * This is how a test reaches a write handler's catch block and then proves
+   * the retry gets through (i.e. the in-flight latch was released).
+   */
+  failNextWrite: (error?: Error) => void;
 };
 
 export function createMockDb(): MockDb {
@@ -37,6 +44,17 @@ export function createMockDb(): MockDb {
   const writes: RecordedWrite[] = [];
   let reads = 0;
   let readError: Error | null = null;
+  let nextWriteError: Error | null = null;
+
+  const recordWrite = (write: RecordedWrite): Promise<void> => {
+    if (nextWriteError) {
+      const error = nextWriteError;
+      nextWriteError = null;
+      return Promise.reject(error);
+    }
+    writes.push(write);
+    return Promise.resolve();
+  };
 
   const resolveRead = (): Promise<unknown[]> => {
     reads += 1;
@@ -60,29 +78,20 @@ export function createMockDb(): MockDb {
   const db = {
     select: () => makeReadChain(),
     insert: () => ({
-      values: (values: unknown) => {
-        writes.push({ kind: 'insert', values });
-        return Promise.resolve();
-      },
+      values: (values: unknown) => recordWrite({ kind: 'insert', values }),
     }),
     update: () => ({
       set: (values: unknown) => ({
         // The predicate is recorded for the same reason as on `delete`: an
         // update scoped to the wrong column rewrites rows the user never
         // named, with nothing on screen to say so.
-        where: (where: unknown) => {
-          writes.push({ kind: 'update', values, where });
-          return Promise.resolve();
-        },
+        where: (where: unknown) => recordWrite({ kind: 'update', values, where }),
       }),
     }),
     delete: () => ({
       // The predicate is recorded so a caller can assert a delete is scoped to
       // the row it named — a wrong-column/wrong-id delete is silent otherwise.
-      where: (where: unknown) => {
-        writes.push({ kind: 'delete', where });
-        return Promise.resolve();
-      },
+      where: (where: unknown) => recordWrite({ kind: 'delete', where }),
     }),
   };
 
@@ -93,6 +102,9 @@ export function createMockDb(): MockDb {
     selectCount: () => reads,
     failReads: (error = new Error('read failed')) => {
       readError = error;
+    },
+    failNextWrite: (error = new Error('write failed')) => {
+      nextWriteError = error;
     },
   };
 }

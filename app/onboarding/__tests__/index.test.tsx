@@ -134,14 +134,7 @@ describe('OnboardingScreen', () => {
 
   it('leaves the parent signed out and on this screen when the write fails', async () => {
     jest.spyOn(console, 'error').mockImplementation(() => {});
-    let failNext = true;
-    (mockDb.db as { insert: unknown }).insert = () => ({
-      values: (values: unknown) => {
-        if (failNext) return Promise.reject(new Error('insert failed'));
-        mockDb.writes.push({ kind: 'insert', values });
-        return Promise.resolve();
-      },
-    });
+    mockDb.failNextWrite();
 
     render(<OnboardingScreen />);
     await tapGetStarted();
@@ -157,7 +150,6 @@ describe('OnboardingScreen', () => {
 
     // The latch is released in the catch, so the retry gets through rather
     // than being stranded by the first failure.
-    failNext = false;
     await tapGetStarted();
     await waitFor(() => expect(useAuthStore.getState().isAuthenticated).toBe(true));
     expect(mockRouter.push).toHaveBeenCalledWith('/onboarding/add-child');
