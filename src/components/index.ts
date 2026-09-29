@@ -6,4 +6,4 @@ export { RatingPicker } from './RatingPicker';
 export { ChildSelector } from './ChildSelector';
 export { EmptyState } from './EmptyState';
 export { Button } from './Button';
-export { ChildForm } from './ChildForm';
+export { ChildForm, type ChildFormRecord } from './ChildForm';

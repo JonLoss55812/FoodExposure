@@ -255,7 +255,13 @@ export default function SettingsScreen() {
                   </View>
                 ) : (
                   <View style={styles.row}>
-                    <View style={styles.childIdentity}>
+                    <Pressable
+                      style={styles.childIdentity}
+                      onPress={() => router.push(`/child/${child.id}` as any)}
+                      disabled={rowBusy}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Edit ${child.name}'s details`}
+                    >
                       <Text style={styles.label}>
                         {child.avatarEmoji} {child.name}
                       </Text>
@@ -273,7 +279,7 @@ export default function SettingsScreen() {
                           {child.notes}
                         </Text>
                       ) : null}
-                    </View>
+                    </Pressable>
                     <View style={styles.editActions}>
                       <Pressable
                         onPress={() => {

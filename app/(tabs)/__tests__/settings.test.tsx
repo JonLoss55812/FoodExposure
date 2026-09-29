@@ -642,4 +642,14 @@ describe('SettingsScreen — child date of birth and notes (v0.5.178)', () => {
     expect(screen.queryByText('12/05/2020')).toBeNull();
     expect(screen.queryByText(/^-/)).toBeNull();
   });
+
+  it("opens that child's detail screen from its own row", async () => {
+    // The detail screen is the only place DOB and notes can be corrected, so
+    // each row must route to *its* child, not the first one in the list.
+    await renderWithChildren([EMMA, NOAH]);
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText("Edit Noah's details"));
+    });
+    expect(mockRouter.push).toHaveBeenCalledWith('/child/child-2');
+  });
 });

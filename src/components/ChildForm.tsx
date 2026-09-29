@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { View, Text, TextInput, Pressable, Alert } from 'react-native';
+import { eq } from 'drizzle-orm';
 import { StyleSheet } from 'react-native-unistyles';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,6 +16,15 @@ import { Button } from './Button';
 
 export const EMOJI_OPTIONS = ['👶', '👧', '👦', '🧒', '👸', '🤴', '🦸', '🧑‍🍳', '🐣', '🌟', '🦋', '🐻'];
 
+/** The stored row an edit-mode form is seeded from. */
+export interface ChildFormRecord {
+  id: string;
+  name: string;
+  dateOfBirth: string | null;
+  avatarEmoji: string;
+  notes: string | null;
+}
+
 interface ChildFormProps {
   /** Label on the submit button — the one thing the two hosts genuinely disagree on. */
   submitLabel: string;
@@ -27,6 +37,13 @@ interface ChildFormProps {
    * `selectChild` repair, the latch — is identical and now lives once.
    */
   onSaved: (child: { id: string; name: string }) => void;
+  /**
+   * When present the form edits this row instead of adding one: fields are
+   * seeded from it, the save is an `update` scoped to its id, and the
+   * selection is left alone — editing a child's details must not switch the
+   * app to them the way adding one does.
+   */
+  child?: ChildFormRecord;
 }
 
 /**
@@ -43,7 +60,7 @@ interface ChildFormProps {
  * differ: a Cancel link and a plain title on one, step framing and a subtitle
  * on the other.
  */
-export function ChildForm({ submitLabel, submitIcon, onSaved }: ChildFormProps) {
+export function ChildForm({ submitLabel, submitIcon, onSaved, child }: ChildFormProps) {
   const { familyId } = useAuthStore();
   const { selectChild } = useChildStore();
 
@@ -57,10 +74,17 @@ export function ChildForm({ submitLabel, submitIcon, onSaved }: ChildFormProps) 
     ChildFormData
   >({
     resolver: zodResolver(childSchema),
-    defaultValues: {
-      name: '',
-      avatarEmoji: '👶',
-    },
+    defaultValues: child
+      ? {
+          name: child.name,
+          avatarEmoji: child.avatarEmoji,
+          dateOfBirth: child.dateOfBirth ?? '',
+          notes: child.notes ?? '',
+        }
+      : {
+          name: '',
+          avatarEmoji: '👶',
+        },
   });
 
   const selectedEmoji = watch('avatarEmoji');
@@ -69,23 +93,39 @@ export function ChildForm({ submitLabel, submitIcon, onSaved }: ChildFormProps) 
     if (!familyId || !submitLatch.tryAcquire()) return;
 
     setSaving(true);
+    // `childSchema.dateOfBirth` passes an empty string through unchanged (it
+    // is `.trim().optional()`, not `optionalTrimmedText`), so a date typed and
+    // then cleared arrives as `''`. Map it to `null` — "not recorded" must
+    // round-trip as absent, and on the edit path clearing it is the point.
+    const dateOfBirth = data.dateOfBirth || null;
+    const notes = data.notes ?? null;
     try {
+      if (child) {
+        await db
+          .update(schema.children)
+          .set({ name: data.name, dateOfBirth, avatarEmoji: data.avatarEmoji, notes })
+          .where(eq(schema.children.id, child.id));
+        onSaved({ id: child.id, name: data.name });
+        return;
+      }
+
       const childId = generateId();
       await db.insert(schema.children).values({
         id: childId,
         familyId,
         name: data.name,
-        dateOfBirth: data.dateOfBirth ?? null,
+        dateOfBirth,
         avatarEmoji: data.avatarEmoji,
-        notes: data.notes ?? null,
+        notes,
         createdAt: new Date(),
       });
 
       selectChild(childId);
       onSaved({ id: childId, name: data.name });
     } catch (err) {
-      console.error('Failed to add child:', err);
-      Alert.alert('Error', 'Failed to add child. Please try again.');
+      const action = child ? 'save child' : 'add child';
+      console.error(`Failed to ${action}:`, err);
+      Alert.alert('Error', `Failed to ${action}. Please try again.`);
     } finally {
       submitLatch.release();
       setSaving(false);

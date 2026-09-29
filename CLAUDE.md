@@ -12,8 +12,8 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.182` (`src/lib/constants.ts`). 884 tests pass across
-45 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
+**Current state:** `APP_VERSION` is `v0.5.183` (`src/lib/constants.ts`). 895 tests pass across
+46 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
 ## Tech Stack
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 884 tests, 45 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 895 tests, 46 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -37,7 +37,7 @@ per-version history and the rationale behind non-obvious decisions.
 - **Food detail:** rename, change category/preparation, toggle safe-food, one-tap stage bump,
   per-exposure edit (stage/rating/notes/date) and delete, plus delete-food cascade.
 - **Progress:** exposures-toward-threshold bars, stage distribution, category tiles, avg rating.
-- **Settings:** theme, feeding profile, CSV export via the system share sheet, delete child, sign out.
+- **Settings:** theme, feeding profile, CSV export via the system share sheet, rename/edit/delete child, sign out.
 
 There is **no allergen tracking** and **no photo capture** — both were early ideas that were
 never built. Multi-child *is* supported (`ChildSelector` on the dashboard).
@@ -53,7 +53,7 @@ app/                       # Expo Router pages (tests colocated in __tests__/)
 │   ├── log.tsx            Log Exposure form (the app's primary write path)
 │   └── settings.tsx       Theme, feeding profile, CSV export, family management
 ├── food/{add,[id]}.tsx    Add food / food detail
-├── child/add.tsx          Add child (hosts the shared ChildForm)
+├── child/{add,[id]}.tsx   Add child / edit child (both host the shared ChildForm)
 ├── onboarding/{index,add-child,join}.tsx
 └── _layout.tsx            Root layout (providers + theme registration)
 
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 884 tests, 45 suites
+npm run test         # 895 tests, 46 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -143,7 +143,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **884 tests across 45 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **895 tests across 46 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -200,7 +200,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 884 tests, 45 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 895 tests, 46 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -251,9 +251,38 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.182
+v0.5.183
 
 ## Changelog
+- v0.5.183 — Feature: **a child's date of birth, notes and avatar are now editable**,
+  closing the edit half of NEXT_STEPS gap #-1.5 (v0.5.178 made them readable). A
+  typo in either field was permanent short of Delete Child, which cascades away every
+  exposure that child has logged. Shape is the one NEXT_STEPS prescribed rather than a
+  third inline editor on the Settings row: a new `app/child/[id].tsx` detail screen
+  hosting the shared `ChildForm` in a new **edit mode** (`child?: ChildFormRecord`
+  prop). In edit mode the form seeds from the row, saves with an `update` scoped by
+  `eq(children.id, child.id)` instead of an insert, and **does not call
+  `selectChild`** — editing a child's details must not switch the app to them the way
+  adding one does. Add and edit therefore validate through the same `childSchema` and
+  cannot drift. The screen loads the row scoped by **family as well as id**, so a route
+  param naming another family's child reads as Child Not Found; a failed load alerts.
+  Each Settings → Family row's name/age/notes block is now a pressable
+  (`Edit {name}'s details`) that pushes `/child/{id}`; Rename and Delete are untouched.
+  **Bug fixed on the way, on both paths:** `childSchema.dateOfBirth` is
+  `.trim().optional()`, not `optionalTrimmedText`, so it passes `''` through, and the
+  form wrote `data.dateOfBirth ?? null` — a date typed and then cleared on Add Child
+  landed in SQLite as `''`, violating the "optional fields round-trip as absent"
+  convention. Now `|| null`. The schema itself is left alone (changing its output type
+  ripples into every `ChildFormData` consumer). +9 tests in
+  `app/child/__tests__/id.test.tsx`, +1 in `add.test.tsx` (typed-then-cleared DOB
+  persists `null`), +1 in `settings.test.tsx` (each row routes to its own child).
+  Mutation-verified: reverting to `?? null` fails 3, scoping the update by `familyId`
+  fails 1, always inserting fails 5, not seeding the DOB fails 1, selecting the child
+  on edit fails 1, routing every row to the first child fails 1, and dropping the load
+  Alert fails 1. **Not observable under the harness:** the family scoping on the
+  *load* — `createMockDb` serves queued rows without evaluating predicates — so that
+  guard is held by inspection only. 895 tests pass across 46 suites. TypeScript clean,
+  including `--noUnusedLocals`.
 - v0.5.182 — Tests (harness): `createMockDb()` gains **`failNextWrite(error?)`** — the
   next insert, update or delete rejects without being recorded, and every write after
   it succeeds. NEXT_STEPS gap #1 asked for this once a third suite copied the

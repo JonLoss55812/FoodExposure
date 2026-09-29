@@ -142,6 +142,19 @@ describe('AddChildScreen', () => {
     expect(typeof values.id).toBe('string');
   });
 
+  it('persists a date of birth typed and then cleared as null, not an empty string', async () => {
+    // `childSchema.dateOfBirth` passes '' through unchanged, so without the
+    // form's own mapping the cleared field landed in SQLite as ''.
+    render(<AddChildScreen />);
+    type("Child's name", 'Emma');
+    type('Date of birth (optional)', '2024-01-01');
+    type('Date of birth (optional)', '');
+    await tapAdd();
+
+    await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+    expect(insertedValues().dateOfBirth).toBeNull();
+  });
+
   it('selects the newly created child so the app switches to them', async () => {
     render(<AddChildScreen />);
     type("Child's name", 'Emma');
