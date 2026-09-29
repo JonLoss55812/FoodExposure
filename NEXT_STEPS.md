@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.181 — 881 tests passing across 44 suites, TypeScript clean.
+Reviewed at: v0.5.183 — 895 tests passing across 46 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -327,6 +327,35 @@ onboarding path is the cheapest way to cover that class.
 
 `bun.lock` still lists `uuid` (not regenerated, v0.5.143 precedent).
 
+## Shipped in the v0.5.183 session (2026-09-29)
+
+- v0.5.182 — `createMockDb().failNextWrite(error?)`: the next insert/update/delete
+  rejects unrecorded, later writes succeed. Three suites' copy-pasted
+  fail-once closures now use it. **~13 other write overrides remain** in
+  `food/[id]`, `foods`, `log` and `settings` tests; most fail a *specific* write
+  kind or inspect args first, so they are a different shape — migrate one only if
+  it is genuinely "fail the next write, then retry".
+- v0.5.183 — `app/child/[id].tsx`: DOB, notes, avatar and name editable via
+  `ChildForm`'s new edit mode, reached by tapping a Settings → Family row. Closes
+  gap #-1.5. Also fixed: a DOB typed then cleared on Add Child persisted `''`.
+
+**Discovered and deliberately not done:**
+
+- **`childSchema.dateOfBirth` still outputs `''` for a blank input.** v0.5.183
+  maps it to `null` in `ChildForm`, which is the only consumer today. Making the
+  schema itself return `undefined` (like `optionalTrimmedText`) is the cleaner
+  fix but changes `ChildFormData`'s shape; do it if a second consumer appears.
+- **The Settings row now has two ways to change a name** — inline Rename
+  (v0.5.175) and the detail screen. Both write the same column, so nothing is
+  wrong, but if the row feels crowded, Rename is the one to drop (its 6 tests
+  would go with it).
+- **The detail screen does not refresh the Settings row on return by itself** —
+  it relies on Settings' `useFocusEffect` reload, which already exists. Fine,
+  but it is why the edit screen does not patch any store.
+- **The load's family scoping is untested** — `createMockDb` serves queued rows
+  without evaluating predicates. A predicate-recording read (like writes' `where`)
+  would make that assertable; not worth building for one guard.
+
 ## Known gaps worth doing next (discovered, deliberately not done)
 
 -1. **~~Every field on an exposure is now correctable in place.~~** Closed as of
@@ -367,8 +396,8 @@ onboarding path is the cheapest way to cover that class.
    a defect today and not worth a fake-timer rewrite, but worth knowing before
    picking a date in a new test.
 
--1.5. **A child's `dateOfBirth` and `notes` are readable but still not
-   editable.** *(Half closed in v0.5.178.)* The **read** half shipped: a new
+-1.5. **~~A child's `dateOfBirth` and `notes` are readable but still not
+   editable.~~** **Closed in v0.5.183** (`app/child/[id].tsx`, `ChildForm` edit mode). *(Half closed in v0.5.178.)* The **read** half shipped: a new
    pure `formatChildAge(dateOfBirth, now?)` in `src/lib/utils.ts` (whole
    months under two — the unit feeding therapy works in for that range —
    years-and-months above it, local-midnight parse, no month counted until
@@ -481,9 +510,7 @@ onboarding path is the cheapest way to cover that class.
    failure — which is how you reach a handler's catch block on a screen that
    issues no reads, like `app/child/add.tsx` — replace the mock's `insert` (or
    `update`) for one call and flip a flag to let the retry through; both new
-   suites do this inline. If a third suite needs it, promote it to a
-   `failWrites()` / `failNextWrite()` helper on `mock-db.ts` rather than
-   copying the closure a third time.
+   suites do this inline. **Done in v0.5.182:** use `mockDb.failNextWrite()`.
    Three notes from writing the dashboard and Progress suites (v0.5.157/158):
    (a) a screen whose `loadData` depends on `selectedChildId` **loads twice**
    when the load itself changes the selection — `ensureSelection([])` on an
