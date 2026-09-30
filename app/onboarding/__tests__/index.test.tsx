@@ -30,6 +30,8 @@ import { Alert } from 'react-native';
 import { createMockDb, type MockDb } from '@/src/test-utils/mock-db';
 import { click } from '@/src/test-utils/screen-helpers';
 import { isValidInviteCode } from '@/src/lib/utils';
+import { eq } from 'drizzle-orm';
+import * as schema from '@/src/db/schema';
 
 const mockRouter = { replace: jest.fn(), back: jest.fn(), push: jest.fn() };
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter }));
@@ -153,6 +155,71 @@ describe('OnboardingScreen', () => {
     await tapGetStarted();
     await waitFor(() => expect(useAuthStore.getState().isAuthenticated).toBe(true));
     expect(mockRouter.push).toHaveBeenCalledWith('/onboarding/add-child');
+  });
+
+  describe('a failure between the two inserts', () => {
+    /** Let the family insert land, then fail the user insert. */
+    function failUserInsert() {
+      const fake = mockDb.db as { insert: (table: unknown) => unknown };
+      const realInsert = fake.insert;
+      let calls = 0;
+      fake.insert = (table) => {
+        calls += 1;
+        if (calls === 2) {
+          return { values: () => Promise.reject(new Error('user insert failed')) };
+        }
+        return realInsert(table);
+      };
+    }
+
+    it('removes the memberless family row it just wrote', async () => {
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      failUserInsert();
+
+      render(<OnboardingScreen />);
+      await tapGetStarted();
+      await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+
+      const [insert, cleanup] = mockDb.writes;
+      expect(insert.kind).toBe('insert');
+      const familyId = (insert as { values: { id: string } }).values.id;
+      // Scoped to exactly the row this attempt wrote — a retry mints new ids,
+      // so nothing else would ever reclaim it.
+      expect(cleanup).toEqual({ kind: 'delete', where: eq(schema.families.id, familyId) });
+      expect(mockDb.writes).toHaveLength(2);
+      expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    });
+
+    it('still reports the original failure when the cleanup also fails', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      failUserInsert();
+      const fake = mockDb.db as { delete: unknown };
+      const realDelete = fake.delete;
+      fake.delete = () => ({ where: () => Promise.reject(new Error('cleanup failed')) });
+
+      render(<OnboardingScreen />);
+      await tapGetStarted();
+      await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+
+      expect(alertSpy.mock.calls[0][0]).toBe('Error');
+      expect(errorSpy).toHaveBeenCalledWith('Failed to remove partial family row:', expect.any(Error));
+      fake.delete = realDelete;
+
+      // The latch is still released, so the parent can retry.
+      await tapGetStarted();
+      await waitFor(() => expect(useAuthStore.getState().isAuthenticated).toBe(true));
+    });
+
+    it('does not delete anything when the family insert itself failed', async () => {
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      mockDb.failNextWrite();
+
+      render(<OnboardingScreen />);
+      await tapGetStarted();
+      await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+
+      expect(mockDb.writes).toEqual([]);
+    });
   });
 
   it('reports in-flight work on the button so a second tap is not invited', async () => {

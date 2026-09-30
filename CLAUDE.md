@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.184` (`src/lib/constants.ts`). 899 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.185` (`src/lib/constants.ts`). 902 tests pass across
 47 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 899 tests, 47 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 902 tests, 47 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 899 tests, 47 suites
+npm run test         # 902 tests, 47 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -143,7 +143,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **899 tests across 47 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **902 tests across 47 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -200,7 +200,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 899 tests, 47 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 902 tests, 47 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -251,9 +251,23 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.184
+v0.5.185
 
 ## Changelog
+- v0.5.185 — Hardening: first-launch onboarding no longer strands a memberless
+  family row when the second of its two inserts fails. `handleGetStarted` writes
+  `families` then `users` with no transaction, and a retry mints fresh ids — so every
+  failed user insert left behind a family row with no member and a live invite code
+  that nothing ever reclaimed (and that a future Convex sync would replicate). The
+  catch now issues a compensating `delete` scoped by `eq(families.id, familyId)`, only
+  in the window between the two inserts (a `familyWithoutUser` flag, cleared after the
+  user insert, so a later throw can never delete a family that has its member). The
+  compensation is best-effort: its own failure is logged and never masks the original
+  error or strands the latch. A drizzle `transaction` was considered and not used — the
+  expo-sqlite driver is sync-mode and async callbacks inside it cannot be verified
+  without a device. +3 tests in `app/onboarding/__tests__/index.test.tsx`;
+  mutation-verified (never compensating fails 2, always compensating fails 1, letting a
+  cleanup failure escape fails 1). 902 tests pass across 47 suites. TypeScript clean.
 - v0.5.184 — Hardening: a failed boot migration is no longer a silent dead end.
   `DatabaseProvider` gates every screen, and its catch only called `setError` — nothing
   was logged, so Sentry (which hears about errors via `console.error` or a throw) never

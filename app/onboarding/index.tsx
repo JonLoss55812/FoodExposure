@@ -7,6 +7,7 @@ import { generateId, generateInviteCode } from '@/src/lib/utils';
 import { createInFlightLatch } from '@/src/lib/in-flight';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
+import { eq } from 'drizzle-orm';
 import { Button } from '@/src/components';
 
 export default function OnboardingScreen() {
@@ -23,6 +24,9 @@ export default function OnboardingScreen() {
     const familyId = generateId();
     const userId = generateId();
     const inviteCode = generateInviteCode();
+    // True only between the two inserts: the window in which a failure
+    // leaves a family row with no member.
+    let familyWithoutUser = false;
 
     try {
       await db.insert(schema.families).values({
@@ -31,6 +35,7 @@ export default function OnboardingScreen() {
         inviteCode,
         createdAt: new Date(),
       });
+      familyWithoutUser = true;
 
       await db.insert(schema.users).values({
         id: userId,
@@ -39,6 +44,7 @@ export default function OnboardingScreen() {
         displayName: 'Parent',
         createdAt: new Date(),
       });
+      familyWithoutUser = false;
 
       login({
         userId,
@@ -50,6 +56,17 @@ export default function OnboardingScreen() {
       router.push('/onboarding/add-child');
     } catch (err) {
       console.error('Failed to start onboarding:', err);
+      // The two inserts are not atomic, and a retry mints fresh ids. Without
+      // this, every failed user insert leaves behind a memberless family row
+      // (with a live invite code) that nothing ever cleans up. Best-effort:
+      // a failed compensation is logged, never allowed to mask the original.
+      if (familyWithoutUser) {
+        try {
+          await db.delete(schema.families).where(eq(schema.families.id, familyId));
+        } catch (cleanupErr) {
+          console.error('Failed to remove partial family row:', cleanupErr);
+        }
+      }
       Alert.alert('Error', 'Failed to start. Please try again.');
       startLatch.release();
       setSaving(false);
