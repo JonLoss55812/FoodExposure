@@ -12,8 +12,8 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.183` (`src/lib/constants.ts`). 895 tests pass across
-46 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
+**Current state:** `APP_VERSION` is `v0.5.184` (`src/lib/constants.ts`). 899 tests pass across
+47 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
 ## Tech Stack
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 895 tests, 46 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 899 tests, 47 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 895 tests, 46 suites
+npm run test         # 899 tests, 47 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -143,7 +143,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **895 tests across 46 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **899 tests across 47 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -200,7 +200,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 895 tests, 46 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 899 tests, 47 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -251,9 +251,20 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.183
+v0.5.184
 
 ## Changelog
+- v0.5.184 — Hardening: a failed boot migration is no longer a silent dead end.
+  `DatabaseProvider` gates every screen, and its catch only called `setError` — nothing
+  was logged, so Sentry (which hears about errors via `console.error` or a throw) never
+  learned a device could not open its database, and the only way past a transient
+  failure such as a locked database was to kill the app. The catch now logs
+  `Failed to initialize database:` and the error screen gains a **Try Again** pressable
+  (44pt, labelled) that re-runs the same migration. `MIGRATION_SQL` is idempotent (pinned
+  by `migration.test.ts`), so a retry is safe. +4 tests in a new
+  `src/providers/__tests__/DatabaseProvider.test.tsx` — the first test of this provider;
+  mutation-verified (dropping the log fails 1, not clearing the error on retry fails 1,
+  a no-op retry fails 2). 899 tests pass across 47 suites. TypeScript clean.
 - v0.5.183 — Feature: **a child's date of birth, notes and avatar are now editable**,
   closing the edit half of NEXT_STEPS gap #-1.5 (v0.5.178 made them readable). A
   typo in either field was permanent short of Delete Child, which cascades away every
