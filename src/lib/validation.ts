@@ -49,7 +49,10 @@ export const childSchema = z.object({
         return d.getTime() >= earliest.getTime();
       },
       { message: 'Date of birth is too far in the past' }
-    ),
+    )
+    // Blank means "not recorded", which must round-trip as absent rather than
+    // `''`. Last, so the refines above still see the trimmed string.
+    .transform((val) => (val ? val : undefined)),
   avatarEmoji: z
     .string()
     .trim()

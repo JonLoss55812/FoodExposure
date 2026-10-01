@@ -815,14 +815,18 @@ describe('childSchema.dateOfBirth format validation', () => {
     expect(result.success).toBe(true);
   });
 
-  it('accepts empty string dateOfBirth (after trim)', () => {
+  it('accepts empty string dateOfBirth and outputs it as absent', () => {
+    // "Not recorded" must round-trip as absent, never as `''` (CLAUDE.md
+    // conventions) — the schema owns that, not each form that consumes it.
     const result = childSchema.safeParse({ name: 'Emma', dateOfBirth: '' });
     expect(result.success).toBe(true);
+    if (result.success) expect(result.data.dateOfBirth).toBeUndefined();
   });
 
-  it('accepts whitespace-only dateOfBirth (trims to empty, treated as optional)', () => {
+  it('accepts whitespace-only dateOfBirth and outputs it as absent', () => {
     const result = childSchema.safeParse({ name: 'Emma', dateOfBirth: '   ' });
     expect(result.success).toBe(true);
+    if (result.success) expect(result.data.dateOfBirth).toBeUndefined();
   });
 
   it('accepts a valid YYYY-MM-DD date', () => {

@@ -93,11 +93,10 @@ export function ChildForm({ submitLabel, submitIcon, onSaved, child }: ChildForm
     if (!familyId || !submitLatch.tryAcquire()) return;
 
     setSaving(true);
-    // `childSchema.dateOfBirth` passes an empty string through unchanged (it
-    // is `.trim().optional()`, not `optionalTrimmedText`), so a date typed and
-    // then cleared arrives as `''`. Map it to `null` — "not recorded" must
-    // round-trip as absent, and on the edit path clearing it is the point.
-    const dateOfBirth = data.dateOfBirth || null;
+    // `childSchema.dateOfBirth` maps a blank (typed then cleared) to
+    // `undefined`, so this lands as `null` — on the edit path clearing it is
+    // the point.
+    const dateOfBirth = data.dateOfBirth ?? null;
     const notes = data.notes ?? null;
     try {
       if (child) {

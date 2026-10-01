@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.186` (`src/lib/constants.ts`). 908 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.187` (`src/lib/constants.ts`). 908 tests pass across
 49 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -251,9 +251,24 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.186
+v0.5.187
 
 ## Changelog
+- v0.5.187 — Fix: `childSchema.dateOfBirth` now outputs **`undefined`** for a blank
+  or whitespace-only input instead of `''`. It was `.trim().optional()` plus three
+  refines — not `optionalTrimmedText` — so it passed `''` straight through, which
+  violates the "optional fields round-trip as absent" convention at the contract
+  every consumer reads. v0.5.183 patched it at the one consumer (`ChildForm`'s
+  `|| null`); NEXT_STEPS left the schema fix open on the belief it would change
+  `ChildFormData`'s shape. It does not: a trailing `.transform` keeps the output
+  `string | undefined`, and the refines still see the trimmed string. `ChildForm`
+  goes back to the conventional `?? null`, so the existing typed-then-cleared
+  screen tests now pin the schema rather than a local workaround. The two existing
+  blank-input schema tests now assert the output, not just success.
+  Mutation-verified: dropping the transform fails 5 tests (2 schema, 3 screen).
+  `exposureSchema.occurredOn` has the same shape and is deliberately left alone —
+  its output is never persisted, only passed to `resolveOccurredAt`, which treats
+  `''` as "now". 908 tests pass across 49 suites. TypeScript clean.
 - v0.5.186 — Hardening: **an uncaught render error now has an in-app way out.**
   `app/_layout.tsx` exported no `ErrorBoundary`, so a throw in any screen left the
   parent with nothing to tap (found, not fixed, by the 2026-09-30 hardening pass).
