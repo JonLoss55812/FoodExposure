@@ -12,8 +12,8 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.185` (`src/lib/constants.ts`). 902 tests pass across
-47 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
+**Current state:** `APP_VERSION` is `v0.5.186` (`src/lib/constants.ts`). 908 tests pass across
+49 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
 ## Tech Stack
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 902 tests, 47 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 908 tests, 49 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 902 tests, 47 suites
+npm run test         # 908 tests, 49 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -143,7 +143,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **902 tests across 47 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **908 tests across 49 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -200,7 +200,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 902 tests, 47 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 908 tests, 49 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -251,9 +251,29 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.185
+v0.5.186
 
 ## Changelog
+- v0.5.186 — Hardening: **an uncaught render error now has an in-app way out.**
+  `app/_layout.tsx` exported no `ErrorBoundary`, so a throw in any screen left the
+  parent with nothing to tap (found, not fixed, by the 2026-09-30 hardening pass).
+  New `src/components/RouteErrorBoundary.tsx`, re-exported from the root layout as
+  `ErrorBoundary` (the name expo-router discovers it by): a themed recovery screen
+  built on `EmptyState` with a **Try again** action that calls expo-router's
+  `retry`. Two deliberate choices. It **reports explicitly** via
+  `Sentry.captureException` (plus the `console.error` log convention) — an error
+  caught by a React boundary never reaches Sentry's global handler, and React's own
+  `console.error` of it is only a breadcrumb, so without this a crash would be
+  invisible. And it **does not render `error.message`**: a failed drizzle query's
+  message carries its bound values (v0.5.181), i.e. a child's name and notes. It
+  uses no SafeArea or theme hook, because at the root it renders outside the
+  providers. +5 tests in `src/components/__tests__/RouteErrorBoundary.test.tsx`
+  driven through expo-router's **real** `Try` boundary (crash -> fallback, message
+  not shown, one Sentry capture, the log, Try again recovers) and +1 in a new
+  `app/__tests__/_layout.test.tsx` pinning the export. Mutation-verified: dropping
+  the capture, the log, the retry call, or the export, or rendering the message,
+  each fail exactly one. Not device-verified — no native build is possible here.
+  908 tests pass across 49 suites. TypeScript clean, including `--noUnusedLocals`.
 - v0.5.185 — Hardening: first-launch onboarding no longer strands a memberless
   family row when the second of its two inserts fails. `handleGetStarted` writes
   `families` then `users` with no transaction, and a retry mints fresh ids — so every

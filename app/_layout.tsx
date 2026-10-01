@@ -11,6 +11,9 @@ import { initPostHog } from '@/src/lib/posthog';
 
 import '@/src/styles/theme';
 
+// Without this, an uncaught render error in any screen leaves no in-app way out.
+export { RouteErrorBoundary as ErrorBoundary } from '@/src/components/RouteErrorBoundary';
+
 SplashScreen.preventAutoHideAsync();
 initSentry();
 
