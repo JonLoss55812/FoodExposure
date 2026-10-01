@@ -10,6 +10,7 @@ import {
   MAX_BACKDATE_YEARS,
   toLocalDateInput,
   formatChildAge,
+  ageInMonthsAt,
 } from '../utils';
 
 describe('generateId', () => {
@@ -454,6 +455,24 @@ describe('toLocalDateInput', () => {
     expect(toLocalDateInput(undefined)).toBe('');
     expect(toLocalDateInput(new Date(NaN))).toBe('');
     expect(toLocalDateInput('not a date')).toBe('');
+  });
+});
+
+describe('ageInMonthsAt', () => {
+  it('returns whole months at the given instant, accepting a Date or epoch ms', () => {
+    expect(ageInMonthsAt('2024-10-20', new Date(2026, 3, 20))).toBe(18);
+    expect(ageInMonthsAt('2024-10-20', new Date(2026, 3, 20).getTime())).toBe(18);
+  });
+
+  it('returns null, not NaN, for an unparseable instant', () => {
+    // The contract is number | null; NaN would only be hidden downstream by
+    // csvEscape's non-finite guard, not by this helper.
+    expect(ageInMonthsAt('2024-10-20', new Date('invalid'))).toBeNull();
+    expect(ageInMonthsAt('2024-10-20', NaN)).toBeNull();
+  });
+
+  it('returns null for an instant before the birth', () => {
+    expect(ageInMonthsAt('2024-10-20', new Date(2024, 9, 19))).toBeNull();
   });
 });
 

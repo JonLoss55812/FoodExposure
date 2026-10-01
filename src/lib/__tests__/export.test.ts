@@ -126,7 +126,7 @@ describe('csvEscape', () => {
 });
 
 describe('formatExposuresCsv', () => {
-  const header = 'date,food,category,safe_food,stage,rating,preparation,texture,temperature,meal,setting,notes';
+  const header = 'date,food,category,safe_food,stage,rating,preparation,texture,temperature,meal,setting,notes,age_months';
 
   it('returns header only when rows are empty', () => {
     expect(formatExposuresCsv([])).toBe('\uFEFF' + header + '\n');
@@ -163,7 +163,7 @@ describe('formatExposuresCsv', () => {
     const cols1 = lines[1].split(',');
     expect(cols1[0]).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{2}:\d{2}$/);
     expect(cols1.slice(1).join(',')).toBe(
-      'Apple,fruit,false,taste,4,sliced,crunchy,cold,snack,home,'
+      'Apple,fruit,false,taste,4,sliced,crunchy,cold,snack,home,,'
     );
   });
 
@@ -182,10 +182,58 @@ describe('formatExposuresCsv', () => {
       row({ rating: null, preparation: null, texture: null, temperature: null, mealType: null, setting: null, notes: null }),
     ]);
     const cols = csv.trim().split('\n')[1].split(',');
-    expect(cols).toHaveLength(12);
+    expect(cols).toHaveLength(13);
     expect(cols[5]).toBe(''); // rating
     expect(cols[8]).toBe(''); // temperature
     expect(cols[11]).toBe(''); // notes
+    expect(cols[12]).toBe(''); // age_months (no DOB passed)
+  });
+
+  describe('age_months column', () => {
+    // Local-time constructors, so the assertions hold in every host zone:
+    // both the DOB parse and the month arithmetic are local by design.
+    const ageCell = (dob: string | null | undefined, occurredAt: Date) =>
+      formatExposuresCsv([row({ occurredAt })], dob).trim().split('\n')[1].split(',')[12];
+
+    it("reports the child's whole-month age at each exposure's own timestamp", () => {
+      const csv = formatExposuresCsv(
+        [
+          row({ occurredAt: new Date(2026, 3, 20, 9, 0) }),
+          row({ occurredAt: new Date(2025, 9, 20, 9, 0) }),
+        ],
+        '2024-10-20'
+      );
+      const lines = csv.trim().split('\n');
+      // Per row, not one age for the whole file: the same child is 18 months
+      // in the first row and 12 in the second.
+      expect(lines[1].split(',')[12]).toBe('18');
+      expect(lines[2].split(',')[12]).toBe('12');
+    });
+
+    it('does not count a month until the day of the month is reached', () => {
+      expect(ageCell('2024-10-20', new Date(2025, 9, 19, 23, 0))).toBe('11');
+      expect(ageCell('2024-10-20', new Date(2025, 9, 20, 0, 30))).toBe('12');
+    });
+
+    it('is 0, not blank, for an exposure in the first month of life', () => {
+      expect(ageCell('2026-01-05', new Date(2026, 0, 20))).toBe('0');
+    });
+
+    it('is blank when the DOB is absent, malformed, or a rollover date', () => {
+      const at = new Date(2026, 3, 20);
+      expect(ageCell(undefined, at)).toBe('');
+      expect(ageCell(null, at)).toBe('');
+      expect(ageCell('12/05/2020', at)).toBe('');
+      expect(ageCell('2024-02-30', at)).toBe('');
+    });
+
+    it('is blank, not negative, for an exposure dated before the birth', () => {
+      expect(ageCell('2026-01-05', new Date(2025, 11, 31))).toBe('');
+    });
+
+    it('is blank, not today\'s age, when the exposure timestamp is corrupt', () => {
+      expect(ageCell('2024-10-20', new Date('invalid'))).toBe('');
+    });
   });
 
   it('serializes temperature alongside texture for sensory dimension parity', () => {

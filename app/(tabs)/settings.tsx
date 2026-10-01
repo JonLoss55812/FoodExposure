@@ -159,11 +159,11 @@ export default function SettingsScreen() {
     setExporting(true);
     try {
       const [child] = await db
-        .select({ name: schema.children.name })
+        .select({ name: schema.children.name, dateOfBirth: schema.children.dateOfBirth })
         .from(schema.children)
         .where(eq(schema.children.id, selectedChildId))
         .limit(1);
-      await exportChildData(selectedChildId, child?.name ?? 'child');
+      await exportChildData(selectedChildId, child?.name ?? 'child', child?.dateOfBirth);
     } catch (err) {
       console.error('Failed to export data:', err);
       Alert.alert('Export failed', err instanceof Error ? err.message : 'Unknown error');

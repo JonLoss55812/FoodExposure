@@ -136,6 +136,51 @@ export function toLocalDateInput(value?: Date | number | string | null): string 
 }
 
 /**
+ * A child's age in **whole months** at the instant `at`, or `null` when it
+ * cannot be known: a blank, non-string, malformed or rollover date of birth, an
+ * unparseable `at`, or an `at` that falls before the birth. Parsed at local
+ * midnight and the current month is not counted until the day of the month is
+ * reached — the same rules `formatChildAge` renders from, because it calls this.
+ *
+ * Unlike `formatChildAge` there is no fallback to "now" for a bad `at`: the CSV
+ * export asks for the age at each exposure's own timestamp, and a corrupt
+ * timestamp must yield a blank cell rather than today's age.
+ */
+export function ageInMonthsAt(
+  dateOfBirth: string | null | undefined,
+  at: Date | number,
+): number | null {
+  if (typeof dateOfBirth !== 'string') return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateOfBirth.trim());
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const born = new Date(year, month - 1, day);
+  // Rejects calendar rollovers (2026-02-30 would silently become Mar 1), the
+  // same round-trip guard `childSchema.dateOfBirth` uses.
+  if (
+    born.getFullYear() !== year ||
+    born.getMonth() !== month - 1 ||
+    born.getDate() !== day
+  ) {
+    return null;
+  }
+
+  const reference = at instanceof Date ? at : new Date(at);
+  if (Number.isNaN(reference.getTime())) return null;
+  if (born.getTime() > reference.getTime()) return null;
+
+  let months =
+    (reference.getFullYear() - born.getFullYear()) * 12 +
+    (reference.getMonth() - born.getMonth());
+  // Do not count the current month until the day of the month is reached.
+  if (reference.getDate() < born.getDate()) months -= 1;
+  return months;
+}
+
+/**
  * Render a child's `dateOfBirth` as a human age, or `null` when there is
  * nothing trustworthy to show.
  *
@@ -165,34 +210,9 @@ export function formatChildAge(
   dateOfBirth: string | null | undefined,
   now: Date = new Date(),
 ): string | null {
-  if (typeof dateOfBirth !== 'string') return null;
-  const value = dateOfBirth.trim();
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!match) return null;
-
-  const [, y, m, d] = match;
-  const year = Number(y);
-  const month = Number(m);
-  const day = Number(d);
-  const born = new Date(year, month - 1, day);
-  // Rejects calendar rollovers (2026-02-30 would silently become Mar 1), the
-  // same round-trip guard `childSchema.dateOfBirth` uses.
-  if (
-    born.getFullYear() !== year ||
-    born.getMonth() !== month - 1 ||
-    born.getDate() !== day
-  ) {
-    return null;
-  }
-
   const reference = now instanceof Date && !Number.isNaN(now.getTime()) ? now : new Date();
-  if (born.getTime() > reference.getTime()) return null;
-
-  let months =
-    (reference.getFullYear() - born.getFullYear()) * 12 +
-    (reference.getMonth() - born.getMonth());
-  // Do not count the current month until the day of the month is reached.
-  if (reference.getDate() < born.getDate()) months -= 1;
+  const months = ageInMonthsAt(dateOfBirth, reference);
+  if (months === null) return null;
 
   if (months < 1) return 'Newborn';
   if (months < 24) return months === 1 ? '1 month' : `${months} months`;

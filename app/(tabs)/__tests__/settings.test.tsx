@@ -249,6 +249,22 @@ describe('SettingsScreen — Export Data', () => {
     expect(alertSpy).not.toHaveBeenCalled();
   });
 
+  it("passes the child's date of birth through, so each row carries an age_months cell", async () => {
+    await renderWithChildren([EMMA]);
+    // EXPOSURE_ROW is 2026-05-10 12:00Z; a 2025-01-01 birth is 16 months old
+    // on that date in every zone (the instant is mid-day on the 10th UTC).
+    mockDb.queueSelect([{ name: 'Emma', dateOfBirth: '2025-01-01' }]);
+    mockDb.queueSelect([EXPOSURE_ROW]);
+
+    await click('Export data as CSV');
+
+    await waitFor(() => expect(shareSpy).toHaveBeenCalled());
+    const { message } = shareSpy.mock.calls[0][0] as { message: string };
+    const lines = message.trim().split('\n');
+    expect(lines[0].endsWith(',age_months')).toBe(true);
+    expect(lines[1].endsWith(',16')).toBe(true);
+  });
+
   it('refuses to export when no child is selected, without reading anything', async () => {
     // Cleared before mount: a post-mount clear does not reach the handler's
     // closure under this harness, and the read count would be ambiguous.

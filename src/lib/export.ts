@@ -2,6 +2,7 @@ import { Share } from 'react-native';
 import { eq, desc } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
+import { ageInMonthsAt } from '@/src/lib/utils';
 
 export interface ExposureRow {
   occurredAt: Date;
@@ -31,6 +32,7 @@ const HEADER = [
   'meal',
   'setting',
   'notes',
+  'age_months',
 ].join(',');
 
 // CSV injection guard: Excel/Sheets/Numbers treat cells starting with
@@ -122,7 +124,19 @@ export function toLocalIsoString(
   return `${stamp}${sign}${pad(Math.trunc(abs / 60))}:${pad(abs % 60)}`;
 }
 
-export function formatExposuresCsv(rows: ReadonlyArray<ExposureRow>): string {
+/**
+ * `dateOfBirth` drives the trailing `age_months` column: the child's age in
+ * whole months at each exposure's own timestamp. A therapist reads stage and
+ * rating against age — a refusal at 9 months and one at 30 months mean
+ * different things — and the export was otherwise the one place a parent's
+ * recorded DOB never reached. The cell is blank (not 0) when the age cannot be
+ * known, so a spreadsheet `AVERAGE` treats it as missing rather than newborn.
+ * It is the last column so every existing column keeps its position.
+ */
+export function formatExposuresCsv(
+  rows: ReadonlyArray<ExposureRow>,
+  dateOfBirth?: string | null
+): string {
   const body = rows.map((r) =>
     [
       toLocalIsoString(r.occurredAt),
@@ -137,6 +151,7 @@ export function formatExposuresCsv(rows: ReadonlyArray<ExposureRow>): string {
       csvEscape(r.mealType),
       csvEscape(r.setting),
       csvEscape(r.notes),
+      csvEscape(ageInMonthsAt(dateOfBirth, r.occurredAt)),
     ].join(',')
   );
   // Prepend UTF-8 BOM (\uFEFF) so Excel on Windows opens with the correct
@@ -197,9 +212,13 @@ export async function fetchExportRows(childId: string): Promise<ExposureRow[]> {
   }));
 }
 
-export async function exportChildData(childId: string, childName: string): Promise<void> {
+export async function exportChildData(
+  childId: string,
+  childName: string,
+  dateOfBirth?: string | null
+): Promise<void> {
   const rows = await fetchExportRows(childId);
-  const csv = formatExposuresCsv(rows);
+  const csv = formatExposuresCsv(rows, dateOfBirth);
   const filename = buildExportFilename(childName);
   await Share.share({
     title: filename,

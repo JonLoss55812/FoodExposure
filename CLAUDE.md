@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.187` (`src/lib/constants.ts`). 908 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.188` (`src/lib/constants.ts`). 918 tests pass across
 49 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 908 tests, 49 suites
+npm run test         # 918 tests, 49 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -251,9 +251,25 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.187
+v0.5.188
 
 ## Changelog
+- v0.5.188 — Feature: the CSV export gains a trailing **`age_months`** column — the
+  child's age in whole months at *each exposure's own timestamp*. A therapist reads
+  stage and rating against age (a refusal at 9 months and at 30 months mean
+  different things), and the export was the one surface a recorded DOB never
+  reached. New pure `ageInMonthsAt(dob, at)` in `src/lib/utils.ts`, extracted from
+  `formatChildAge` (which now calls it, so the two cannot disagree on local-midnight
+  parsing or the day-of-month rule). The cell is **blank, not 0**, when the age is
+  unknowable — no/malformed/rollover DOB, an exposure dated before the birth, or a
+  corrupt timestamp (no fallback to "now", which would print today's age against an
+  old row) — so a spreadsheet `AVERAGE` treats it as missing. Last column, so every
+  existing column keeps its index. Settings' export handler now selects
+  `dateOfBirth` alongside the name and passes it through. +10 tests (6 CSV, 3
+  `ageInMonthsAt`, 1 Settings screen); mutation-verified: dropping the DOB at the
+  screen or in `exportChildData` fails 1 each, computing age at "now" fails 6,
+  dropping the before-birth guard 3, the invalid-instant guard 1, the
+  day-of-month rule 2. 918 tests pass across 49 suites. TypeScript clean.
 - v0.5.187 — Fix: `childSchema.dateOfBirth` now outputs **`undefined`** for a blank
   or whitespace-only input instead of `''`. It was `.trim().optional()` plus three
   refines — not `optionalTrimmedText` — so it passed `''` straight through, which

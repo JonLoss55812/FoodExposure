@@ -156,7 +156,7 @@ describe('exportChildData', () => {
 
     expect(shareSpy).toHaveBeenCalledTimes(1);
     const arg = shareSpy.mock.calls[0][0] as { title: string; message: string };
-    expect(arg.message.trim()).toBe('date,food,category,safe_food,stage,rating,preparation,texture,temperature,meal,setting,notes');
+    expect(arg.message.trim()).toBe('date,food,category,safe_food,stage,rating,preparation,texture,temperature,meal,setting,notes,age_months');
 
     shareSpy.mockRestore();
   });
