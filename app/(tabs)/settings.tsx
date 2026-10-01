@@ -17,6 +17,10 @@ import { deleteChildCascade } from '@/src/lib/cascade-delete';
 import { createInFlightLatch } from '@/src/lib/in-flight';
 import { childSchema } from '@/src/lib/validation';
 
+// A render error here stays inside this screen, keeping the navigator (tab bar,
+// modal dismiss) usable; see app/__tests__/route-error-boundaries.test.tsx.
+export { RouteErrorBoundary as ErrorBoundary } from '@/src/components/RouteErrorBoundary';
+
 type ChildRow = Pick<
   typeof schema.children.$inferSelect,
   'id' | 'name' | 'avatarEmoji' | 'dateOfBirth' | 'notes'

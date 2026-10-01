@@ -13,6 +13,10 @@ import { STAGE_ORDER, STAGE_CONFIG } from '@/src/lib/constants';
 import { computeStageCounts } from '@/src/lib/food-partition';
 import { getStartOfDay } from '@/src/lib/utils';
 
+// A render error here stays inside this screen, keeping the navigator (tab bar,
+// modal dismiss) usable; see app/__tests__/route-error-boundaries.test.tsx.
+export { RouteErrorBoundary as ErrorBoundary } from '@/src/components/RouteErrorBoundary';
+
 type RecentExposure = {
   id: string;
   foodId: string;

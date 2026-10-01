@@ -12,8 +12,8 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.188` (`src/lib/constants.ts`). 918 tests pass across
-49 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
+**Current state:** `APP_VERSION` is `v0.5.189` (`src/lib/constants.ts`). 927 tests pass across
+50 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
 ## Tech Stack
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 908 tests, 49 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 927 tests, 50 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 918 tests, 49 suites
+npm run test         # 927 tests, 50 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -143,7 +143,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **908 tests across 49 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **927 tests across 50 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -200,7 +200,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 908 tests, 49 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 927 tests, 50 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -251,9 +251,26 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.188
+v0.5.189
 
 ## Changelog
+- v0.5.189 — Hardening: **a render error in one screen no longer takes down the
+  whole app.** v0.5.186's boundary was exported only from the root layout, and
+  expo-router wraps a route's *own component* in the boundary it exports
+  (`useScreens.fromImport` -> `<Try catch={ErrorBoundary}>`) — so the root one
+  replaced the entire navigator, tab bar and modal swipe-to-dismiss included, and
+  "Try again" was the only way out. The five tab screens and the four food/child
+  modal screens now each export the same `RouteErrorBoundary`, which contains the
+  crash to that screen: a broken Progress tab still leaves the tab bar to reach Log,
+  and a broken modal can still be swiped away. Onboarding is deliberately left on
+  the root boundary (no tab bar, back gesture disabled — a screen boundary would
+  offer nothing more). The root boundary stays as the safety net for layouts and
+  providers. +9 tests in a new `app/__tests__/route-error-boundaries.test.tsx`
+  pinning each export by identity (and that the module's default is the real
+  screen, so a pass cannot be vacuous); expo-router finds the boundary by export
+  name alone, so a deleted line would otherwise fail silently. Mutation-verified:
+  dropping any one export fails exactly one test. Not device-verified. 927 tests
+  pass across 50 suites. TypeScript clean, including `--noUnusedLocals`.
 - v0.5.188 — Feature: the CSV export gains a trailing **`age_months`** column — the
   child's age in whole months at *each exposure's own timestamp*. A therapist reads
   stage and rating against age (a refusal at 9 months and at 30 months mean

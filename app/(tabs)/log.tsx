@@ -18,6 +18,10 @@ import { resolveSelectedFoodId } from '@/src/lib/food-partition';
 import { createInFlightLatch } from '@/src/lib/in-flight';
 import { STAGE_CONFIG, MEAL_TYPES, TEMPERATURES, TEXTURES, SETTINGS } from '@/src/lib/constants';
 
+// A render error here stays inside this screen, keeping the navigator (tab bar,
+// modal dismiss) usable; see app/__tests__/route-error-boundaries.test.tsx.
+export { RouteErrorBoundary as ErrorBoundary } from '@/src/components/RouteErrorBoundary';
+
 export default function LogExposureScreen() {
   const router = useRouter();
   const { familyId, userId } = useAuthStore();

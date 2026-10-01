@@ -9,6 +9,10 @@ import { useAuthStore } from '@/src/stores/auth-store';
 import { ChildForm, EmptyState, type ChildFormRecord } from '@/src/components';
 import { formatChildAge } from '@/src/lib/utils';
 
+// A render error here stays inside this screen, keeping the navigator (tab bar,
+// modal dismiss) usable; see app/__tests__/route-error-boundaries.test.tsx.
+export { RouteErrorBoundary as ErrorBoundary } from '@/src/components/RouteErrorBoundary';
+
 /**
  * Child detail / edit screen. A child's date of birth and notes are captured
  * on Add Child and shown on the Settings row (v0.5.178), but until this screen

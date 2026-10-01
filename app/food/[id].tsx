@@ -20,6 +20,10 @@ import { findDuplicateFood } from '@/src/lib/food-partition';
 import { foodSchema, exposureSchema } from '@/src/lib/validation';
 import { createInFlightLatch } from '@/src/lib/in-flight';
 
+// A render error here stays inside this screen, keeping the navigator (tab bar,
+// modal dismiss) usable; see app/__tests__/route-error-boundaries.test.tsx.
+export { RouteErrorBoundary as ErrorBoundary } from '@/src/components/RouteErrorBoundary';
+
 type ExposureRow = Pick<
   typeof schema.exposures.$inferSelect,
   'id' | 'stage' | 'rating' | 'notes' | 'occurredAt' | 'mealType' | 'temperature' | 'texture' | 'setting'

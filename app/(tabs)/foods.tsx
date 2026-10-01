@@ -16,6 +16,10 @@ import { partitionSafeFoods, getEmptyStateKind, buildFoodsWithStats, filterFoods
 import { mergeFoods } from '@/src/lib/merge-foods';
 import { createInFlightLatch } from '@/src/lib/in-flight';
 
+// A render error here stays inside this screen, keeping the navigator (tab bar,
+// modal dismiss) usable; see app/__tests__/route-error-boundaries.test.tsx.
+export { RouteErrorBoundary as ErrorBoundary } from '@/src/components/RouteErrorBoundary';
+
 type FoodWithStats = typeof schema.foods.$inferSelect & {
   exposureCount: number;
   highestStage?: ExposureStage;

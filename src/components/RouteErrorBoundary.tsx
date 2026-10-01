@@ -7,7 +7,8 @@ import { EmptyState } from './EmptyState';
 
 /**
  * Fallback for an uncaught render error, exported as `ErrorBoundary` from the
- * root layout. Without it a throw in any screen has no in-app recovery.
+ * root layout (the safety net) and from each tab and food/child modal screen,
+ * where it contains the crash to that screen so the navigator stays usable.
  *
  * It reports explicitly: an error caught by a React boundary never reaches
  * Sentry's global handler, and React only `console.error`s it, which Sentry

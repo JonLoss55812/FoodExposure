@@ -16,6 +16,10 @@ import { findDuplicateFood } from '@/src/lib/food-partition';
 import { FOOD_CATEGORIES, CATEGORY_CONFIG, PREPARATIONS } from '@/src/lib/constants';
 import { Button } from '@/src/components';
 
+// A render error here stays inside this screen, keeping the navigator (tab bar,
+// modal dismiss) usable; see app/__tests__/route-error-boundaries.test.tsx.
+export { RouteErrorBoundary as ErrorBoundary } from '@/src/components/RouteErrorBoundary';
+
 export default function AddFoodScreen() {
   const router = useRouter();
   const { familyId } = useAuthStore();

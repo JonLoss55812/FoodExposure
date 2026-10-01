@@ -14,6 +14,10 @@ import { useSettingsStore } from '@/src/stores/settings-store';
 import { getFeedingProfileConfig, getThresholdForProfile } from '@/src/lib/thresholds';
 import { calcProgressStats, getEncouragementMessage, type ProgressStats } from '@/src/lib/progress-stats';
 
+// A render error here stays inside this screen, keeping the navigator (tab bar,
+// modal dismiss) usable; see app/__tests__/route-error-boundaries.test.tsx.
+export { RouteErrorBoundary as ErrorBoundary } from '@/src/components/RouteErrorBoundary';
+
 const EMPTY_STATS: ProgressStats = {
   totalFoods: 0,
   totalExposures: 0,
