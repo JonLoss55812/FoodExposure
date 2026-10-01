@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.187 — 908 tests passing across 49 suites, TypeScript clean.
+Reviewed at: v0.5.189 — 927 tests passing across 50 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -327,6 +327,28 @@ onboarding path is the cheapest way to cover that class.
 
 `bun.lock` still lists `uuid` (not regenerated, v0.5.143 precedent).
 
+## Shipped in the v0.5.189 session (2026-10-01)
+
+- v0.5.188 — CSV export gains a trailing `age_months` column (child's whole-month
+  age at each exposure's timestamp) via a new pure `ageInMonthsAt`, which
+  `formatChildAge` now calls. Blank when unknowable. Settings passes the DOB.
+- v0.5.189 — per-screen `ErrorBoundary` exports on the 5 tabs + 4 food/child
+  modals, so a crash keeps the navigator usable. Pinned in
+  `app/__tests__/route-error-boundaries.test.tsx`.
+
+**Discovered and deliberately not done:**
+
+- **The recovery screen on a modal has no Close button.** Swipe-to-dismiss works
+  on iOS; on Android a modal relies on the hardware back button. A "Go back"
+  secondary action (`router.canGoBack()`) on `RouteErrorBoundary` would help, but
+  `EmptyState` takes one action, and it wants a device to judge.
+- **Per-screen boundaries are not device-verified** — the containment follows from
+  `useScreens.fromImport` (read in `node_modules/expo-router/build/useScreens.js`),
+  not from a device run.
+- **`age_months` is per row, not per file** — deliberately: the export spans the
+  child's whole history. If a therapist wants a header row with current age/DOB,
+  that would break the single-header CSV shape; leave it unless asked.
+
 ## Shipped in the v0.5.187 session (2026-09-30)
 
 - v0.5.186 — root `ErrorBoundary` (`src/components/RouteErrorBoundary.tsx`,
@@ -340,11 +362,10 @@ onboarding path is the cheapest way to cover that class.
 
 **Discovered and deliberately not done:**
 
-- **Nested route boundaries.** Only the root layout exports one, so a crash in any
-  screen replaces the *whole* app (tab bar included) with the recovery screen.
-  Exporting the same component from `app/(tabs)/_layout.tsx` would keep the tab bar
-  alive; not done because the root boundary is the safety net and the tab-level one
-  is a UX nicety that needs a device to judge.
+- ~~**Nested route boundaries.**~~ Done in v0.5.189 — but note the original idea
+  here was wrong: exporting from `app/(tabs)/_layout.tsx` would *not* keep the tab
+  bar, because expo-router wraps the route's own component (the layout = the
+  navigator). The boundaries are exported from each tab screen and modal instead.
 - **Not device-verified.** That the root boundary also catches errors thrown inside
   `DatabaseProvider` / the other providers follows from expo-router wrapping the
   route component, but nothing here proves it on a device.
