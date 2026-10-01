@@ -22,7 +22,7 @@ After: 902 tests / 47 suites, `tsc --noEmit` and `--noUnusedLocals` clean.
 
 ## Found, not fixed (reported only)
 
-- **No root `ErrorBoundary`.** `app/_layout.tsx` exports none, so an uncaught render
+- **~~No root `ErrorBoundary`.~~** Fixed in v0.5.186 (`RouteErrorBoundary`). `app/_layout.tsx` exports none, so an uncaught render
   error in any screen has no in-app recovery surface. `export { ErrorBoundary } from
   'expo-router'` is the usual one-liner, but it can't be exercised meaningfully under
   the jest web harness, and the rules here require a test per change. Worth doing with

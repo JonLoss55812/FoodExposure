@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.183 — 895 tests passing across 46 suites, TypeScript clean.
+Reviewed at: v0.5.187 — 908 tests passing across 49 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -327,6 +327,31 @@ onboarding path is the cheapest way to cover that class.
 
 `bun.lock` still lists `uuid` (not regenerated, v0.5.143 precedent).
 
+## Shipped in the v0.5.187 session (2026-09-30)
+
+- v0.5.186 — root `ErrorBoundary` (`src/components/RouteErrorBoundary.tsx`,
+  re-exported from `app/_layout.tsx`). Recovery screen + Try again, explicit
+  `Sentry.captureException` (boundary-caught errors never reach Sentry otherwise),
+  never renders `error.message`. Tests drive expo-router's real `Try` from
+  `expo-router/build/views/Try` — a deep import; if an expo-router upgrade moves
+  it, fix the import path, do not delete the tests.
+- v0.5.187 — `childSchema.dateOfBirth` outputs `undefined` for blank; `ChildForm`
+  back to `?? null`.
+
+**Discovered and deliberately not done:**
+
+- **Nested route boundaries.** Only the root layout exports one, so a crash in any
+  screen replaces the *whole* app (tab bar included) with the recovery screen.
+  Exporting the same component from `app/(tabs)/_layout.tsx` would keep the tab bar
+  alive; not done because the root boundary is the safety net and the tab-level one
+  is a UX nicety that needs a device to judge.
+- **Not device-verified.** That the root boundary also catches errors thrown inside
+  `DatabaseProvider` / the other providers follows from expo-router wrapping the
+  route component, but nothing here proves it on a device.
+- **`exposureSchema.occurredOn` still outputs `''` for blank.** Harmless — it is
+  only fed to `resolveOccurredAt` — so left alone; same one-line transform if it
+  ever gets persisted directly.
+
 ## Shipped in the v0.5.183 session (2026-09-29)
 
 - v0.5.182 — `createMockDb().failNextWrite(error?)`: the next insert/update/delete
@@ -341,10 +366,8 @@ onboarding path is the cheapest way to cover that class.
 
 **Discovered and deliberately not done:**
 
-- **`childSchema.dateOfBirth` still outputs `''` for a blank input.** v0.5.183
-  maps it to `null` in `ChildForm`, which is the only consumer today. Making the
-  schema itself return `undefined` (like `optionalTrimmedText`) is the cleaner
-  fix but changes `ChildFormData`'s shape; do it if a second consumer appears.
+- ~~**`childSchema.dateOfBirth` still outputs `''` for a blank input.**~~ Fixed in
+  v0.5.187 with a trailing `.transform` — the output type did not change after all.
 - **The Settings row now has two ways to change a name** — inline Rename
   (v0.5.175) and the detail screen. Both write the same column, so nothing is
   wrong, but if the row feels crowded, Rename is the one to drop (its 6 tests
