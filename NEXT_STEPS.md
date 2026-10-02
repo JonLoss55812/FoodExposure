@@ -655,7 +655,10 @@ onboarding path is the cheapest way to cover that class.
 ## NOT in scope (unchanged from original review)
 
 - **Wire Convex** — deferred until real multi-device need. Schema is ready.
-- **Co-parent family invites UI** — `families.inviteCode` exists; Join flow works; no invite-share UI needed yet.
+- **Co-parent family invites UI** — `families.inviteCode` exists, but the Join flow
+  **cannot work across devices today**: `app/onboarding/join.tsx` looks the code up in the
+  *local* SQLite `families` table, so it only matches a family created on the same phone,
+  and no screen ever displays the code. Do not describe Join as working until sync exists.
 - **Food chaining** (`convex/foodChains.ts`) — advanced SOS technique, later.
 - **Gamification/streaks/badges** — research warns against pressure-based interventions. Bright red line.
 - **App Store / TestFlight** — off the table per user instruction.
