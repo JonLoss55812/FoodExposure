@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.189 — 927 tests passing across 50 suites, TypeScript clean.
+Reviewed at: v0.5.191 — 936 tests passing across 51 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -326,6 +326,32 @@ is invisible to it. If a dev build is ever available, a smoke run of the
 onboarding path is the cheapest way to cover that class.
 
 `bun.lock` still lists `uuid` (not regenerated, v0.5.143 precedent).
+
+## Shipped in the v0.5.191 session (2026-10-03)
+
+- v0.5.190 — **versioned schema migrations** (`src/db/migrate.ts`, critique top risk #1).
+  `runMigrations` applies `MIGRATIONS` entries above `PRAGMA user_version`, each atomic
+  with its version bump. `MIGRATION_SQL` is frozen as step 1. **The next schema change
+  is a new step** (`ALTER TABLE … ADD COLUMN …`) — editing step 1 reaches fresh installs
+  only. Tested against `node:sqlite`, 5 mutations verified.
+- v0.5.191 — Join Family copy is honest: "on this device", no false "connect to sync".
+
+**Discovered and deliberately not done:**
+
+- **`PRAGMA foreign_keys` is still off**, so every `REFERENCES` clause is decorative
+  and orphan exposures are insertable. Enabling it is now a one-line step-2 candidate
+  (it is a per-connection pragma, so it belongs in `client.ts` or the provider, *not* in
+  a migration step), but existing installs may already hold orphans — first write a
+  step that finds/removes them, then test the cascades still pass with FKs on.
+- **Join Family is reachable but the invite code is shown nowhere.** Product decision
+  needed: hide the onboarding link until sync exists, or show the code in Settings
+  (which is the out-of-scope invites UI). Copy-only fix shipped meanwhile.
+- **`handleToggleSafeFood` (`app/food/[id].tsx`) still has no latch** (critique #2) —
+  idempotent per closure, so harmless; fold it in if the food-level editors are
+  ever collapsed like v0.5.174 did for the row editors.
+- **CLAUDE.md is ~430 KB**, most of it changelog, loaded into every session. Moving the
+  changelog to `CHANGELOG.md` would change the versioning rule written in CLAUDE.md
+  itself, so it is left for the owner to decide.
 
 ## Shipped in the v0.5.189 session (2026-10-01)
 
