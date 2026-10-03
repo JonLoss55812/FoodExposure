@@ -18,9 +18,10 @@ acceptance threshold for their feeding profile.
 
 Local-only. All data is stored in on-device SQLite; **nothing syncs to a server.** The
 `convex/` directory holds a scaffolded backend that no app code calls yet. There is no
-account system — "signing in" creates a local family record with an invite code.
+account system — "signing in" creates a local family record with an invite code. The
+code is never displayed, and Join Family only finds families on the same device.
 
-In-app version: `v0.5.174` (`src/lib/constants.ts`). 824 tests across 42 suites.
+In-app version: `v0.5.191` (`src/lib/constants.ts`). 936 tests across 51 suites.
 
 ## Requirements
 

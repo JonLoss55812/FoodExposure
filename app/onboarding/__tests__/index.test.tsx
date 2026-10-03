@@ -70,12 +70,12 @@ describe('OnboardingScreen', () => {
   it('renders the primary action and the join-with-a-code alternative', () => {
     render(<OnboardingScreen />);
     expect(screen.getByLabelText('Get Started')).toBeTruthy();
-    expect(screen.getByLabelText('Have an invite code? Join your family')).toBeTruthy();
+    expect(screen.getByLabelText('Have an invite code? Join a family on this device')).toBeTruthy();
   });
 
   it('routes to the join flow without creating a family', async () => {
     render(<OnboardingScreen />);
-    await click('Have an invite code? Join your family');
+    await click('Have an invite code? Join a family on this device');
 
     expect(mockRouter.push).toHaveBeenCalledWith('/onboarding/join');
     expect(mockDb.writes).toHaveLength(0);

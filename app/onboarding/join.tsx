@@ -47,7 +47,7 @@ export default function JoinFamilyScreen() {
         .then(rows => rows[0]);
 
       if (!family) {
-        Alert.alert('Not Found', 'No family found with that invite code. Make sure you\'re connected to sync first, or ask your partner to share the code again.');
+        Alert.alert('Not Found', 'No family on this device uses that code. Families set up on another phone cannot be joined yet.');
         return;
       }
 
@@ -94,7 +94,13 @@ export default function JoinFamilyScreen() {
     <View style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.title}>Join Your Family</Text>
-        <Text style={styles.subtitle}>Enter the invite code from your partner</Text>
+        {/* Honest about scope: the code is looked up in this phone's own SQLite
+            database, and there is no sync, so a family created on another phone
+            can never be found. Do not reword this to promise more until sync exists. */}
+        <Text style={styles.subtitle}>
+          Join a family already set up on this device. Joining from another phone is not
+          available yet.
+        </Text>
 
         <View style={styles.form}>
           <View style={styles.field}>

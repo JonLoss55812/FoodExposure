@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.190` (`src/lib/constants.ts`). 935 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.191` (`src/lib/constants.ts`). 936 tests pass across
 51 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 935 tests, 51 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 936 tests, 51 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 935 tests, 51 suites
+npm run test         # 936 tests, 51 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -145,7 +145,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **935 tests across 51 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **936 tests across 51 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -202,7 +202,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 935 tests, 51 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 936 tests, 51 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -253,9 +253,23 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.190
+v0.5.191
 
 ## Changelog
+- v0.5.191 — Fix (copy): **Join Family no longer promises what it cannot do.** The flow
+  looks the invite code up in this phone's own SQLite `families` table and nothing syncs,
+  so a family created on another phone can never be found — yet its Not Found alert told
+  the parent to "make sure you're connected to sync first", sending them to debug a
+  connection that does not exist, and the screen said "Enter the invite code from your
+  partner". Now: the onboarding link reads "Have an invite code? Join a family on this
+  device", the screen says it joins a family already set up on this device and that
+  joining from another phone is not available yet, and the alert says no family on this
+  device uses that code. README notes the code is never displayed. Deliberately **copy
+  only**: displaying the invite code (Settings) would be the out-of-scope co-parent invites
+  UI, and hiding the entry point is a product call — both flagged in NEXT_STEPS. +1 test in
+  `join.test.tsx` (on-screen copy, alert names another phone, alert never mentions sync);
+  mutation-verified — reverting `join.tsx` fails it, and re-adding a sync mention fails it.
+  936 tests pass across 51 suites. TypeScript clean.
 - v0.5.190 — Hardening: **a versioned schema-migration runner.** The boot migration was
   one `CREATE … IF NOT EXISTS` script with no `PRAGMA user_version`, so the first column
   added to `schema.ts` (the Convex plan needs `synced_at` written, likely `updated_at`

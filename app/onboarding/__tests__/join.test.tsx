@@ -102,6 +102,22 @@ describe('JoinFamilyScreen', () => {
     expect(mockRouter.replace).not.toHaveBeenCalled();
   });
 
+  // The code is looked up in this phone's own database and nothing syncs, so the
+  // copy must not send a parent off to debug a sync connection that does not exist.
+  it('says joining works on this device only, on the screen and in the not-found alert', async () => {
+    mockDb.queueSelect([]);
+    render(<JoinFamilyScreen />);
+    expect(screen.getByText(/already set up on this device/)).toBeTruthy();
+
+    fillForm();
+    tapJoin();
+
+    await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+    const message = alertSpy.mock.calls[0][1] as string;
+    expect(message).toMatch(/another phone cannot be joined yet/);
+    expect(message).not.toMatch(/sync/i);
+  });
+
   it('blocks a display name already used inside the family (v0.5.91 pre-check)', async () => {
     mockDb.queueSelect([FAMILY]);
     mockDb.queueSelect([{ id: 'user-existing', email: 'anne@tonguetutor.app' }]);

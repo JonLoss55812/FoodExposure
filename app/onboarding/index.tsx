@@ -121,9 +121,9 @@ export default function OnboardingScreen() {
           style={styles.joinLink}
           onPress={() => router.push('/onboarding/join')}
           accessibilityRole="button"
-          accessibilityLabel="Have an invite code? Join your family"
+          accessibilityLabel="Have an invite code? Join a family on this device"
         >
-          <Text style={styles.joinText}>Have an invite code? Join your family</Text>
+          <Text style={styles.joinText}>Have an invite code? Join a family on this device</Text>
         </Pressable>
       </View>
     </View>
