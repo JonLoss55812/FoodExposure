@@ -1,7 +1,7 @@
 import { ReactNode, useCallback, useEffect, useState } from 'react';
 import { View, ActivityIndicator, Text, Pressable } from 'react-native';
 import { expoDb } from '../db/client';
-import { MIGRATION_SQL } from '../db/migration';
+import { runMigrations } from '../db/migrate';
 
 export function DatabaseProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
@@ -14,7 +14,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
   const initDb = useCallback(async () => {
     setError(null);
     try {
-      await expoDb.execAsync(MIGRATION_SQL);
+      await runMigrations(expoDb);
       setIsReady(true);
     } catch (err) {
       console.error('Failed to initialize database:', err);

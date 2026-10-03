@@ -7,11 +7,11 @@
  * and was caught only by `tsc`. `src/db/__tests__/migration.test.ts` now runs
  * this exact string against an in-memory SQLite database.
  *
- * Every statement is `IF NOT EXISTS`, so the script is idempotent and runs on
- * every launch. Note the asymmetry that follows from that: `CREATE INDEX IF NOT
- * EXISTS` *does* apply to installs that already have the tables, while the
- * CHECK constraints below are forward-only — an existing install keeps whatever
- * table definition it was created with.
+ * Every statement is `IF NOT EXISTS`, so the script is idempotent. Since
+ * v0.5.190 it is **step 1** of the versioned runner in `./migrate.ts` and is
+ * frozen: an install runs it once and records `user_version = 1`, so editing it
+ * would reach fresh installs only (the forward-only trap the CHECK constraints
+ * below already fell into). Schema changes are new steps in `MIGRATIONS`.
  */
 export const MIGRATION_SQL = `
 CREATE TABLE IF NOT EXISTS families (

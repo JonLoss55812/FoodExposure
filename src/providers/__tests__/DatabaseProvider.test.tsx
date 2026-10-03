@@ -4,7 +4,14 @@ import { click } from '@/src/test-utils/screen-helpers';
 
 const mockExecAsync = jest.fn();
 jest.mock('../../db/client', () => ({
-  expoDb: { execAsync: (...args: unknown[]) => mockExecAsync(...args) },
+  expoDb: {
+    // The runner issues ROLLBACK after a failed step; answer it here so each
+    // queued mock value below still describes one migration attempt.
+    execAsync: (source: string) =>
+      source === 'ROLLBACK;' ? Promise.resolve() : mockExecAsync(source),
+    // A pre-runner install: user_version 0, so the baseline step is applied.
+    getFirstAsync: async () => ({ user_version: 0 }),
+  },
 }));
 
 import { DatabaseProvider } from '../DatabaseProvider';
@@ -37,7 +44,11 @@ describe('DatabaseProvider', () => {
   it('runs the migration and then renders the app', async () => {
     mockExecAsync.mockResolvedValueOnce(undefined);
     const { getByText } = await renderProvider();
-    expect(mockExecAsync).toHaveBeenCalledWith(MIGRATION_SQL);
+    // Through the versioned runner, not a bare exec: the baseline is applied
+    // and the version recorded in the same call.
+    const [sql] = mockExecAsync.mock.calls[0];
+    expect(sql).toContain(MIGRATION_SQL);
+    expect(sql).toContain('PRAGMA user_version = 1');
     expect(getByText('App content')).toBeTruthy();
   });
 

@@ -12,8 +12,8 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.189` (`src/lib/constants.ts`). 927 tests pass across
-50 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
+**Current state:** `APP_VERSION` is `v0.5.190` (`src/lib/constants.ts`). 935 tests pass across
+51 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
 ## Tech Stack
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 927 tests, 50 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 935 tests, 51 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 927 tests, 50 suites
+npm run test         # 935 tests, 51 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -117,9 +117,11 @@ every one of these is safe to leave unset:
   so chip highlights and tap-target sizes are not assertable from a test.
 - **Expo Router:** typed routes are enabled (`app.json` → `experiments.typedRoutes`). Some
   route strings still need an `as any` cast (e.g. the `/(tabs)` group root).
-- **Forward-only DB constraints:** the migration runs `CREATE TABLE IF NOT EXISTS`, so the
-  `CHECK` constraints added across v0.5.123–v0.5.131 only apply to fresh installs. The
-  `CREATE INDEX IF NOT EXISTS` statements (v0.5.170) *do* reach existing installs.
+- **Schema changes are numbered steps** (v0.5.190): `runMigrations` in `src/db/migrate.ts`
+  applies each entry of `MIGRATIONS` above the database's `PRAGMA user_version`, once, in
+  its own transaction. Step 1 is the frozen baseline `MIGRATION_SQL` — **never edit it**;
+  append a step (`ALTER TABLE … ADD COLUMN …`). The `CHECK` constraints from
+  v0.5.123–v0.5.131 predate this and remain fresh-install-only.
 
 ## Database Schema (SQLite)
 
@@ -143,7 +145,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **927 tests across 50 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **935 tests across 51 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -200,7 +202,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 927 tests, 50 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 935 tests, 51 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -251,9 +253,32 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.189
+v0.5.190
 
 ## Changelog
+- v0.5.190 — Hardening: **a versioned schema-migration runner.** The boot migration was
+  one `CREATE … IF NOT EXISTS` script with no `PRAGMA user_version`, so the first column
+  added to `schema.ts` (the Convex plan needs `synced_at` written, likely `updated_at`
+  too) would have existed on fresh installs only — and drizzle would then name a missing
+  column on every existing one, failing every read of that table (the 2026-10-02
+  critique's top risk). New `src/db/migrate.ts`: `runMigrations(db, steps?)` reads
+  `user_version`, applies each step above it in order — each wrapped with its version
+  bump in one transaction, `ROLLBACK` on failure, error rethrown so the provider's
+  Try Again resumes from the last complete step — and leaves a database *ahead* of the
+  list (a downgrade) alone. `MIGRATIONS[0]` is the existing `MIGRATION_SQL`, frozen;
+  because it is all `IF NOT EXISTS`, pre-runner installs (user_version 0, tables present)
+  adopt it as a no-op and reach version 1 with their rows intact. `DatabaseProvider` now
+  calls `runMigrations(expoDb)`. +8 tests in `src/db/__tests__/migrate.test.ts` against
+  real `node:sqlite` (fresh install; pre-runner adoption keeping rows; run-once; an
+  `ALTER TABLE` step applied only above the stored version; a failing step's DDL rolled
+  back with the version unchanged and a retry succeeding; stop at the first failure;
+  downgrade left alone). Mutation-verified: dropping the transaction fails 1, the
+  ROLLBACK 1, ignoring the stored version 3, the version bump 6, the last step 5; the
+  provider test now fails if the provider reverts to a bare `execAsync`. **Not done:**
+  `PRAGMA foreign_keys` stays off — turning it on is a behaviour change for existing
+  installs that may hold orphans, and wants its own decision. Not device-verified
+  (expo-sqlite's `execAsync` runs the multi-statement transaction via `sqlite3_exec`,
+  same as `node:sqlite`). 935 tests pass across 51 suites. TypeScript clean.
 - v0.5.189 — Hardening: **a render error in one screen no longer takes down the
   whole app.** v0.5.186's boundary was exported only from the root layout, and
   expo-router wraps a route's *own component* in the boundary it exports
