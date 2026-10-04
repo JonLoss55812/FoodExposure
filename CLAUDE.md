@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.192` (`src/lib/constants.ts`). 940 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.193` (`src/lib/constants.ts`). 948 tests pass across
 52 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 940 tests, 52 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 948 tests, 52 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 940 tests, 52 suites
+npm run test         # 948 tests, 52 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -122,6 +122,11 @@ every one of these is safe to leave unset:
   its own transaction. Step 1 is the frozen baseline `MIGRATION_SQL` — **never edit it**;
   append a step (`ALTER TABLE … ADD COLUMN …`). The `CHECK` constraints from
   v0.5.123–v0.5.131 predate this and remain fresh-install-only.
+- **Foreign keys are enforced** (v0.5.193): `DatabaseProvider` runs
+  `PRAGMA foreign_keys = ON` after the migrations. Deletes must go dependents-first
+  (use `src/lib/cascade-delete.ts`); a parent-first delete now throws. For a test that
+  needs real SQL, `createSqliteDb()` in `src/test-utils/sqlite-db.ts` is a drizzle
+  instance over `node:sqlite` with FKs on.
 
 ## Database Schema (SQLite)
 
@@ -145,7 +150,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **940 tests across 52 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **948 tests across 52 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -202,7 +207,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 940 tests, 52 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 948 tests, 52 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -253,9 +258,35 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.192
+v0.5.193
 
 ## Changelog
+- v0.5.193 — Hardening: **foreign keys are enforced.** expo-sqlite opens connections
+  with `PRAGMA foreign_keys` off, so every `REFERENCES` clause was decorative and an
+  orphan exposure was insertable. NEXT_STEPS laid out the order: repair existing
+  orphans with a migration step, prove the cascades work with FKs on (v0.5.192), then
+  enable the pragma. (1) **Migration step 2**, `REPAIR_ORPHANS_SQL` in
+  `src/db/migration.ts`, repairs each orphan kind in the least lossy way: a family that a
+  child/food/user still points at is **re-created**, not its dependents deleted — every
+  read is scoped by the signed-in family id, so if *that* id is the missing one those
+  rows are the parent's whole history; a dangling `exposures.logged_by` is cleared to
+  NULL (nullable, informational) and the exposure kept; exposures and food chains whose
+  child or food is gone are deleted (no screen can reach them, and it is what the
+  cascades would have done). No-op on a clean database. (2) `DatabaseProvider` runs
+  `PRAGMA foreign_keys = ON` **after** `runMigrations` — per-connection, so not a step,
+  and after because step 2 must run first and a future table-rebuild step needs FKs off.
+  Every app write path was checked for ordering: onboarding inserts family then user,
+  cascades and `mergeFoods` go dependents-first, the onboarding compensating delete
+  targets a family with no dependents. +6 step-2 tests in `migrate.test.ts` against a
+  seeded v1 database with every orphan kind (`foreign_key_check` clean afterwards,
+  family re-created with existing rows intact, logged_by nulled, only the true orphans
+  deleted, clean DB untouched) and +2 provider tests (pragma issued last, after step 2;
+  not issued when a migration fails); the retry test now asserts the retry restarts at
+  the baseline instead of counting exec calls. Mutation-verified: removing any one of the
+  four repair statements fails 2 tests, dropping the pragma fails 1, issuing it before
+  the migrations fails 4. **Not device-verified** — no native build here; expo-sqlite's
+  `execAsync` is `sqlite3_exec`, same as `node:sqlite`. 948 tests pass across 52 suites.
+  TypeScript clean.
 - v0.5.192 — Tests: **the destructive helpers now run against real SQL with foreign keys
   enforced.** `cascade-delete.test.ts` and `merge-foods.test.ts` pin step order and each
   predicate *object* against a recording fake, and `createMockDb` never evaluates a

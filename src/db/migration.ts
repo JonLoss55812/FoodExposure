@@ -106,3 +106,48 @@ CREATE INDEX IF NOT EXISTS idx_exposures_food
   ON exposures(food_id);
         
 `;
+
+/**
+ * Step 2 (v0.5.193): make the data satisfy its own `REFERENCES` clauses, so
+ * `PRAGMA foreign_keys` can be turned on without the first write against an
+ * existing orphan failing.
+ *
+ * Foreign keys were never enforced before, so an install may hold rows whose
+ * parent is gone. Each kind is repaired in the least lossy way available:
+ *
+ * - A **family** that a child, food or user still points at is re-created
+ *   rather than its dependents deleted. Every read in the app is scoped by the
+ *   signed-in family id, so if that id is the missing one, these rows *are*
+ *   the parent's data — deleting them would wipe it. The placeholder's invite
+ *   code is never displayed (see NEXT_STEPS: the code is shown nowhere).
+ * - A dangling **`exposures.logged_by`** is cleared to NULL: the column is
+ *   nullable and informational, and the exposure itself is worth keeping.
+ * - An **exposure or food chain** whose child or food is gone is deleted. No
+ *   screen can reach it (every read joins or scopes through the parent), and
+ *   it is exactly what the delete cascades would have removed.
+ *
+ * `created_at` is epoch **seconds**, which is what drizzle's `timestamp` mode
+ * writes. Everything here is a no-op on a clean database.
+ */
+export const REPAIR_ORPHANS_SQL = `
+INSERT INTO families (id, name, invite_code, created_at)
+SELECT fid, 'Family', substr(upper(hex(randomblob(3))), 1, 6), CAST(strftime('%s', 'now') AS INTEGER)
+FROM (
+  SELECT family_id AS fid FROM children
+  UNION SELECT family_id FROM foods
+  UNION SELECT family_id FROM users WHERE family_id IS NOT NULL
+)
+WHERE fid NOT IN (SELECT id FROM families);
+
+UPDATE exposures SET logged_by = NULL
+WHERE logged_by IS NOT NULL AND logged_by NOT IN (SELECT id FROM users);
+
+DELETE FROM food_chains
+WHERE child_id NOT IN (SELECT id FROM children)
+   OR source_food_id NOT IN (SELECT id FROM foods)
+   OR target_food_id NOT IN (SELECT id FROM foods);
+
+DELETE FROM exposures
+WHERE child_id NOT IN (SELECT id FROM children)
+   OR food_id NOT IN (SELECT id FROM foods);
+`;

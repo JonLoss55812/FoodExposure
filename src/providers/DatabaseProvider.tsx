@@ -15,6 +15,12 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       await runMigrations(expoDb);
+      // expo-sqlite opens connections with foreign keys off, which left every
+      // REFERENCES clause decorative. It is a per-connection setting, so it
+      // lives here rather than in a migration step, and it comes *after* the
+      // migrations: step 2 repairs the orphans an unenforced database could
+      // accumulate, and a future step that rebuilds a table needs it off.
+      await expoDb.execAsync('PRAGMA foreign_keys = ON;');
       setIsReady(true);
     } catch (err) {
       console.error('Failed to initialize database:', err);

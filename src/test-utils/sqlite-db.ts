@@ -8,8 +8,9 @@
  * through drizzle's `sqlite-proxy` driver (there is no first-party node:sqlite
  * driver in drizzle 0.45), so the rows left behind are the assertion.
  *
- * Foreign keys default to **on**, so a dependents-first ordering is actually
- * exercised. Note that `node:sqlite` enables them by default where expo-sqlite
+ * Foreign keys default to **on**, matching the app since v0.5.193 (the
+ * `DatabaseProvider` enables them at boot), so a dependents-first ordering is
+ * actually exercised. Note that `node:sqlite` enables them by default where expo-sqlite
  * does not — pass `{ foreignKeys: false }` to model a connection without them.
  */
 import { DatabaseSync, SQLInputValue } from 'node:sqlite';

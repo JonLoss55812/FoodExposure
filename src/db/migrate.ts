@@ -1,4 +1,4 @@
-import { MIGRATION_SQL } from './migration';
+import { MIGRATION_SQL, REPAIR_ORPHANS_SQL } from './migration';
 
 /**
  * The slice of a SQLite connection the runner needs. expo-sqlite's database
@@ -24,7 +24,11 @@ export interface MigrationDb {
  * exactly the forward-only trap the v0.5.123–v0.5.131 CHECK constraints fell
  * into. A new column is a new step: `ALTER TABLE … ADD COLUMN …`.
  */
-export const MIGRATIONS: readonly string[] = [MIGRATION_SQL];
+export const MIGRATIONS: readonly string[] = [
+  MIGRATION_SQL,
+  // 2: repair orphan rows so foreign keys can be enforced (v0.5.193).
+  REPAIR_ORPHANS_SQL,
+];
 
 /**
  * Applies every step above the database's `user_version`, in order, each in

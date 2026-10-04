@@ -52,6 +52,25 @@ describe('DatabaseProvider', () => {
     expect(getByText('App content')).toBeTruthy();
   });
 
+  it('turns foreign keys on once the migrations have run, before rendering the app', async () => {
+    mockExecAsync.mockResolvedValue(undefined);
+    const { getByText } = await renderProvider();
+
+    const calls = mockExecAsync.mock.calls.map(([sql]) => sql as string);
+    const pragma = calls.indexOf('PRAGMA foreign_keys = ON;');
+    expect(pragma).toBe(calls.length - 1);
+    // Every migration step ran before it.
+    expect(calls.slice(0, pragma).some((sql) => sql.includes('PRAGMA user_version = 2'))).toBe(true);
+    expect(getByText('App content')).toBeTruthy();
+  });
+
+  it('does not turn foreign keys on when a migration fails', async () => {
+    mockExecAsync.mockRejectedValueOnce(new Error('database is locked'));
+    await renderProvider();
+
+    expect(mockExecAsync).not.toHaveBeenCalledWith('PRAGMA foreign_keys = ON;');
+  });
+
   it('logs a failed migration so it reaches Sentry, and does not render the app', async () => {
     const failure = new Error('database is locked');
     mockExecAsync.mockRejectedValueOnce(failure);
@@ -69,7 +88,8 @@ describe('DatabaseProvider', () => {
 
     await click('Retry opening the database');
 
-    expect(mockExecAsync).toHaveBeenCalledTimes(2);
+    // The retry starts again from the baseline step (user_version is still 0).
+    expect(mockExecAsync.mock.calls[1][0]).toContain(MIGRATION_SQL);
     expect(queryByText(/Database Error/)).toBeNull();
     expect(getByText('App content')).toBeTruthy();
   });
