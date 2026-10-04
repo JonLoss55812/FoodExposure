@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.191 — 936 tests passing across 51 suites, TypeScript clean.
+Reviewed at: v0.5.193 — 948 tests passing across 52 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -327,6 +327,35 @@ onboarding path is the cheapest way to cover that class.
 
 `bun.lock` still lists `uuid` (not regenerated, v0.5.143 precedent).
 
+## Shipped in the v0.5.193 session (2026-10-04)
+
+- v0.5.192 — `src/test-utils/sqlite-db.ts`: a **real drizzle instance** over in-memory
+  `node:sqlite` (drizzle `sqlite-proxy` driver; 0.45 has no node:sqlite driver) with
+  `MIGRATIONS` applied and FKs on, plus a two-family seed. The cascades and `mergeFoods`
+  now have row-level tests with `foreign_key_check` clean afterwards.
+- v0.5.193 — **foreign keys enforced**: migration step 2 (`REPAIR_ORPHANS_SQL`) re-creates
+  missing families, nulls dangling `logged_by`, deletes exposures/chains whose child or food
+  is gone; `DatabaseProvider` then runs `PRAGMA foreign_keys = ON`.
+
+**Discovered and deliberately not done:**
+
+- **`createSqliteDb()` makes the critique's "family scoping is held by inspection only"
+  gap closable.** `createMockDb` never evaluates `where`, so e.g. `app/child/[id].tsx`'s
+  family-scoped load is untested. A screen test can now mock `@/src/db/client` with
+  `createSqliteDb().db` and seed a second family's row. Not done — it is a per-screen job;
+  start with `app/child/[id].tsx` (v0.5.183 recorded that guard as inspection-only).
+- **Harness gotcha:** `node:sqlite` enforces FKs **by default**, unlike expo-sqlite. Any
+  raw-SQL fixture that seeds a child row before its parent needs
+  `new DatabaseSync(':memory:', { enableForeignKeyConstraints: false })`.
+- **FK enforcement is not device-verified.** If a device build ever surfaces
+  `FOREIGN KEY constraint failed`, the likeliest cause is an auth-store id (MMKV) that no
+  longer matches a SQLite row — step 2 can only repair rows, not the store.
+- **`mergeFoods`'s self-chain sweep is unscoped** (`source = target` across every family).
+  Harmless — a self-chain is meaningless anywhere and nothing inserts chains — but worth
+  scoping to the target food if `food_chains` ever gets a writer.
+- **CLAUDE.md "Next Priority" still says wire Convex**, contradicting the "Do not wire
+  Convex" rule here (critique #3). Owner decision; left alone.
+
 ## Shipped in the v0.5.191 session (2026-10-03)
 
 - v0.5.190 — **versioned schema migrations** (`src/db/migrate.ts`, critique top risk #1).
@@ -338,11 +367,7 @@ onboarding path is the cheapest way to cover that class.
 
 **Discovered and deliberately not done:**
 
-- **`PRAGMA foreign_keys` is still off**, so every `REFERENCES` clause is decorative
-  and orphan exposures are insertable. Enabling it is now a one-line step-2 candidate
-  (it is a per-connection pragma, so it belongs in `client.ts` or the provider, *not* in
-  a migration step), but existing installs may already hold orphans — first write a
-  step that finds/removes them, then test the cascades still pass with FKs on.
+- **~~`PRAGMA foreign_keys` is still off.~~** Done in v0.5.192/v0.5.193 — see below.
 - **Join Family is reachable but the invite code is shown nowhere.** Product decision
   needed: hide the onboarding link until sync exists, or show the code in Settings
   (which is the out-of-scope invites UI). Copy-only fix shipped meanwhile.
