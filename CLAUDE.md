@@ -12,8 +12,8 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.191` (`src/lib/constants.ts`). 936 tests pass across
-51 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
+**Current state:** `APP_VERSION` is `v0.5.192` (`src/lib/constants.ts`). 940 tests pass across
+52 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
 ## Tech Stack
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 936 tests, 51 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 940 tests, 52 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 936 tests, 51 suites
+npm run test         # 940 tests, 52 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -145,7 +145,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **936 tests across 51 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **940 tests across 52 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -202,7 +202,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 936 tests, 51 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 940 tests, 52 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -253,9 +253,27 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.191
+v0.5.192
 
 ## Changelog
+- v0.5.192 — Tests: **the destructive helpers now run against real SQL with foreign keys
+  enforced.** `cascade-delete.test.ts` and `merge-foods.test.ts` pin step order and each
+  predicate *object* against a recording fake, and `createMockDb` never evaluates a
+  `where` — so nothing showed what the SQL does to rows, or that the dependents-first
+  order is one a FK-enforcing connection accepts (NEXT_STEPS: "test the cascades still
+  pass with FKs on" was the stated prerequisite for enabling `PRAGMA foreign_keys`). New
+  `src/test-utils/sqlite-db.ts`: a real drizzle instance over in-memory `node:sqlite`
+  via drizzle's `sqlite-proxy` driver (0.45 has no node:sqlite driver), with
+  `MIGRATIONS` applied, FKs on by default, and a two-family seed so an over-broad
+  predicate deletes something visible. +4 tests in `src/lib/__tests__/cascade-sqlite.test.ts`:
+  food cascade, child cascade, merge (exposures moved, both self-chains swept), each
+  ending `PRAGMA foreign_key_check` clean, plus a parent-first delete rejected by the
+  constraint — which pins that FKs really are on in the harness. Mutation-verified:
+  parent-first food cascade, sweeping chains by source only, dropping the self-chain
+  sweep, and scoping the child's exposures delete by the wrong column each fail exactly
+  one. Harness note: `node:sqlite` enforces FKs **by default**, unlike expo-sqlite, so
+  the existing `migration.test.ts` / `migrate.test.ts` already run with them on.
+  940 tests pass across 52 suites. TypeScript clean.
 - v0.5.191 — Fix (copy): **Join Family no longer promises what it cannot do.** The flow
   looks the invite code up in this phone's own SQLite `families` table and nothing syncs,
   so a family created on another phone can never be found — yet its Not Found alert told
