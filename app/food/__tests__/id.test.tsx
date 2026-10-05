@@ -306,6 +306,49 @@ describe('FoodDetailScreen', () => {
     });
   });
 
+  describe('tap targets', () => {
+    // The Save/Cancel actions are text-only; without a min-height their tap
+    // target is the line of text alone. getComputedStyle resolves the
+    // react-native-web min-height rule even though jsdom has no layout.
+    const minHeight = (label: string) => getComputedStyle(screen.getByLabelText(label)).minHeight;
+
+    it('gives the rename Save and Cancel actions a 44pt tap target', async () => {
+      queueLoad(FOOD, []);
+      await renderLoaded();
+      fireEvent.click(screen.getByLabelText('Rename Apple'));
+      expect(minHeight('Save food name')).toBe('44px');
+      expect(minHeight('Cancel renaming food')).toBe('44px');
+    });
+
+    it('gives the exposure notes and date Save and Cancel actions a 44pt tap target', async () => {
+      const row = {
+        id: 'exp-1',
+        stage: 'smell',
+        rating: null,
+        notes: 'spat it out',
+        occurredAt: new Date(2026, 0, 15),
+        mealType: null,
+        temperature: null,
+        texture: null,
+        setting: null,
+      };
+      queueLoad(FOOD, [row]);
+      await renderLoaded();
+
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText(/^Change notes of Smell exposure from /));
+      });
+      expect(minHeight('Save exposure notes')).toBe('44px');
+      expect(minHeight('Cancel editing exposure notes')).toBe('44px');
+
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText(/^Change date of Smell exposure from /));
+      });
+      expect(minHeight('Save exposure date')).toBe('44px');
+      expect(minHeight('Cancel editing exposure date')).toBe('44px');
+    });
+  });
+
   describe('category (v0.5.159)', () => {
     it('opens a chip row from the category tag', async () => {
       queueLoad();

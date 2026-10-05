@@ -461,6 +461,28 @@ describe('SettingsScreen — Rename Child', () => {
     });
   }
 
+  // Tap-target floor. These actions are text-only, so without a min-height
+  // their target is the line of text (~17pt) — and Delete sits one gap from
+  // Rename. jsdom cannot compute layout, but react-native-web emits min-height
+  // as a CSS rule that getComputedStyle does resolve.
+  it('gives each text-only child-row action a 44pt tap target', async () => {
+    await renderWithChildren([EMMA]);
+    for (const label of ['Rename Emma', 'Delete Emma']) {
+      expect(getComputedStyle(screen.getByLabelText(label)).minHeight).toBe('44px');
+    }
+    await click('Rename Emma');
+    for (const label of ['Save name for Emma', 'Cancel renaming Emma']) {
+      expect(getComputedStyle(screen.getByLabelText(label)).minHeight).toBe('44px');
+    }
+  });
+
+  it('gives the theme and feeding profile chips a 44pt tap target', async () => {
+    await renderWithChildren([EMMA]);
+    for (const label of ['Theme: Light', 'Theme: Dark', 'Theme: System', 'Profile: ARFID']) {
+      expect(getComputedStyle(screen.getByLabelText(label)).minHeight).toBe('44px');
+    }
+  });
+
   it('opens an editor seeded with the stored name, per child', async () => {
     await renderWithChildren([EMMA, NOAH]);
     expect(screen.getByLabelText('Rename Emma')).toBeTruthy();

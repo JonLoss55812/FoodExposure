@@ -239,6 +239,7 @@ export default function SettingsScreen() {
                     />
                     <View style={styles.editActions}>
                       <Pressable
+                        style={styles.childAction}
                         onPress={() => handleSaveChildName(child)}
                         disabled={rowBusy}
                         accessibilityRole="button"
@@ -248,6 +249,7 @@ export default function SettingsScreen() {
                         <Text style={styles.saveChildText}>{isSaving ? 'Saving…' : 'Save'}</Text>
                       </Pressable>
                       <Pressable
+                        style={styles.childAction}
                         onPress={() => setEditingChildId(null)}
                         disabled={rowBusy}
                         accessibilityRole="button"
@@ -286,6 +288,7 @@ export default function SettingsScreen() {
                     </Pressable>
                     <View style={styles.editActions}>
                       <Pressable
+                        style={styles.childAction}
                         onPress={() => {
                           setNameDraft(child.name);
                           setEditingChildId(child.id);
@@ -298,6 +301,7 @@ export default function SettingsScreen() {
                         <Text style={styles.renameChildText}>Rename</Text>
                       </Pressable>
                       <Pressable
+                        style={styles.childAction}
                         onPress={() => handleDeleteChild(child)}
                         disabled={rowBusy}
                         accessibilityRole="button"
@@ -501,6 +505,13 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.fontSize.md,
     color: theme.colors.textTertiary,
   },
+  // The per-child actions are text-only, so without a floor their tap target
+  // is the ~17pt line of text — and Delete sits one gap away from Rename.
+  childAction: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: theme.spacing.xs,
+  },
   deleteChildText: {
     fontSize: theme.fontSize.sm,
     fontWeight: '600',
@@ -573,6 +584,8 @@ const styles = StyleSheet.create((theme) => ({
   themeChip: {
     paddingHorizontal: theme.spacing.sm + 4,
     paddingVertical: theme.spacing.xs,
+    minHeight: 44,
+    justifyContent: 'center',
     borderRadius: theme.borderRadius.full,
     backgroundColor: theme.colors.surface,
   },

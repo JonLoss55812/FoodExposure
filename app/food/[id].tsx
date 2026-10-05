@@ -729,6 +729,7 @@ export default function FoodDetailScreen() {
               placeholder="Food name"
             />
             <Pressable
+              style={styles.textAction}
               onPress={handleSaveName}
               disabled={savingName}
               accessibilityRole="button"
@@ -738,6 +739,7 @@ export default function FoodDetailScreen() {
               <Text style={styles.renameAction}>{savingName ? 'Saving…' : 'Save'}</Text>
             </Pressable>
             <Pressable
+              style={styles.textAction}
               onPress={() => setEditingName(false)}
               disabled={savingName}
               accessibilityRole="button"
@@ -1083,6 +1085,7 @@ export default function FoodDetailScreen() {
                   />
                   <View style={styles.notesEditorActions}>
                     <Pressable
+                      style={styles.textAction}
                       onPress={() => handleSaveDate(exp)}
                       disabled={rowBusy}
                       accessibilityRole="button"
@@ -1094,6 +1097,7 @@ export default function FoodDetailScreen() {
                       </Text>
                     </Pressable>
                     <Pressable
+                      style={styles.textAction}
                       onPress={() => setEditing(null)}
                       disabled={rowBusy}
                       accessibilityRole="button"
@@ -1120,6 +1124,7 @@ export default function FoodDetailScreen() {
                   />
                   <View style={styles.notesEditorActions}>
                     <Pressable
+                      style={styles.textAction}
                       onPress={() => handleSaveNotes(exp)}
                       disabled={rowBusy}
                       accessibilityRole="button"
@@ -1131,6 +1136,7 @@ export default function FoodDetailScreen() {
                       </Text>
                     </Pressable>
                     <Pressable
+                      style={styles.textAction}
                       onPress={() => setEditing(null)}
                       disabled={rowBusy}
                       accessibilityRole="button"
@@ -1221,6 +1227,12 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.fontSize.lg,
     color: theme.colors.text,
     backgroundColor: theme.colors.surface,
+  },
+  // Floor for the text-only Save/Cancel actions: without it the tap target is
+  // the line of text alone, well under 44pt.
+  textAction: {
+    minHeight: 44,
+    justifyContent: 'center',
   },
   renameAction: {
     fontSize: theme.fontSize.md,
