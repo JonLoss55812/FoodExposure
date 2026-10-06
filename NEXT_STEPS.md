@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.193 — 948 tests passing across 52 suites, TypeScript clean.
+Reviewed at: v0.5.196 — 958 tests passing across 54 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -327,6 +327,28 @@ onboarding path is the cheapest way to cover that class.
 
 `bun.lock` still lists `uuid` (not regenerated, v0.5.143 precedent).
 
+## Shipped in the v0.5.196 session (2026-10-06)
+
+- v0.5.195 — **fix:** `app/food/[id].tsx` loaded its food by id alone, so a route naming
+  another family's food opened it with rename/merge/delete-cascade live. Now scoped by
+  `familyId` (signed-out reads as Food Not Found). Proven against real SQL in
+  `app/food/__tests__/id-family-scope.test.tsx`; the mock-db suite now signs in.
+- v0.5.196 — `app/child/[id].tsx`'s family scoping (v0.5.183, "inspection only") now has
+  real-SQL tests in `app/child/__tests__/id-family-scope.test.tsx`. Closes the first
+  item under the v0.5.193 session below.
+
+**Discovered and deliberately not done:**
+
+- **Other id-only reads that trust the store rather than the family.** Settings' CSV
+  export reads the child by `eq(children.id, selectedChildId)` (`settings.tsx:168`), and
+  the food detail page reads exposures by the selected child id. Both lean on
+  `ensureSelection` having repaired the MMKV selection against the family's list; a
+  family predicate (join or `and`) would make them independent of that. Low risk —
+  the selection is repaired on tab focus — so not done. Use the same
+  `createSqliteDb()` + `seedTwoFamilies` pattern if you do.
+- **The `!familyId` early return in the food load survives mutation** by design: without
+  it the query runs on `family_id = ''` and matches nothing. Do not contrive a test.
+
 ## Shipped in the v0.5.193 session (2026-10-04)
 
 - v0.5.192 — `src/test-utils/sqlite-db.ts`: a **real drizzle instance** over in-memory
@@ -339,8 +361,8 @@ onboarding path is the cheapest way to cover that class.
 
 **Discovered and deliberately not done:**
 
-- **`createSqliteDb()` makes the critique's "family scoping is held by inspection only"
-  gap closable.** `createMockDb` never evaluates `where`, so e.g. `app/child/[id].tsx`'s
+- **~~`createSqliteDb()` makes the critique's "family scoping is held by inspection only"
+  gap closable.~~** Done for `app/child/[id].tsx` (and `app/food/[id].tsx`) in v0.5.195/196. `createMockDb` never evaluates `where`, so e.g. `app/child/[id].tsx`'s
   family-scoped load is untested. A screen test can now mock `@/src/db/client` with
   `createSqliteDb().db` and seed a second family's row. Not done — it is a per-screen job;
   start with `app/child/[id].tsx` (v0.5.183 recorded that guard as inspection-only).
