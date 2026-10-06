@@ -12,8 +12,8 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.195` (`src/lib/constants.ts`). 955 tests pass across
-53 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
+**Current state:** `APP_VERSION` is `v0.5.196` (`src/lib/constants.ts`). 958 tests pass across
+54 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
 ## Tech Stack
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 952 tests, 52 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 958 tests, 54 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 952 tests, 52 suites
+npm run test         # 958 tests, 54 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -151,7 +151,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **952 tests across 52 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **958 tests across 54 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -208,7 +208,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 952 tests, 52 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 958 tests, 54 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -259,9 +259,19 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.195
+v0.5.196
 
 ## Changelog
+- v0.5.196 — Tests: **the child detail screen's family scoping now runs against real
+  SQL.** v0.5.183 scoped `app/child/[id].tsx`'s load by family as well as id but
+  recorded that guard as "held by inspection only" — `createMockDb` never evaluates a
+  `where` (NEXT_STEPS, v0.5.193 session). +3 tests in
+  `app/child/__tests__/id-family-scope.test.tsx` on `createSqliteDb()` + `seedTwoFamilies`:
+  the family's own child opens seeded from the row; another family's child reads as
+  Child Not Found with no Save; and a save rewrites only the opened child (sibling and
+  the other family's child unchanged). Mutation-verified: dropping the load's family
+  predicate fails 1, scoping `ChildForm`'s update by `familyId` instead of the child id
+  fails 1. No production code changed. 958 tests pass across 54 suites. TypeScript clean.
 - v0.5.195 — Fix (data isolation): **the food detail screen only opens the signed-in
   family's foods.** `app/food/[id].tsx` loaded its row with `eq(foods.id, id)` alone,
   while `app/child/[id].tsx` (v0.5.183) and every list read are scoped by the family id.
