@@ -43,7 +43,7 @@ export default function FoodDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { selectedChildId } = useChildStore();
-  const { userId } = useAuthStore();
+  const { userId, familyId } = useAuthStore();
   const { feedingProfile } = useSettingsStore();
   const [food, setFood] = useState<typeof schema.foods.$inferSelect | null>(null);
   const [exposuresList, setExposuresList] = useState<ExposureRow[]>([]);
@@ -93,13 +93,19 @@ export default function FoodDetailScreen() {
   const rowEditLatch = useRef(createInFlightLatch()).current;
 
   const loadData = useCallback(async () => {
-    if (!id) {
+    if (!id || !familyId) {
       setLoading(false);
       return;
     }
 
     try {
-      const foodResult = await db.select().from(schema.foods).where(eq(schema.foods.id, id));
+      // Scoped by family as well as id (the `app/child/[id].tsx` rule): a
+      // route param naming another family's food must read as not-found,
+      // not open its rename, merge and delete-cascade actions.
+      const foodResult = await db
+        .select()
+        .from(schema.foods)
+        .where(and(eq(schema.foods.id, id), eq(schema.foods.familyId, familyId)));
       setFood(foodResult[0] ?? null);
 
       if (selectedChildId) {
@@ -130,7 +136,7 @@ export default function FoodDetailScreen() {
     } finally {
       setLoading(false);
     }
-  }, [id, selectedChildId]);
+  }, [id, familyId, selectedChildId]);
 
   useEffect(() => {
     loadData();

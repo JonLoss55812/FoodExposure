@@ -38,6 +38,7 @@ jest.mock('@/src/db/client', () => ({
 
 import FoodDetailScreen from '../[id]';
 import { useChildStore } from '@/src/stores/child-store';
+import { useAuthStore } from '@/src/stores/auth-store';
 
 const FOOD = {
   id: 'food-1',
@@ -94,12 +95,21 @@ describe('FoodDetailScreen', () => {
     alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     useChildStore.getState().selectChild('child-1');
+    // The load is family-scoped (see id-family-scope.test.tsx for the real-SQL
+    // proof); sign in to FOOD's family so the queued rows are reached.
+    useAuthStore.getState().login({
+      userId: 'user-1',
+      familyId: 'fam-1',
+      email: 'u@x.app',
+      displayName: 'U',
+    });
   });
 
   afterEach(() => {
     alertSpy.mockRestore();
     errorSpy.mockRestore();
     useChildStore.getState().clear();
+    useAuthStore.getState().logout();
   });
 
   it('renders the loaded food with its rename affordance and delete action', async () => {

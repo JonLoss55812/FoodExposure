@@ -12,8 +12,8 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.194` (`src/lib/constants.ts`). 952 tests pass across
-52 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
+**Current state:** `APP_VERSION` is `v0.5.195` (`src/lib/constants.ts`). 955 tests pass across
+53 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
 ## Tech Stack
@@ -259,9 +259,24 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.194
+v0.5.195
 
 ## Changelog
+- v0.5.195 — Fix (data isolation): **the food detail screen only opens the signed-in
+  family's foods.** `app/food/[id].tsx` loaded its row with `eq(foods.id, id)` alone,
+  while `app/child/[id].tsx` (v0.5.183) and every list read are scoped by the family id.
+  A route param naming another family's food — on a shared device, after sign-out and
+  Join Family — opened it with its rename, merge and delete-cascade actions live, and the
+  cascade deletes that food's exposures for every child. The load now adds
+  `eq(foods.familyId, familyId)` and reads as Food Not Found when nobody is signed in.
+  +3 tests in a new `app/food/__tests__/id-family-scope.test.tsx` that run the screen
+  against **real SQL** (`createSqliteDb()` + `seedTwoFamilies`), since `createMockDb`
+  never evaluates a `where`: own food opens, the other family's reads as not-found with
+  no Rename/Delete, signed-out reads as not-found. The mock-db suite now signs in to its
+  fixture's family. Mutation-verified: dropping the family predicate fails 1. Dropping
+  the `!familyId` early return survives by design — a signed-out query on `''` matches
+  nothing, so the guard only saves the read. 955 tests pass across 53 suites. TypeScript
+  clean.
 - v0.5.194 — Fix (a11y): **the last text-only actions get a 44pt tap target.**
   v0.5.154 floored the chip and Button styles, but text-only pressables were left
   out, so their tap target was just the line of text. In Settings → Family that
