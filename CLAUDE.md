@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.197` (`src/lib/constants.ts`). 960 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.198` (`src/lib/constants.ts`). 961 tests pass across
 55 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 960 tests, 55 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 961 tests, 55 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 960 tests, 55 suites
+npm run test         # 961 tests, 55 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -151,7 +151,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **960 tests across 55 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **961 tests across 55 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -208,7 +208,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 960 tests, 55 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 961 tests, 55 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -259,9 +259,20 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.197
+v0.5.198
 
 ## Changelog
+- v0.5.198 — Fix (data isolation): **`mergeFoods` no longer deletes other families'
+  food chains.** Step 4 swept every `food_chains` row with `source_food_id =
+  target_food_id` across the whole database, so a merge in one family deleted another
+  family's self-chains (flagged in NEXT_STEPS, v0.5.193 session). The rewrite can only
+  create `target -> target` rows, so the sweep is now `and(eq(source, target),
+  eq(targetCol, target))`. Latent today — nothing writes `food_chains` yet — but this is
+  a destructive helper and the Convex plan replicates rows. +1 real-SQL test in
+  `cascade-sqlite.test.ts` (an f2 `kiwi -> kiwi` chain survives an f1 merge); the unit
+  test now pins the exact predicate instead of `toBeTruthy()`. Mutation-verified:
+  the unscoped sweep fails the real-SQL test, scoping by source only fails the unit
+  test. 961 tests pass across 55 suites. TypeScript clean.
 - v0.5.197 — Fix (data isolation): **the Settings CSV export only exports a child of the
   signed-in family.** `handleExport` read the child, and then its whole exposure history,
   by `selectedChildId` alone — an MMKV value this screen never repairs (only the tab layout

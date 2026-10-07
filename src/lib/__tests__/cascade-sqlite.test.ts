@@ -60,6 +60,19 @@ describe('destructive helpers against real SQLite (foreign keys on)', () => {
     expect(fkViolations(h)).toEqual([]);
   });
 
+  it("mergeFoods sweeps only the survivor's self-chains, not another family's", async () => {
+    const h = setup();
+    // A self-chain in family f2 (kiwi -> kiwi). Meaningless, but it is f2's
+    // row: a merge inside f1 has no business deleting it.
+    h.raw.exec(
+      "INSERT INTO food_chains (id, child_id, source_food_id, target_food_id, created_at) VALUES ('ch8', 'c9', 'kiwi', 'kiwi', 1)"
+    );
+    await mergeFoods(h.db, 'apple', 'pear');
+
+    expect(h.ids('food_chains')).toEqual(['ch8', 'ch9']);
+    expect(fkViolations(h)).toEqual([]);
+  });
+
   it('a parent-first delete is rejected by the constraint, which is what the dependents-first order avoids', async () => {
     // Guards the premise of the tests above: if foreign keys were silently off
     // in this harness, the ordering would be untested.

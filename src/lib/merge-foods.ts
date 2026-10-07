@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 import * as schema from '@/src/db/schema';
@@ -42,7 +42,7 @@ export interface MergeFoodsDb {
  * Step 4 is not bookkeeping. `food_chains` references `foods` twice, so
  * rewriting both columns can turn a legitimate source->target chain into a
  * self-referential `target -> target` row that means nothing. Those are swept
- * before the source row goes.
+ * before the source row goes — only the survivor's, never another family's.
  */
 export async function mergeFoods(
   db: MergeFoodsDb,
@@ -76,9 +76,17 @@ export async function mergeFoods(
     .set({ targetFoodId: targetFoodId })
     .where(eq(schema.foodChains.targetFoodId, sourceFoodId));
 
+  // Scoped to the survivor: the rewrite can only create `target -> target`
+  // rows, and an unscoped `source = target` would also delete other
+  // families' rows.
   await db
     .delete(schema.foodChains)
-    .where(sql`${schema.foodChains.sourceFoodId} = ${schema.foodChains.targetFoodId}`);
+    .where(
+      and(
+        eq(schema.foodChains.sourceFoodId, targetFoodId),
+        eq(schema.foodChains.targetFoodId, targetFoodId)
+      )
+    );
 
   await db.delete(schema.foods).where(eq(schema.foods.id, sourceFoodId));
 }

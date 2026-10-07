@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import * as schema from '@/src/db/schema';
 import { mergeFoods } from '../merge-foods';
 import type { MergeFoodsDb } from '../merge-foods';
@@ -85,7 +85,12 @@ describe('mergeFoods', () => {
     // leaves that garbage row behind.
     expect(calls[3].kind).toBe('delete');
     expect(calls[3].table).toBe(schema.foodChains);
-    expect(calls[3].condition).toBeTruthy();
+    expect(calls[3].condition).toEqual(
+      and(
+        eq(schema.foodChains.sourceFoodId, 'keep'),
+        eq(schema.foodChains.targetFoodId, 'keep')
+      )
+    );
   });
 
   it('deletes the source food row and only that row', async () => {
