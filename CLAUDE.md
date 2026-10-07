@@ -12,8 +12,8 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.196` (`src/lib/constants.ts`). 958 tests pass across
-54 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
+**Current state:** `APP_VERSION` is `v0.5.197` (`src/lib/constants.ts`). 960 tests pass across
+55 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
 ## Tech Stack
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 958 tests, 54 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 960 tests, 55 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 958 tests, 54 suites
+npm run test         # 960 tests, 55 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -151,7 +151,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **958 tests across 54 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **960 tests across 55 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -208,7 +208,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 958 tests, 54 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 960 tests, 55 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -259,9 +259,21 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.196
+v0.5.197
 
 ## Changelog
+- v0.5.197 — Fix (data isolation): **the Settings CSV export only exports a child of the
+  signed-in family.** `handleExport` read the child, and then its whole exposure history,
+  by `selectedChildId` alone — an MMKV value this screen never repairs (only the tab layout
+  does, on focus). A stale id from another family (shared device, Sign Out then Join
+  Family) handed that family's feeding history to the share sheet under this parent's
+  name. The child read now adds `eq(children.familyId, familyId)` and a missing row alerts
+  "No child selected" instead of exporting (previously it fell back to the name `child`
+  and exported anyway). +2 real-SQL tests in
+  `app/(tabs)/__tests__/settings-export-family-scope.test.tsx` (own child exports; another
+  family's selected child alerts and never shares). Mutation-verified: dropping the family
+  predicate fails 1, restoring the `?? 'child'` fallback fails 1. 960 tests pass across 55
+  suites. TypeScript clean.
 - v0.5.196 — Tests: **the child detail screen's family scoping now runs against real
   SQL.** v0.5.183 scoped `app/child/[id].tsx`'s load by family as well as id but
   recorded that guard as "held by inspection only" — `createMockDb` never evaluates a

@@ -3,7 +3,7 @@ import { View, Text, TextInput, ScrollView, Pressable, Alert } from 'react-nativ
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native-unistyles';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
 import { formatChildAge } from '@/src/lib/utils';
@@ -155,19 +155,28 @@ export default function SettingsScreen() {
   };
 
   const handleExport = async () => {
-    if (!selectedChildId) {
+    if (!selectedChildId || !familyId) {
       Alert.alert('No child selected', 'Add or select a child before exporting.');
       return;
     }
     if (!exportLatch.tryAcquire()) return;
     setExporting(true);
     try {
+      // Scoped by family as well as id: the selection is an MMKV value that this
+      // screen never repairs, so a stale id from another family (shared device,
+      // sign-out then Join Family) must not export that family's history.
       const [child] = await db
         .select({ name: schema.children.name, dateOfBirth: schema.children.dateOfBirth })
         .from(schema.children)
-        .where(eq(schema.children.id, selectedChildId))
+        .where(
+          and(eq(schema.children.id, selectedChildId), eq(schema.children.familyId, familyId))
+        )
         .limit(1);
-      await exportChildData(selectedChildId, child?.name ?? 'child', child?.dateOfBirth);
+      if (!child) {
+        Alert.alert('No child selected', 'Add or select a child before exporting.');
+        return;
+      }
+      await exportChildData(selectedChildId, child.name, child.dateOfBirth);
     } catch (err) {
       console.error('Failed to export data:', err);
       Alert.alert('Export failed', err instanceof Error ? err.message : 'Unknown error');
