@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.196 — 958 tests passing across 54 suites, TypeScript clean.
+Reviewed at: v0.5.198 — 961 tests passing across 55 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -327,6 +327,28 @@ onboarding path is the cheapest way to cover that class.
 
 `bun.lock` still lists `uuid` (not regenerated, v0.5.143 precedent).
 
+## Shipped in the v0.5.198 session (2026-10-07)
+
+- v0.5.197 — **fix:** the Settings CSV export read the child (and its whole history) by
+  the MMKV `selectedChildId` alone; Settings never repairs that selection, so a stale id
+  from another family exported that family's data. Now scoped by `familyId`; a missing
+  row alerts instead of exporting. Real-SQL tests in
+  `app/(tabs)/__tests__/settings-export-family-scope.test.tsx`.
+- v0.5.198 — **fix:** `mergeFoods`'s self-chain sweep is scoped to the surviving food
+  (closes the v0.5.193 note below). Real-SQL test in `cascade-sqlite.test.ts`.
+
+**Discovered and deliberately not done:**
+
+- **`fetchExportRows(childId)` itself is still unscoped** — it trusts its caller. The
+  screen now checks the child belongs to the family first, which is sufficient; pushing a
+  `familyId` param into `exportChildData` would make the helper self-defending but changes
+  its signature and the 7 integration tests. Do it if a second export caller appears.
+- **The food detail page's exposure read** (`foodId` + selected child) is the last
+  id-only read from the v0.5.196 list. The food is already family-scoped (v0.5.195), so
+  its exposures can only belong to that family's children — no leak path; left alone.
+- **Settings never calls `ensureSelection` on load** — only the tab layout does. Not a
+  bug after v0.5.197, but it is why the export needed its own guard.
+
 ## Shipped in the v0.5.196 session (2026-10-06)
 
 - v0.5.195 — **fix:** `app/food/[id].tsx` loaded its food by id alone, so a route naming
@@ -339,7 +361,8 @@ onboarding path is the cheapest way to cover that class.
 
 **Discovered and deliberately not done:**
 
-- **Other id-only reads that trust the store rather than the family.** Settings' CSV
+- **~~Other id-only reads that trust the store rather than the family.~~** Export done in
+  v0.5.197; see the v0.5.198 session. Original: Settings' CSV
   export reads the child by `eq(children.id, selectedChildId)` (`settings.tsx:168`), and
   the food detail page reads exposures by the selected child id. Both lean on
   `ensureSelection` having repaired the MMKV selection against the family's list; a
@@ -372,7 +395,7 @@ onboarding path is the cheapest way to cover that class.
 - **FK enforcement is not device-verified.** If a device build ever surfaces
   `FOREIGN KEY constraint failed`, the likeliest cause is an auth-store id (MMKV) that no
   longer matches a SQLite row — step 2 can only repair rows, not the store.
-- **`mergeFoods`'s self-chain sweep is unscoped** (`source = target` across every family).
+- **~~`mergeFoods`'s self-chain sweep is unscoped~~** (fixed v0.5.198) (`source = target` across every family).
   Harmless — a self-chain is meaningless anywhere and nothing inserts chains — but worth
   scoping to the target food if `food_chains` ever gets a writer.
 - **CLAUDE.md "Next Priority" still says wire Convex**, contradicting the "Do not wire
