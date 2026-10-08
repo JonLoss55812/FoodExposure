@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.199 — 972 tests passing across 60 suites, TypeScript clean.
+Reviewed at: v0.5.201 — 975 tests passing across 61 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -327,6 +327,31 @@ onboarding path is the cheapest way to cover that class.
 
 `bun.lock` still lists `uuid` (not regenerated, v0.5.143 precedent).
 
+## Shipped in the v0.5.201 session (2026-10-08)
+
+- v0.5.200 — **fix:** the Log form could insert an exposure against **another family's
+  child**. Its `childId` mirrors the persisted `selectedChildId`, never checked against
+  the family's children, and the FK passes because the foreign child row exists.
+  `loadData` now calls `ensureSelection(kids)`. Real-SQL test in `log-real-sql.test.tsx`.
+- v0.5.201 — **fix:** the Progress tab's exposures read is scoped through
+  `children.family_id`, so a stale foreign selection reads as No Progress Yet instead of
+  showing another family's history. New `progress-real-sql.test.tsx`.
+
+**Discovered and deliberately not done:**
+
+- **Rule of thumb now:** any read or write keyed by `selectedChildId` must either run
+  after `ensureSelection(kidsOfThisFamily)` (dashboard, Log) or carry a family predicate
+  (Progress, Settings export). Grep `selectedChildId` before adding a new consumer.
+- **Remaining id-only consumers of `selectedChildId`:** the Foods tab's per-child
+  exposure counts and the food detail page's history/bump. Both join against a food that
+  is already family-scoped, so a foreign child yields zero rows — but the food detail
+  **bump** (`handleBumpStage`) *writes* with `selectedChildId`; a stale foreign id would
+  insert an exposure for that child against this family's food. Same fix shape as
+  v0.5.200 (validate the child against the family before the insert). Highest-value
+  next pick.
+- **Progress does not repair the selection itself** — a foreign id shows No Progress Yet
+  until the tab layout's effect repairs it. Fine; repairing would duplicate the layout.
+
 ## Shipped in the v0.5.199 session (2026-10-07)
 
 - v0.5.199 — **fix:** the dashboard's "Today's Exposures" count read **0 on every
@@ -345,8 +370,8 @@ onboarding path is the cheapest way to cover that class.
 - **Seconds precision:** `occurredAt` loses sub-second precision; two exposures logged in
   the same second sort arbitrarily in history. Harmless; switching to `timestamp_ms`
   would need a data migration step (x1000) — not worth it.
-- **Still mock-only predicates:** `progress.tsx` (foods by family, exposures by child)
-  and the dashboard's children/recent reads. Same `createSqliteDb()` +
+- **Still mock-only predicates:** ~~`progress.tsx`~~ (done v0.5.201) and the dashboard's
+  children/recent reads. Same `createSqliteDb()` +
   `seedTwoFamilies` pattern if you want them; lower risk (read-only, no destructive
   action hangs off them, unlike the Foods-tab merge banner).
 
