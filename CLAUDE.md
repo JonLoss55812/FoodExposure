@@ -12,8 +12,8 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.198` (`src/lib/constants.ts`). 961 tests pass across
-55 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
+**Current state:** `APP_VERSION` is `v0.5.199` (`src/lib/constants.ts`). 972 tests pass across
+60 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
 ## Tech Stack
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 961 tests, 55 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 972 tests, 60 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 961 tests, 55 suites
+npm run test         # 972 tests, 60 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -151,7 +151,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **961 tests across 55 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **972 tests across 60 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -169,8 +169,9 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
   as a pure function — that is what makes it verifiable without a render harness.
 - **Optional fields round-trip as absent.** Forms write `?? null`; the zod schemas map blank
   or whitespace-only optional text to `undefined`. Never persist `''` for "not recorded".
-- **Dates:** ISO 8601 in the CSV export with an explicit local offset; `occurred_at` is a
-  millisecond epoch. Every date-bucketed surface uses the **local** calendar day.
+- **Dates:** ISO 8601 in the CSV export with an explicit local offset; `occurred_at` (and every
+  `mode: 'timestamp'` column) is stored by drizzle as **whole seconds**, not milliseconds —
+  compare through drizzle (`gte(col, date)`), never raw SQL on `getTime()` (v0.5.199). Every date-bucketed surface uses the **local** calendar day.
 - **Navigation:** `useRouter()` + `router.push`/`replace`. The codebase does not use `<Link>`.
 - **Styles:** Unistyles tokens from `src/styles/theme.ts`. No inline colours — v0.5.153–v0.5.156
   removed the last hardcoded hex literals and `src/styles/__tests__/contrast.test.ts` asserts
@@ -208,7 +209,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 961 tests, 55 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 972 tests, 60 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -259,9 +260,26 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.198
+v0.5.199
 
 ## Changelog
+- v0.5.199 — Fix + tests: **the dashboard's "Today's Exposures" count read 0 on every
+  device.** It was the app's one raw-SQL timestamp comparison,
+  `` sql`${occurredAt} >= ${startOfDay.getTime()}` `` — a millisecond bound against a column
+  drizzle's `mode: 'timestamp'` stores in whole **seconds**, ~1000x smaller, so it matched
+  nothing. Present since the initial commit; invisible because `createMockDb` never
+  evaluates a `where`. Now `gte(schema.exposures.occurredAt, startOfDay)`, which encodes
+  through the column. CLAUDE.md's "occurred_at is a millisecond epoch" was wrong too and
+  is corrected. Found by a new real-SQL Log test, then pinned by
+  `index-real-sql.test.tsx` (today's rows counted; yesterday's and a sibling's not) —
+  red before the fix, green after. Also +10 real-SQL screen tests on
+  `createSqliteDb()` + `seedTwoFamilies`: Foods tab (own library only, no cross-family
+  duplicate banner, per-child counts, in-family merge leaves the other family intact),
+  Join Family (code opens its own family; name check is intra-family both ways), Add Food
+  (another family's food does not block; own case-only twin does), Log form (own chips
+  only; a fully detailed row passes the CHECKs and FKs). Every predicate mutation-verified
+  (12 mutations, each failing 1–2 tests). 972 tests pass across 60 suites. TypeScript
+  clean.
 - v0.5.198 — Fix (data isolation): **`mergeFoods` no longer deletes other families'
   food chains.** Step 4 swept every `food_chains` row with `source_food_id =
   target_food_id` across the whole database, so a merge in one family deleted another

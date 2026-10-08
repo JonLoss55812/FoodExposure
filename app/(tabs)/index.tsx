@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, RefreshControl, ActivityIndicator, A
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { eq, desc, and, sql } from 'drizzle-orm';
+import { eq, desc, and, gte } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
 import { ChildSelector, ExposureCard, EmptyState } from '@/src/components';
@@ -60,11 +60,14 @@ export default function DashboardScreen() {
       // helper so the dashboard's "today" boundary stays consistent with the
       // formatRelativeDate "Today" label (which uses the same helper since
       // v0.5.49) and inherits the v0.5.114 invalid-Date defense automatically.
+      // Compare with `gte` on the Date, not raw SQL on `getTime()`: the column
+      // stores whole seconds (drizzle `mode: 'timestamp'`), so a millisecond
+      // bound matched nothing and this count read 0 on every device.
       const startOfDay = getStartOfDay();
       const todayExposures = await db.select().from(schema.exposures)
         .where(and(
           eq(schema.exposures.childId, childId),
-          sql`${schema.exposures.occurredAt} >= ${startOfDay.getTime()}`
+          gte(schema.exposures.occurredAt, startOfDay)
         ));
       setTodayCount(todayExposures.length);
 
