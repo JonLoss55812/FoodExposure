@@ -126,4 +126,25 @@ describe('LogExposureScreen (real SQL)', () => {
     expect(Math.abs((row.occurred_at as number) - Date.now() / 1000)).toBeLessThan(60);
     expect(raw.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
   });
+
+  it("repairs a selected child from another family instead of logging against it", async () => {
+    // A stale MMKV selection (shared device, previous family) names family
+    // f2's child. The form must never insert an exposure for a child outside
+    // the signed-in family — that writes this family's food into another
+    // family's history.
+    useChildStore.getState().selectChild('c9');
+    await renderLog();
+
+    expect(useChildStore.getState().selectedChildId).toBe('c1');
+
+    fireEvent.click(screen.getByLabelText('Select Pear'));
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Save Exposure'));
+    });
+    await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+
+    const { ids } = mockSqlite;
+    expect(ids('exposures', "child_id = 'c9'")).toEqual(['e9']);
+    expect(ids('exposures', "child_id = 'c1' AND food_id = 'pear'")).toHaveLength(2);
+  });
 });

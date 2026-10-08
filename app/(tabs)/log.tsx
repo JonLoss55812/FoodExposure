@@ -25,7 +25,7 @@ export { RouteErrorBoundary as ErrorBoundary } from '@/src/components/RouteError
 export default function LogExposureScreen() {
   const router = useRouter();
   const { familyId, userId } = useAuthStore();
-  const { selectedChildId, selectChild } = useChildStore();
+  const { selectedChildId, selectChild, ensureSelection } = useChildStore();
   const [childrenList, setChildrenList] = useState<(typeof schema.children.$inferSelect)[]>([]);
   const [foodsList, setFoodsList] = useState<(typeof schema.foods.$inferSelect)[]>([]);
   const [showDetails, setShowDetails] = useState(false);
@@ -68,6 +68,11 @@ export default function LogExposureScreen() {
     try {
       const kids = await db.select().from(schema.children).where(eq(schema.children.familyId, familyId));
       setChildrenList(kids);
+      // The store's selection is persisted and may name a child outside this
+      // family (shared device, previous sign-in). Repair it against the list
+      // just read, as the dashboard does, so Save can never log this family's
+      // food into another family's history. The effect above syncs the form.
+      ensureSelection(kids);
       const allFoods = await db.select().from(schema.foods).where(eq(schema.foods.familyId, familyId)).orderBy(asc(schema.foods.name));
       setFoodsList(allFoods);
       // A food selected before the reload may no longer exist (added then
@@ -78,7 +83,7 @@ export default function LogExposureScreen() {
       console.error('Failed to load log data:', err);
       Alert.alert('Error', 'Failed to load data. Please try again.');
     }
-  }, [familyId, setValue, getValues]);
+  }, [familyId, setValue, getValues, ensureSelection]);
 
   // Reload on focus, not just on mount: the form's own "+ Add New" link pushes
   // the Add Food screen, and returning to a chip row that does not contain the

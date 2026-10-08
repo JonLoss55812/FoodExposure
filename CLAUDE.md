@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.199` (`src/lib/constants.ts`). 972 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.200` (`src/lib/constants.ts`). 973 tests pass across
 60 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -260,9 +260,18 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.199
+v0.5.200
 
 ## Changelog
+- v0.5.200 — Fix (data isolation): **the Log form can no longer write an exposure
+  against another family's child.** The form's `childId` mirrors the persisted MMKV
+  `selectedChildId`, which `loadData` never checked against the children it had just
+  read by family — so a stale selection from a previous sign-in (shared device) named
+  family B's child, and Save inserted family A's food into B's history (the FK passes:
+  the child row exists). `loadData` now calls `ensureSelection(kids)`, as the dashboard
+  does; the existing sync effect carries the repaired id into the form. +1 real-SQL test
+  in `log-real-sql.test.tsx`; mutation-verified — without the call a `c9` row is inserted.
+  973 tests pass across 60 suites. TypeScript clean.
 - v0.5.199 — Fix + tests: **the dashboard's "Today's Exposures" count read 0 on every
   device.** It was the app's one raw-SQL timestamp comparison,
   `` sql`${occurredAt} >= ${startOfDay.getTime()}` `` — a millisecond bound against a column
