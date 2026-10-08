@@ -3,7 +3,7 @@ import { View, Text, ScrollView, ActivityIndicator, Alert, RefreshControl } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
 import { ProgressBar, EmptyState } from '@/src/components';
@@ -53,8 +53,21 @@ export default function ProgressScreen() {
       const allFoods = await db.select().from(schema.foods)
         .where(eq(schema.foods.familyId, familyId));
 
-      const allExposures = await db.select().from(schema.exposures)
-        .where(eq(schema.exposures.childId, selectedChildId));
+      // Scoped through the child's family, not the id alone: the persisted
+      // selection is never repaired on this screen, so a stale id from a
+      // previous sign-in must read as an empty history, not another family's.
+      const allExposures = await db.select({
+        foodId: schema.exposures.foodId,
+        stage: schema.exposures.stage,
+        rating: schema.exposures.rating,
+        occurredAt: schema.exposures.occurredAt,
+      })
+        .from(schema.exposures)
+        .innerJoin(schema.children, eq(schema.exposures.childId, schema.children.id))
+        .where(and(
+          eq(schema.exposures.childId, selectedChildId),
+          eq(schema.children.familyId, familyId)
+        ));
 
       setStats(calcProgressStats(allFoods, allExposures, feedingProfile));
     } catch (err) {
