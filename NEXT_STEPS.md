@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.198 — 961 tests passing across 55 suites, TypeScript clean.
+Reviewed at: v0.5.199 — 972 tests passing across 60 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -326,6 +326,29 @@ is invisible to it. If a dev build is ever available, a smoke run of the
 onboarding path is the cheapest way to cover that class.
 
 `bun.lock` still lists `uuid` (not regenerated, v0.5.143 precedent).
+
+## Shipped in the v0.5.199 session (2026-10-07)
+
+- v0.5.199 — **fix:** the dashboard's "Today's Exposures" count read **0 on every
+  device** since the initial commit: raw SQL compared `occurred_at` to
+  `startOfDay.getTime()` (ms), but drizzle `mode: 'timestamp'` stores **seconds**. Now
+  `gte(col, startOfDay)`. Found by writing a real-SQL Log test that read the stored row.
+- +10 real-SQL screen tests (Foods tab, Join Family, Add Food, Log form) plus the
+  dashboard regression test; 12 predicate mutations each fail 1–2 tests.
+
+**Discovered and deliberately not done:**
+
+- **Timestamp unit rule:** every `mode: 'timestamp'` column holds whole seconds. Never
+  compare one in raw SQL against `getTime()`; go through drizzle (`gte`/`lt` on a `Date`).
+  `grep -rn 'sql\`' app src` was clean after this fix. The v0.5.170 index benchmarks
+  seeded ms values — the plans are unit-independent, so still valid.
+- **Seconds precision:** `occurredAt` loses sub-second precision; two exposures logged in
+  the same second sort arbitrarily in history. Harmless; switching to `timestamp_ms`
+  would need a data migration step (x1000) — not worth it.
+- **Still mock-only predicates:** `progress.tsx` (foods by family, exposures by child)
+  and the dashboard's children/recent reads. Same `createSqliteDb()` +
+  `seedTwoFamilies` pattern if you want them; lower risk (read-only, no destructive
+  action hangs off them, unlike the Foods-tab merge banner).
 
 ## Shipped in the v0.5.198 session (2026-10-07)
 
