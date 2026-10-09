@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.201 — 975 tests passing across 61 suites, TypeScript clean.
+Reviewed at: v0.5.203 — 981 tests passing across 62 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -327,6 +327,31 @@ onboarding path is the cheapest way to cover that class.
 
 `bun.lock` still lists `uuid` (not regenerated, v0.5.143 precedent).
 
+## Shipped in the v0.5.203 session (2026-10-09)
+
+- v0.5.202 — **fix:** the food detail page's one-tap bump wrote an exposure with the
+  persisted `selectedChildId`, so a stale foreign id put this family's food into another
+  family's child's history (closes the "highest-value next pick" below). The handler now
+  checks the child against `familyId` before the insert. Real-SQL + mock tests.
+- v0.5.203 — **harness fix:** `createSqliteDb()` returned rows via `Object.values` on
+  node:sqlite objects, collapsing duplicate column names — any join selecting two
+  `name` columns read shifted fields. Now `setReturnArrays(true)`. Plus a real-SQL test
+  that the dashboard repairs a foreign selection before its id-only reads.
+
+**Discovered and deliberately not done:**
+
+- **Every `selectedChildId` consumer is now guarded** (grep confirms): dashboard and Log
+  via `ensureSelection`, Progress/Settings export via a family predicate, food-detail
+  bump via a pre-insert check. Foods tab counts and the food-detail history read are
+  id-only but join against a family-scoped food, so a foreign child yields zero rows.
+- **Food detail still *shows* the Bump button for a foreign selection** — tapping it
+  alerts "No child selected" instead of writing. Hiding it would mean validating the
+  child in `loadData`, which adds a read and reorders every queued read in the 79-test
+  mock suite. Not worth it for a state the tab layout repairs on the next tab focus.
+- **Before v0.5.203, real-SQL tests of a join with duplicate column names were
+  unreliable.** Existing ones all passed after the fix, so none was asserting on a
+  shifted field — but if one ever looked "wrong but green", that was why.
+
 ## Shipped in the v0.5.201 session (2026-10-08)
 
 - v0.5.200 — **fix:** the Log form could insert an exposure against **another family's
@@ -347,8 +372,7 @@ onboarding path is the cheapest way to cover that class.
   is already family-scoped, so a foreign child yields zero rows — but the food detail
   **bump** (`handleBumpStage`) *writes* with `selectedChildId`; a stale foreign id would
   insert an exposure for that child against this family's food. Same fix shape as
-  v0.5.200 (validate the child against the family before the insert). Highest-value
-  next pick.
+  v0.5.200 (validate the child against the family before the insert). **Done v0.5.202.**
 - **Progress does not repair the selection itself** — a foreign id shows No Progress Yet
   until the tab layout's effect repairs it. Fine; repairing would duplicate the layout.
 
