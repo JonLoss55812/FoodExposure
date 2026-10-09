@@ -32,11 +32,17 @@ export function createSqliteDb({ foreignKeys = true }: { foreignKeys?: boolean }
         stmt.run(...args);
         return { rows: [] };
       }
+      // Positional rows, as the expo-sqlite driver reads them. Rows-as-objects
+      // then `Object.values` collapses duplicate column names: a join that
+      // selects both `foods.name` and `children.name` came back one value
+      // short, shifting every later field (the dashboard's recent list read
+      // its timestamp as the child name). Test-only; the app was unaffected.
+      stmt.setReturnArrays(true);
       if (method === 'get') {
-        const row = stmt.get(...args);
-        return { rows: row ? Object.values(row) : [] };
+        const row = stmt.get(...args) as unknown[] | undefined;
+        return { rows: row ?? [] };
       }
-      return { rows: stmt.all(...args).map((row) => Object.values(row)) };
+      return { rows: stmt.all(...args) as unknown as unknown[][] };
     },
     { schema }
   );

@@ -38,11 +38,11 @@ import { useChildStore } from '@/src/stores/child-store';
 
 const HOUR = 60 * 60 * 1000;
 
-async function logAt(id: string, childId: string, at: Date) {
+async function logAt(id: string, childId: string, at: Date, foodId = 'apple') {
   await mockSqlite.db.insert(schema.exposures).values({
     id,
     childId,
-    foodId: 'apple',
+    foodId,
     stage: 'touch',
     loggedBy: 'u1',
     occurredAt: at,
@@ -94,6 +94,31 @@ describe('DashboardScreen today count (real SQL)', () => {
     await renderDashboard();
 
     await waitFor(() => expect(screen.getByLabelText("Today's Exposures: 2")).toBeTruthy());
+    expect(alertSpy).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The dashboard's reads are keyed by child id alone; what keeps them inside
+   * the family is the `ensureSelection(kids)` call that repairs the persisted
+   * MMKV selection against this family's children *before* the child-scoped
+   * reads run. A stale id from another family (shared device, Sign Out then
+   * Join Family) must therefore never reach those reads — otherwise the home
+   * screen shows that family's counts and recent foods.
+   */
+  it("repairs another family's selected child before reading anything by it", async () => {
+    useChildStore.getState().selectChild('c9');
+    await logAt('t1', 'c1', new Date());
+    await logAt('t8', 'c9', new Date(), 'kiwi');
+    await logAt('t9', 'c9', new Date(), 'fig');
+
+    await renderDashboard();
+
+    await waitFor(() => expect(screen.getByLabelText("Today's Exposures: 1")).toBeTruthy());
+    expect(useChildStore.getState().selectedChildId).toBe('c1');
+    // Recent activity: this child's food is listed, the other family's are not.
+    await waitFor(() => expect(screen.getAllByLabelText('Open Apple details').length).toBeGreaterThan(0));
+    expect(screen.queryByLabelText('Open Kiwi details')).toBeNull();
+    expect(screen.queryByLabelText('Open Fig details')).toBeNull();
     expect(alertSpy).not.toHaveBeenCalled();
   });
 });

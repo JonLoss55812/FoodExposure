@@ -12,8 +12,8 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.202` (`src/lib/constants.ts`). 978 tests pass across
-61 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
+**Current state:** `APP_VERSION` is `v0.5.203` (`src/lib/constants.ts`). 981 tests pass across
+62 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
 ## Tech Stack
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 978 tests, 61 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 981 tests, 62 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 978 tests, 61 suites
+npm run test         # 981 tests, 62 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -151,7 +151,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **978 tests across 61 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **981 tests across 62 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -209,7 +209,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 978 tests, 61 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 981 tests, 62 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -260,9 +260,26 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.202
+v0.5.203
 
 ## Changelog
+- v0.5.203 — Tests + harness fix: **the real-SQL test harness misread every join that
+  selects two columns with the same name.** `createSqliteDb()`'s proxy returned
+  node:sqlite row *objects* through `Object.values`, so the dashboard's recent-activity
+  join (`foods.name` + `children.name`) came back one value short and every later field
+  shifted — the timestamp rendered as the child name and the food name vanished. The app
+  itself was never affected (expo-sqlite's drizzle driver reads positional rows); any
+  real-SQL test of such a join was silently asserting garbage. The proxy now calls
+  `stmt.setReturnArrays(true)`. Found while adding the real test this release needed:
+  **the dashboard's family isolation is now pinned against real SQL.** Its child-scoped
+  reads carry no family predicate; the only defence against a stale foreign
+  `selectedChildId` is the `ensureSelection(kids)` call before them, and nothing tested
+  it. +1 test in `index-real-sql.test.tsx` (a foreign selection is repaired to this
+  family's child; today's count and recent activity show none of the other family's
+  rows) and a new `src/test-utils/__tests__/sqlite-db.test.ts` (+2: duplicate-name join,
+  positional `.get()`). Mutation-verified: reverting the harness fails 2, dropping
+  `ensureSelection` from the dashboard fails 1. 981 tests pass across 62 suites.
+  TypeScript clean.
 - v0.5.202 — Fix (data isolation): **the food detail page's one-tap "Bump to X" can no
   longer write an exposure for another family's child.** `handleBumpStage` inserted with
   the persisted `selectedChildId`, which this modal screen never repairs; a stale id from
