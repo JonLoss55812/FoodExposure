@@ -9,7 +9,7 @@
  * family's history (a shared device after sign-out / join is enough).
  */
 import React from 'react';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import { Alert } from 'react-native';
 import { createSqliteDb, seedTwoFamilies } from '@/src/test-utils/sqlite-db';
 
@@ -78,5 +78,41 @@ describe('FoodDetailScreen family scoping (real SQL)', () => {
     useAuthStore.getState().logout();
     await renderFood('apple');
     await waitFor(() => expect(screen.getByText('Food Not Found')).toBeTruthy());
+  });
+
+  /**
+   * The bump writes an exposure with the persisted `selectedChildId`, which
+   * this screen never repairs. A stale id from another family (shared device,
+   * Sign Out then Join Family) names a child row that exists, so the foreign
+   * key passes and the insert would put this family's food into that child's
+   * history — the v0.5.200 Log-form defect, on the one-tap path.
+   */
+  it("bumps the signed-in family's own child", async () => {
+    await renderFood('apple');
+    await waitFor(() => expect(screen.getByLabelText('Bump to Taste')).toBeTruthy());
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Bump to Taste'));
+    });
+    await waitFor(() =>
+      expect(mockSqlite.ids('exposures', "child_id = 'c1' AND food_id = 'apple'")).toHaveLength(2),
+    );
+    expect(alertSpy).not.toHaveBeenCalled();
+  });
+
+  it("never writes an exposure for another family's selected child", async () => {
+    useChildStore.getState().selectChild('c9');
+    await renderFood('apple');
+    await waitFor(() => expect(screen.getByLabelText('Rename Apple')).toBeTruthy());
+    const bump = screen.queryByLabelText(/^Bump to /);
+    if (bump) {
+      await act(async () => {
+        fireEvent.click(bump);
+      });
+    }
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    // No row for the foreign child, whether the action was hidden or refused.
+    expect(mockSqlite.ids('exposures', "child_id = 'c9'")).toEqual(['e9']);
   });
 });

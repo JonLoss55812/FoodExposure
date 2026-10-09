@@ -143,13 +143,28 @@ export default function FoodDetailScreen() {
   }, [loadData]);
 
   const handleBumpStage = async () => {
-    if (!id || !selectedChildId) return;
+    if (!id || !familyId || !selectedChildId) return;
     const next = getNextStage(highestStage);
     if (!next) return;
     if (!bumpLatch.tryAcquire()) return;
 
     setBumping(true);
     try {
+      // `selectedChildId` is persisted in MMKV and this screen never repairs
+      // it. A stale id from another family names a child row that exists, so
+      // the foreign key passes and the insert would land this family's food in
+      // that child's history (the v0.5.200 Log-form defect). Check first.
+      const ownChild = await db
+        .select({ id: schema.children.id })
+        .from(schema.children)
+        .where(and(
+          eq(schema.children.id, selectedChildId),
+          eq(schema.children.familyId, familyId),
+        ));
+      if (ownChild.length === 0) {
+        Alert.alert('No child selected', 'Select a child on the dashboard, then try again.');
+        return;
+      }
       await db.insert(schema.exposures).values({
         id: generateId(),
         childId: selectedChildId,

@@ -586,6 +586,12 @@ describe('FoodDetailScreen', () => {
       setting: null,
     });
 
+    /** The handler's family check on the selected child, then its reload. */
+    function queueOwnChildThenReload() {
+      mockDb.queueSelect([{ id: 'child-1' }]);
+      queueLoad();
+    }
+
     async function tapBump(label: string) {
       await act(async () => {
         fireEvent.click(screen.getByLabelText(label));
@@ -595,7 +601,7 @@ describe('FoodDetailScreen', () => {
     it('offers the entry stage for a food with no exposures and records it', async () => {
       queueLoad();
       await renderLoaded();
-      queueLoad(); // the reload the handler runs after the insert
+      queueOwnChildThenReload();
 
       await tapBump('Bump to Tolerate');
 
@@ -622,12 +628,26 @@ describe('FoodDetailScreen', () => {
       // reads on screen as the bump having silently done nothing.
       queueLoad(FOOD, [exposureAt('tolerate'), exposureAt('smell')]);
       await renderLoaded();
-      queueLoad();
+      queueOwnChildThenReload();
 
       await tapBump('Bump to Touch');
 
       await waitFor(() => expect(mockDb.writes).toHaveLength(1));
       expect((mockDb.writes[0] as { values: { stage: string } }).values.stage).toBe('touch');
+    });
+
+    it("refuses to write when the selected child is not in this family", async () => {
+      // The check's read comes back empty: the persisted selection names a
+      // child of another family. Mutation-paired with the real-SQL test in
+      // id-family-scope.test.tsx, which proves the predicate itself.
+      queueLoad();
+      await renderLoaded();
+      mockDb.queueSelect([]);
+
+      await tapBump('Bump to Tolerate');
+
+      await waitFor(() => expect(alertSpy).toHaveBeenCalledWith('No child selected', expect.any(String)));
+      expect(mockDb.writes).toHaveLength(0);
     });
 
     it('does not offer a bump past the top of the hierarchy', async () => {
@@ -665,6 +685,7 @@ describe('FoodDetailScreen', () => {
 
       queueLoad();
       await renderLoaded();
+      mockDb.queueSelect([{ id: 'child-1' }]);
       await tapBump('Bump to Tolerate');
 
       await waitFor(() => expect(alertSpy).toHaveBeenCalled());
@@ -672,7 +693,7 @@ describe('FoodDetailScreen', () => {
 
       // The latch is released in `finally`, so the retry gets through.
       failNext = false;
-      queueLoad();
+      queueOwnChildThenReload();
       await tapBump('Bump to Tolerate');
       await waitFor(() => expect(mockDb.writes).toHaveLength(1));
     });

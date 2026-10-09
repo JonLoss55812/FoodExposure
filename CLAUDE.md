@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.201` (`src/lib/constants.ts`). 975 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.202` (`src/lib/constants.ts`). 978 tests pass across
 61 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 975 tests, 61 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 978 tests, 61 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 975 tests, 61 suites
+npm run test         # 978 tests, 61 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -151,7 +151,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **975 tests across 61 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **978 tests across 61 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -209,7 +209,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 975 tests, 61 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 978 tests, 61 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -260,9 +260,21 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.201
+v0.5.202
 
 ## Changelog
+- v0.5.202 — Fix (data isolation): **the food detail page's one-tap "Bump to X" can no
+  longer write an exposure for another family's child.** `handleBumpStage` inserted with
+  the persisted `selectedChildId`, which this modal screen never repairs; a stale id from
+  a previous sign-in names a child row that exists, so the FK passed and this family's
+  food landed in that child's history (the v0.5.200 Log-form defect, on the one-tap
+  path — flagged as the top pick in NEXT_STEPS). The handler now reads the child scoped
+  by `familyId` before the insert and alerts "No child selected" when it is not this
+  family's. +2 real-SQL tests in `id-family-scope.test.tsx` (own child bumps; a foreign
+  selection writes nothing) and +1 mock test (empty check refuses); the three existing
+  bump tests now queue the check's read explicitly instead of letting it consume the
+  reload's row. Mutation-verified: dropping the family predicate fails 1, dropping the
+  check fails 2. 978 tests pass across 61 suites. TypeScript clean.
 - v0.5.201 — Fix (data isolation): **the Progress tab reads exposures only for a child
   of the signed-in family.** Its exposures query was keyed by the persisted
   `selectedChildId` alone, and this screen never repairs that selection, so a stale id
