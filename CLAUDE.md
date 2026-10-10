@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.203` (`src/lib/constants.ts`). 981 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.204` (`src/lib/constants.ts`). 981 tests pass across
 62 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -201,8 +201,12 @@ configured.
   (`deriveLocalEmailPart`) and `users.email` has no UNIQUE constraint.
 - **Charts are simple** — bars and tiles, no time-series plots.
 - **Date entry is free text** (`YYYY-MM-DD`), not a picker; no date-picker package is installed.
-- **30 `npm audit` advisories are unfixable** — see the v0.5.165 changelog entry; the three
-  root advisories have no patched version published.
+- **`npm audit` reports 59 advisories from 5 roots, none fixable** (v0.5.204; full reasoning
+  in `.planning/pusher/dependencies-2026-10-10.md`). `braces`, `node-forge` and `sprintf-js`
+  have no patched release; `decode-uri-component`'s fix is ESM-only (v0.5.165); `esbuild`'s
+  "fix" is a drizzle-kit downgrade. All five are in build/test tooling, not the app bundle.
+- **`expo export --platform web` fails** on `expo-sqlite/web/worker.ts`'s `.wasm` import —
+  `metro.config.js` does not add `wasm` to `assetExts`. Predates v0.5.204; not yet fixed.
 
 ## Next Priority
 
@@ -260,9 +264,21 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.203
+v0.5.204
 
 ## Changelog
+- v0.5.204 — Chore (supply chain). Three dependency changes, each verified by the full
+  suite (981 pass, 62 suites), `tsc --noEmit`, and a scratch `expo prebuild --platform ios`.
+  (1) An `overrides` entry forces `xcode`'s `uuid` from 7.0.3 to `^11.1.1`
+  (GHSA-w5hq-g745-h8pq). xcode only calls `uuid.v4()`, so the advisory (v3/v5/v6 with a
+  buffer) was never reachable, but it put 7 Expo build packages into the audit. uuid 11
+  still ships CJS, and prebuild generates the Xcode project with it. (2) `react-native`
+  goes from 0.83.2 to 0.83.10, the patch that `expo install --check` says SDK 55 expects.
+  (3) `@jest/globals` and `@testing-library/jest-dom` are removed: nothing imports them and
+  no setup file registers the matchers. Audit goes from 66 to 59 advisories (6 roots to 5).
+  The rest are listed under Known Limitations. Found along the way: the web export was
+  already broken (see Known Limitations). `bun.lock` is not regenerated because Bun is not
+  installed (v0.5.143 precedent).
 - v0.5.203 — Tests + harness fix: **the real-SQL test harness misread every join that
   selects two columns with the same name.** `createSqliteDb()`'s proxy returned
   node:sqlite row *objects* through `Object.values`, so the dashboard's recent-activity
