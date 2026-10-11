@@ -12,8 +12,8 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.204` (`src/lib/constants.ts`). 981 tests pass across
-62 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
+**Current state:** `APP_VERSION` is `v0.5.205` (`src/lib/constants.ts`). 984 tests pass across
+63 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
 ## Tech Stack
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 981 tests, 62 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 984 tests, 63 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 981 tests, 62 suites
+npm run test         # 984 tests, 63 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -151,7 +151,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **981 tests across 62 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **984 tests across 63 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -205,15 +205,17 @@ configured.
   in `.planning/pusher/dependencies-2026-10-10.md`). `braces`, `node-forge` and `sprintf-js`
   have no patched release; `decode-uri-component`'s fix is ESM-only (v0.5.165); `esbuild`'s
   "fix" is a drizzle-kit downgrade. All five are in build/test tooling, not the app bundle.
-- **`expo export --platform web` fails** on `expo-sqlite/web/worker.ts`'s `.wasm` import —
-  `metro.config.js` does not add `wasm` to `assetExts`. Predates v0.5.204; not yet fixed.
+- **The web export needs COOP/COEP headers from its host.** Since v0.5.205
+  `expo export --platform web` builds, and the dev server sends the headers, but a static
+  host must also send `Cross-Origin-Opener-Policy: same-origin` and
+  `Cross-Origin-Embedder-Policy: credentialless` or expo-sqlite cannot open on web.
 
 ## Next Priority
 
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 981 tests, 62 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 984 tests, 63 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -264,9 +266,20 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.204
+v0.5.205
 
 ## Changelog
+- v0.5.205 — Fix (build): **`expo export --platform web` builds again.** expo-sqlite's web
+  worker imports `wa-sqlite.wasm`, which Metro cannot bundle unless `wasm` is an asset
+  extension, so the export failed outright (found in v0.5.204). `metro.config.js` now
+  pushes `wasm` onto `resolver.assetExts` and adds a `server.enhanceMiddleware` that sends
+  `Cross-Origin-Opener-Policy: same-origin` / `Cross-Origin-Embedder-Policy:
+  credentialless` — the worker uses SharedArrayBuffer, which browsers only expose to a
+  cross-origin-isolated page (both per the expo-sqlite web docs). +3 tests in
+  `src/db/__tests__/metro-config.test.ts` (wasm asset, defaults kept, headers set and the
+  request passed on); written first and red against the old config. Export verified: exits
+  0 and emits the `.wasm` asset. **Not browser-verified** — no page was loaded. 984 tests
+  pass across 63 suites. TypeScript clean.
 - v0.5.204 — Chore (supply chain). Three dependency changes, each verified by the full
   suite (981 pass, 62 suites), `tsc --noEmit`, and a scratch `expo prebuild --platform ios`.
   (1) An `overrides` entry forces `xcode`'s `uuid` from 7.0.3 to `^11.1.1`
