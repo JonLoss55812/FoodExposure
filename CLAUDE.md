@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.205` (`src/lib/constants.ts`). 984 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.206` (`src/lib/constants.ts`). 987 tests pass across
 63 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 984 tests, 63 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 987 tests, 63 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 984 tests, 63 suites
+npm run test         # 987 tests, 63 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -151,7 +151,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **984 tests across 63 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **987 tests across 63 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -215,7 +215,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 984 tests, 63 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 987 tests, 63 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -266,9 +266,23 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.205
+v0.5.206
 
 ## Changelog
+- v0.5.206 — Fix: **the food detail page's food-level editors no longer undo each
+  other.** Name, category, preparation and the safe-food toggle each hold their own latch,
+  so two can be in flight at once — but each patched local state with
+  `setFood({ ...food, X })` from the render that *started* the write. Whichever resolved
+  second spread its stale row back over the other's change: toggle Safe Food, pick a new
+  category while it saves, and the screen showed the old category while SQLite held the
+  new one. All four now go through `patchFood`, a functional `setFood` over the latest
+  row. The safe-food toggle also gains the latch every other write handler has (NEXT_STEPS
+  critique #2): a second tap in the in-flight window is refused instead of writing the
+  same value twice. +3 tests in `id.test.tsx` that hold one write open with a deferred
+  update (toggle-then-category, category-then-toggle, double-tap then a later tap
+  un-pins). Mutation-verified: a stale toggle patch, a stale category patch, dropping the
+  latch, and dropping its release each fail exactly one. The rename's stale patch is not
+  separately pinned (same helper). 987 tests pass across 63 suites. TypeScript clean.
 - v0.5.205 — Fix (build): **`expo export --platform web` builds again.** expo-sqlite's web
   worker imports `wa-sqlite.wasm`, which Metro cannot bundle unless `wasm` is an asset
   extension, so the export failed outright (found in v0.5.204). `metro.config.js` now

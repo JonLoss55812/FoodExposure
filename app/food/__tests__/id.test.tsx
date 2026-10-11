@@ -876,6 +876,82 @@ describe('FoodDetailScreen', () => {
       expect(screen.getByText('Mark as Safe Food')).toBeTruthy();
       expect(screen.queryByText('Pinned to the top of the Foods tab')).toBeNull();
     });
+
+    /**
+     * Hold the first update open until the test resolves it; later updates go
+     * through the normal recorder. Models a slow safe-food write.
+     */
+    function holdFirstUpdate() {
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => { release = resolve; });
+      const realUpdate = (mockDb.db as { update: (t: unknown) => unknown }).update;
+      let calls = 0;
+      (mockDb.db as { update: unknown }).update = (table: unknown) => {
+        calls += 1;
+        if (calls > 1) return realUpdate(table);
+        return { set: () => ({ where: () => held }) };
+      };
+      return () => act(async () => { release(); });
+    }
+
+    it('does not undo a category change that lands while the toggle is saving', async () => {
+      // Each food-level editor patches local state from its own render's
+      // `food`. A toggle that resolves after a category change used to spread
+      // the pre-change row back over it, so the screen showed the old
+      // category while SQLite held the new one.
+      queueLoad();
+      await renderLoaded();
+      const releaseToggle = holdFirstUpdate();
+
+      await click('Mark as safe food');
+      await click('Change category, currently Fruit');
+      await click('Category: Vegetable');
+      expect(screen.getByLabelText('Change category, currently Vegetable')).toBeTruthy();
+
+      await releaseToggle();
+
+      expect(screen.getByText('Pinned to the top of the Foods tab')).toBeTruthy();
+      expect(screen.getByLabelText('Change category, currently Vegetable')).toBeTruthy();
+    });
+
+    it('ignores a second tap while the first write is in flight', async () => {
+      // Two taps in one in-flight window both read the same `isSafeFood`, so
+      // both wrote the same value: the second tap was silently lost instead
+      // of being refused. The latch makes the refusal explicit.
+      queueLoad();
+      await renderLoaded();
+      const releaseToggle = holdFirstUpdate();
+
+      await click('Mark as safe food');
+      await click('Mark as safe food');
+      await releaseToggle();
+
+      expect(mockDb.writes).toHaveLength(0); // the held write is not recorded
+      expect(screen.getByText('Pinned to the top of the Foods tab')).toBeTruthy();
+
+      // ...and the latch is released, so the next tap un-pins it.
+      await click('Mark as safe food');
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      expect(mockDb.writes[0]).toEqual({ kind: 'update', values: { isSafeFood: false }, where: expect.anything() });
+      expect(screen.getByText('A food your child already accepts')).toBeTruthy();
+    });
+
+    it('does not undo the toggle when a category change resolves after it', async () => {
+      // The reverse order: the category write is the slow one.
+      queueLoad();
+      await renderLoaded();
+      const releaseCategory = holdFirstUpdate();
+
+      await click('Change category, currently Fruit');
+      await click('Category: Vegetable');
+      await click('Mark as safe food');
+      expect(screen.getByText('Pinned to the top of the Foods tab')).toBeTruthy();
+
+      await releaseCategory();
+
+      expect(screen.getByLabelText('Change category, currently Vegetable')).toBeTruthy();
+      expect(screen.getByText('Pinned to the top of the Foods tab')).toBeTruthy();
+    });
   });
 
 

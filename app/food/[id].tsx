@@ -46,6 +46,12 @@ export default function FoodDetailScreen() {
   const { userId, familyId } = useAuthStore();
   const { feedingProfile } = useSettingsStore();
   const [food, setFood] = useState<typeof schema.foods.$inferSelect | null>(null);
+  // The food-level editors (name, category, preparation, safe-food) each hold
+  // their own latch, so two can be in flight at once. Patch the *latest* row,
+  // not the render that started the write, or the slower write spreads its
+  // stale copy back over the faster one's change.
+  const patchFood = (patch: Partial<typeof schema.foods.$inferSelect>) =>
+    setFood((current) => (current ? { ...current, ...patch } : current));
   const [exposuresList, setExposuresList] = useState<ExposureRow[]>([]);
   const [highestStage, setHighestStage] = useState<ExposureStage | null>(null);
   const [bumping, setBumping] = useState(false);
@@ -86,6 +92,7 @@ export default function FoodDetailScreen() {
   const mergeLatch = useRef(createInFlightLatch()).current;
   const categoryLatch = useRef(createInFlightLatch()).current;
   const prepLatch = useRef(createInFlightLatch()).current;
+  const safeFoodLatch = useRef(createInFlightLatch()).current;
   const exposureLatch = useRef(createInFlightLatch()).current;
   // One latch for all four per-row editors: they are mutually exclusive by
   // construction (see `rowBusy`), so four separate latches only let a bug in
@@ -465,16 +472,18 @@ export default function FoodDetailScreen() {
   };
 
   const handleToggleSafeFood = async () => {
-    if (!food) return;
+    if (!food || !safeFoodLatch.tryAcquire()) return;
     const next = !food.isSafeFood;
     try {
       await db.update(schema.foods)
         .set({ isSafeFood: next })
         .where(eq(schema.foods.id, food.id));
-      setFood({ ...food, isSafeFood: next });
+      patchFood({ isSafeFood: next });
     } catch (err) {
       console.error('Failed to toggle safe food:', err);
       Alert.alert('Error', 'Failed to update safe-food status.');
+    } finally {
+      safeFoodLatch.release();
     }
   };
 
@@ -576,7 +585,7 @@ export default function FoodDetailScreen() {
       await db.update(schema.foods)
         .set({ name: nextName })
         .where(eq(schema.foods.id, food.id));
-      setFood({ ...food, name: nextName });
+      patchFood({ name: nextName });
       setEditingName(false);
     } catch (err) {
       console.error('Failed to rename food:', err);
@@ -611,7 +620,7 @@ export default function FoodDetailScreen() {
       await db.update(schema.foods)
         .set({ category: next })
         .where(eq(schema.foods.id, food.id));
-      setFood({ ...food, category: next });
+      patchFood({ category: next });
       setEditingCategory(false);
     } catch (err) {
       console.error('Failed to change food category:', err);
@@ -642,7 +651,7 @@ export default function FoodDetailScreen() {
       await db.update(schema.foods)
         .set({ defaultPreparation: value })
         .where(eq(schema.foods.id, food.id));
-      setFood({ ...food, defaultPreparation: value });
+      patchFood({ defaultPreparation: value });
       setEditingPrep(false);
     } catch (err) {
       console.error('Failed to change default preparation:', err);
