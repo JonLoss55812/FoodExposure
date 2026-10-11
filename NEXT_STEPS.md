@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.203 — 981 tests passing across 62 suites, TypeScript clean.
+Reviewed at: v0.5.206 — 987 tests passing across 63 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -327,6 +327,28 @@ onboarding path is the cheapest way to cover that class.
 
 `bun.lock` still lists `uuid` (not regenerated, v0.5.143 precedent).
 
+## Shipped in the v0.5.206 session (2026-10-11)
+
+- v0.5.205 — **fix (build):** `expo export --platform web` builds. `metro.config.js`
+  adds `wasm` to `assetExts` (expo-sqlite's worker imports `wa-sqlite.wasm`) and sends
+  COOP/COEP headers from the dev server (the worker needs SharedArrayBuffer). Pinned in
+  `src/db/__tests__/metro-config.test.ts`.
+- v0.5.206 — **fix:** the food detail page's four food-level editors patched state from a
+  stale closure, so overlapping writes undid each other on screen. Now a functional
+  `patchFood`; the safe-food toggle got its latch.
+
+**Discovered and deliberately not done:**
+
+- **The web build is not browser-verified.** The export exits 0 and emits the `.wasm`
+  asset, but no page was loaded. Next step: `npm run web`, open it, onboard, log an
+  exposure. If the database fails to open, check `crossOriginIsolated` in the console.
+- **A static host for the web export must send COOP/COEP itself** — the metro
+  middleware only covers the dev server. No hosting is configured, so nothing to change.
+- **The exposure-row editors patch `exposuresList` the same stale-closure way**
+  (`setExposuresList(exposuresList.map(...))`), but `rowBusy` + one `rowEditLatch`
+  already make two row writes impossible at once, so there is no overlap to lose. Only
+  matters if a row write ever becomes concurrent with something else that patches the list.
+
 ## Shipped in the v0.5.203 session (2026-10-09)
 
 - v0.5.202 — **fix:** the food detail page's one-tap bump wrote an exposure with the
@@ -488,9 +510,7 @@ onboarding path is the cheapest way to cover that class.
 - **Join Family is reachable but the invite code is shown nowhere.** Product decision
   needed: hide the onboarding link until sync exists, or show the code in Settings
   (which is the out-of-scope invites UI). Copy-only fix shipped meanwhile.
-- **`handleToggleSafeFood` (`app/food/[id].tsx`) still has no latch** (critique #2) —
-  idempotent per closure, so harmless; fold it in if the food-level editors are
-  ever collapsed like v0.5.174 did for the row editors.
+- **~~`handleToggleSafeFood` still has no latch~~** — done v0.5.206.
 - **CLAUDE.md is ~430 KB**, most of it changelog, loaded into every session. Moving the
   changelog to `CHANGELOG.md` would change the versioning rule written in CLAUDE.md
   itself, so it is left for the owner to decide.
