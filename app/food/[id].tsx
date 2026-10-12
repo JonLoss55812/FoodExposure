@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TextInput, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -53,7 +53,10 @@ export default function FoodDetailScreen() {
   const patchFood = (patch: Partial<typeof schema.foods.$inferSelect>) =>
     setFood((current) => (current ? { ...current, ...patch } : current));
   const [exposuresList, setExposuresList] = useState<ExposureRow[]>([]);
-  const [highestStage, setHighestStage] = useState<ExposureStage | null>(null);
+  // Derived, not stored: every write that patches the list (row edits, a
+  // single-exposure delete, the bump's reload) moves the "Bump to X" target
+  // with it, and a separately-set copy could only drift from the list.
+  const highestStage = useMemo(() => getHighestStage(exposuresList), [exposuresList]);
   const [bumping, setBumping] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [editingName, setEditingName] = useState(false);
@@ -135,7 +138,6 @@ export default function FoodDetailScreen() {
           .orderBy(desc(schema.exposures.occurredAt));
 
         setExposuresList(exps);
-        setHighestStage(getHighestStage(exps));
       }
     } catch (err) {
       console.error('Failed to load food detail:', err);
@@ -225,9 +227,10 @@ export default function FoodDetailScreen() {
               // useEffect, not on focus. Recomputing the highest stage is the
               // load-bearing half: deleting the row that established it must
               // move the "Bump to X" target back down.
-              const remaining = exposuresList.filter((row) => row.id !== exp.id);
-              setExposuresList(remaining);
-              setHighestStage(getHighestStage(remaining));
+              // Functional: the one-tap Bump is not gated by `rowBusy` and
+              // reloads the list, so a list captured when this delete started
+              // would drop a bump that landed in between (v0.5.207).
+              setExposuresList((rows) => rows.filter((row) => row.id !== exp.id));
             } catch (err) {
               console.error('Failed to delete exposure:', err);
               Alert.alert('Error', 'Failed to delete exposure. Please try again.');
@@ -278,11 +281,11 @@ export default function FoodDetailScreen() {
       // load-bearing half, in both directions: correcting the row that
       // established the highest stage downward must move the "Bump to X"
       // target back down, and correcting one upward must move it up.
-      const updated = exposuresList.map((row) =>
-        row.id === exp.id ? { ...row, stage: next } : row
+      // Functional for the same reason as the delete: a concurrent bump's
+      // reload must survive this patch (v0.5.207). `highestStage` is derived.
+      setExposuresList((rows) =>
+        rows.map((row) => (row.id === exp.id ? { ...row, stage: next } : row))
       );
-      setExposuresList(updated);
-      setHighestStage(getHighestStage(updated));
       setEditing(null);
     } catch (err) {
       console.error('Failed to change exposure stage:', err);

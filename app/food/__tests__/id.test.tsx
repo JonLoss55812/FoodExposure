@@ -1109,6 +1109,99 @@ describe('FoodDetailScreen', () => {
     });
   });
 
+  describe('row writes that overlap a bump (v0.5.207)', () => {
+    // A row write patches `exposuresList` when it resolves, but the one-tap
+    // Bump is not gated by `rowBusy` — it inserts and reloads the list while
+    // the row write is still in flight. A row write that patched the list it
+    // captured when it *started* spread that stale list back over the reload,
+    // and the bumped exposure vanished from the history until the next mount.
+    const exp = (id: string, stage: string) => ({
+      id,
+      stage,
+      rating: null,
+      notes: null,
+      occurredAt: new Date(2026, 0, 15),
+      mealType: null,
+      temperature: null,
+      texture: null,
+      setting: null,
+    });
+
+    /** Hold the first write of `kind` open until the returned release runs. */
+    function holdFirst(kind: 'update' | 'delete') {
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => { release = resolve; });
+      const dbAny = mockDb.db as Record<string, unknown>;
+      const real = dbAny[kind] as (t: unknown) => unknown;
+      let calls = 0;
+      dbAny[kind] = (table: unknown) => {
+        calls += 1;
+        if (calls > 1) return real(table);
+        return kind === 'update'
+          ? { set: () => ({ where: () => held }) }
+          : { where: () => held };
+      };
+      return () => act(async () => { release(); });
+    }
+
+    /** The bump's family check, then its reload with the freshly bumped row. */
+    async function bumpWithReload(label: string, reloaded: unknown[]) {
+      mockDb.queueSelect([{ id: 'child-1' }]);
+      queueLoad(FOOD, reloaded);
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText(label));
+      });
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+    }
+
+    it('keeps the bumped exposure when a stage edit resolves after it', async () => {
+      queueLoad(FOOD, [exp('exp-1', 'tolerate')]);
+      await renderLoaded();
+      const release = holdFirst('update');
+
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText(/^Change stage of Tolerate exposure from /));
+      });
+      await click('Set stage: Smell');
+      await bumpWithReload('Bump to Interact', [exp('exp-2', 'interact'), exp('exp-1', 'tolerate')]);
+      await release();
+
+      await waitFor(() =>
+        expect(screen.getByLabelText(/^Change stage of Smell exposure from /)).toBeTruthy(),
+      );
+      expect(screen.getByLabelText(/^Change stage of Interact exposure from /)).toBeTruthy();
+      expect(screen.getByText('Exposure History (2)')).toBeTruthy();
+      // Highest reached is now Smell (the edit), so the next bump is Touch.
+      expect(screen.getByLabelText('Bump to Touch')).toBeTruthy();
+    });
+
+    it('keeps the bumped exposure when a single-exposure delete resolves after it', async () => {
+      queueLoad(FOOD, [exp('exp-1', 'tolerate'), exp('exp-0', 'tolerate')]);
+      await renderLoaded();
+      const release = holdFirst('delete');
+
+      // Two Tolerate rows so the delete leaves the highest stage in place;
+      // the first is exp-1, per the load order.
+      fireEvent.click(screen.getAllByLabelText(/^Delete Tolerate exposure from /)[0]);
+      await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+      const buttons = alertSpy.mock.calls[0][2] as { text: string; onPress?: () => unknown }[];
+      // Not awaited: the delete is held open while the bump runs.
+      await act(async () => {
+        void buttons.find((b) => b.text === 'Delete')!.onPress?.();
+      });
+      await bumpWithReload('Bump to Interact', [
+        exp('exp-2', 'interact'),
+        exp('exp-1', 'tolerate'),
+        exp('exp-0', 'tolerate'),
+      ]);
+      await release();
+
+      await waitFor(() => expect(screen.getByText('Exposure History (2)')).toBeTruthy());
+      expect(screen.getByLabelText(/^Delete Interact exposure from /)).toBeTruthy();
+      expect(screen.getByLabelText('Bump to Smell')).toBeTruthy();
+    });
+  });
+
   describe('edit an exposure rating', () => {
     const exp = (id: string, stage: string, rating: number | null) => ({
       id,
