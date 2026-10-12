@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 
@@ -7,9 +8,11 @@ interface EmptyStateProps {
   description: string;
   actionLabel?: string;
   onAction?: () => void;
+  /** Rendered below the primary action, e.g. a secondary text link. */
+  children?: ReactNode;
 }
 
-export function EmptyState({ icon, title, description, actionLabel, onAction }: EmptyStateProps) {
+export function EmptyState({ icon, title, description, actionLabel, onAction, children }: EmptyStateProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.icon}>{icon}</Text>
@@ -25,6 +28,7 @@ export function EmptyState({ icon, title, description, actionLabel, onAction }: 
           <Text style={styles.buttonText}>{actionLabel}</Text>
         </Pressable>
       )}
+      {children}
     </View>
   );
 }

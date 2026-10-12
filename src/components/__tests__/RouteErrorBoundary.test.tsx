@@ -13,6 +13,16 @@ jest.mock('@/src/lib/sentry', () => ({
   Sentry: { captureException: (...args: unknown[]) => mockCaptureException(...args) },
 }));
 
+const mockCanGoBack = jest.fn(() => false);
+const mockBack = jest.fn();
+
+jest.mock('expo-router', () => ({
+  router: {
+    canGoBack: () => mockCanGoBack(),
+    back: () => mockBack(),
+  },
+}));
+
 let shouldThrow = true;
 
 function Flaky() {
@@ -24,6 +34,8 @@ describe('RouteErrorBoundary', () => {
   beforeEach(() => {
     shouldThrow = true;
     mockCaptureException.mockClear();
+    mockCanGoBack.mockReset().mockReturnValue(false);
+    mockBack.mockReset();
     // React logs every caught render error; the boundary logs once more by design.
     jest.spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -84,5 +96,48 @@ describe('RouteErrorBoundary', () => {
     });
     expect(screen.getByText('Recovered content')).toBeTruthy();
     expect(screen.queryByText('Something went wrong')).toBeNull();
+  });
+
+  describe('Go back (v0.5.208)', () => {
+    // On a modal (food/child detail and add) Try again re-renders the same
+    // broken screen, and Android has no swipe-to-dismiss — so a crash that
+    // persists left a hardware back button as the only way out.
+    function renderCrashed() {
+      render(
+        <Try catch={RouteErrorBoundary}>
+          <Flaky />
+        </Try>
+      );
+    }
+
+    it('offers Go back when there is a screen to return to, and pops on tap', async () => {
+      mockCanGoBack.mockReturnValue(true);
+      renderCrashed();
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Go back'));
+      });
+      expect(mockBack).toHaveBeenCalledTimes(1);
+      // Try again is still offered alongside it.
+      expect(screen.getByLabelText('Try again')).toBeTruthy();
+    });
+
+    it('hides Go back when nothing is behind this screen', () => {
+      // A tab root: back would do nothing (or leave the app), so the action
+      // must not be offered at all.
+      renderCrashed();
+      expect(screen.queryByLabelText('Go back')).toBeNull();
+      expect(screen.getByLabelText('Try again')).toBeTruthy();
+    });
+
+    it('still renders the recovery screen when the navigator is unavailable', () => {
+      // The root boundary renders outside the navigator, where asking it
+      // anything can throw. The fallback must not crash on top of a crash.
+      mockCanGoBack.mockImplementation(() => {
+        throw new Error('navigation not ready');
+      });
+      renderCrashed();
+      expect(screen.getByText('Something went wrong')).toBeTruthy();
+      expect(screen.queryByLabelText('Go back')).toBeNull();
+    });
   });
 });

@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.207` (`src/lib/constants.ts`). 989 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.208` (`src/lib/constants.ts`). 992 tests pass across
 63 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 989 tests, 63 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 992 tests, 63 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 989 tests, 63 suites
+npm run test         # 992 tests, 63 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -151,7 +151,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **989 tests across 63 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **992 tests across 63 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -215,7 +215,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 989 tests, 63 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 992 tests, 63 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -266,9 +266,22 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.207
+v0.5.208
 
 ## Changelog
+- v0.5.208 — Fix: **the crash-recovery screen offers "Go back" when there is somewhere
+  to go.** On a modal (food/child detail and add) "Try again" re-renders the same broken
+  screen, and Android has no swipe-to-dismiss, so a persistent crash left the hardware
+  back button as the only way out (NEXT_STEPS, v0.5.189 session). `RouteErrorBoundary`
+  now renders a 44pt "Go back" text action below Try again that calls `router.back()`,
+  shown only when `router.canGoBack()` — hidden at a tab root, where nothing is behind
+  the screen. The check is wrapped in try/catch: the root boundary renders outside the
+  navigator, and a fallback that throws on top of the crash it reports shows nothing.
+  `EmptyState` gains an optional `children` slot (rendered after its action) to host it.
+  +3 tests in `RouteErrorBoundary.test.tsx` (shown and pops; hidden with no history;
+  navigator throwing still renders the recovery screen). Mutation-verified: always
+  showing the link fails 2, dropping the try/catch fails 1, a no-op `onPress` fails 1.
+  Not device-verified. 992 tests pass across 63 suites. TypeScript clean.
 - v0.5.207 — Fix: **a single-exposure delete or stage correction no longer erases a
   bump that landed while it was saving.** Both handlers on the food detail page patched
   `exposuresList` from the list captured when they *started*, and the one-tap Bump is not
