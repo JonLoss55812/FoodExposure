@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.206 — 987 tests passing across 63 suites, TypeScript clean.
+Reviewed at: v0.5.208 — 992 tests passing across 63 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -327,6 +327,29 @@ onboarding path is the cheapest way to cover that class.
 
 `bun.lock` still lists `uuid` (not regenerated, v0.5.143 precedent).
 
+## Shipped in the v0.5.208 session (2026-10-12)
+
+- v0.5.207 — **fix:** a single-exposure delete or stage correction resolving after a
+  concurrent one-tap Bump spread its stale `exposuresList` over the bump's reload, so the
+  bumped exposure vanished on screen. Both use functional updates now, and `highestStage`
+  is derived with `useMemo` from the list (no more `setHighestStage`). Closes the
+  "exposure-row editors patch the same stale-closure way" note from v0.5.206 — the
+  overlap *did* exist, because Bump is not gated by `rowBusy`.
+- v0.5.208 — **fix:** `RouteErrorBoundary` shows "Go back" (`router.back()`) when
+  `router.canGoBack()` (try/catch-guarded), closing the v0.5.189 "modal recovery screen has
+  no Close button" note. `EmptyState` has an optional `children` slot now.
+
+**Discovered and deliberately not done:**
+
+- **Bump is still not disabled while a row write is in flight.** With functional updates
+  the overlap is now harmless (both writes survive on screen), so gating it would only
+  add friction. Revisit if a row write ever reloads instead of patching.
+- **Go back is not device-verified**, in particular whether `router.canGoBack()` is
+  true inside a per-screen boundary on a modal (it should be — the modal is pushed onto
+  the root stack). If it reads false on device, the link simply does not render.
+- **`npm install` in a fresh pusher worktree** still takes ~1 min; do it before the
+  baseline run (`jest-expo/web` preset not found = no `node_modules`).
+
 ## Shipped in the v0.5.206 session (2026-10-11)
 
 - v0.5.205 — **fix (build):** `expo export --platform web` builds. `metro.config.js`
@@ -344,7 +367,7 @@ onboarding path is the cheapest way to cover that class.
   exposure. If the database fails to open, check `crossOriginIsolated` in the console.
 - **A static host for the web export must send COOP/COEP itself** — the metro
   middleware only covers the dev server. No hosting is configured, so nothing to change.
-- **The exposure-row editors patch `exposuresList` the same stale-closure way**
+- **~~The exposure-row editors patch `exposuresList` the same stale-closure way~~** (fixed v0.5.207)
   (`setExposuresList(exposuresList.map(...))`), but `rowBusy` + one `rowEditLatch`
   already make two row writes impossible at once, so there is no overlap to lose. Only
   matters if a row write ever becomes concurrent with something else that patches the list.
@@ -526,7 +549,7 @@ onboarding path is the cheapest way to cover that class.
 
 **Discovered and deliberately not done:**
 
-- **The recovery screen on a modal has no Close button.** Swipe-to-dismiss works
+- **~~The recovery screen on a modal has no Close button.~~** (fixed v0.5.208) Swipe-to-dismiss works
   on iOS; on Android a modal relies on the hardware back button. A "Go back"
   secondary action (`router.canGoBack()`) on `RouteErrorBoundary` would help, but
   `EmptyState` takes one action, and it wants a device to judge.
