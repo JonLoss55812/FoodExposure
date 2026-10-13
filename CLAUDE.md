@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.208` (`src/lib/constants.ts`). 992 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.209` (`src/lib/constants.ts`). 992 tests pass across
 63 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -266,9 +266,21 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.208
+v0.5.209
 
 ## Changelog
+- v0.5.209 — Perf: **the Foods tab reads two columns of the child's exposure history,
+  not all twelve.** `loadFoods` ran `db.select().from(exposures)` for the selected child —
+  every column (notes, both timestamps, all optional dimensions) of the child's entire,
+  unbounded history — on every focus, while `buildFoodsWithStats` reads only `foodId` and
+  `stage`. Now it projects those two. Measured on a `node:sqlite` + drizzle harness with
+  the shipped migrations, 9,600 exposures (2 children × 120 foods × 40): the tab's load
+  (foods read + exposures read + build) goes **23.1ms → 7.0ms (3.3x)**, stable across
+  runs; the index plan is unchanged, the saving is row materialisation. Device gain not
+  measured (expo-sqlite's per-column bridge cost is, if anything, higher). The real-SQL
+  `foods-family-scope.test.tsx` covers it: projecting the wrong column fails 2 tests.
+  Report and bench source in `.planning/pusher/performance-2026-10-13.md`. 992 tests pass
+  across 63 suites. TypeScript clean.
 - v0.5.208 — Fix: **the crash-recovery screen offers "Go back" when there is somewhere
   to go.** On a modal (food/child detail and add) "Try again" re-renders the same broken
   screen, and Android has no swipe-to-dismiss, so a persistent crash left the hardware

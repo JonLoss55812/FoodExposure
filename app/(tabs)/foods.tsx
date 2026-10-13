@@ -48,10 +48,17 @@ export default function FoodsScreen() {
         .where(eq(schema.foods.familyId, familyId))
         .orderBy(asc(schema.foods.name));
 
-      // Load ALL exposures for selected child in one query
-      let allExposures: (typeof schema.exposures.$inferSelect)[] = [];
+      // Load ALL exposures for selected child in one query. Project only the
+      // two columns buildFoodsWithStats reads: this is the child's whole
+      // history, and materialising every column (notes, two timestamps…) of
+      // every row made this read ~3x slower (measured v0.5.209).
+      let allExposures: { foodId: string; stage: string }[] = [];
       if (selectedChildId) {
-        allExposures = await db.select().from(schema.exposures)
+        allExposures = await db.select({
+          foodId: schema.exposures.foodId,
+          stage: schema.exposures.stage,
+        })
+          .from(schema.exposures)
           .where(eq(schema.exposures.childId, selectedChildId));
       }
 
