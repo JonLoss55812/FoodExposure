@@ -306,13 +306,14 @@ describe('FoodsScreen', () => {
       await click('Merge duplicates of Apple');
       await confirmAlert(alertSpy, 'Merge');
 
-      // mergeFoods issues its five writes; the last is the source row delete.
-      await waitFor(() => expect(mockDb.writes.length).toBe(5));
+      // mergeFoods issues its six writes; the last is the source row delete.
+      await waitFor(() => expect(mockDb.writes.length).toBe(6));
       expect(mockDb.writes.map((w) => w.kind)).toEqual([
         'update',
         'update',
         'update',
         'delete',
+        'update',
         'delete',
       ]);
       // The exposures reassignment moves rows onto the *surviving* row.

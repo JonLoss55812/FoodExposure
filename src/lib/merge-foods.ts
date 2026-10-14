@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 import * as schema from '@/src/db/schema';
@@ -43,6 +43,13 @@ export interface MergeFoodsDb {
  * rewriting both columns can turn a legitimate source->target chain into a
  * self-referential `target -> target` row that means nothing. Those are swept
  * before the source row goes — only the survivor's, never another family's.
+ *
+ * Step 5 carries the twin's food-level fields onto the survivor where that
+ * loses nothing: it stays a safe food if **either** row was one (otherwise
+ * merging a pinned twin into an unflagged one silently un-pins the child's
+ * preferred food), and it takes the twin's default preparation only when it
+ * never recorded its own. Name and category stay the survivor's — the parent
+ * picked that row deliberately.
  */
 export async function mergeFoods(
   db: MergeFoodsDb,
@@ -87,6 +94,16 @@ export async function mergeFoods(
         eq(schema.foodChains.targetFoodId, targetFoodId)
       )
     );
+
+  // One statement, so the survivor is never left half-updated. The subqueries
+  // read the source row, which still exists until the next step.
+  await db
+    .update(schema.foods)
+    .set({
+      isSafeFood: sql`max("is_safe_food", coalesce((select "merge_src"."is_safe_food" from "foods" as "merge_src" where "merge_src"."id" = ${sourceFoodId}), 0))`,
+      defaultPreparation: sql`coalesce("default_preparation", (select "merge_src"."default_preparation" from "foods" as "merge_src" where "merge_src"."id" = ${sourceFoodId}))`,
+    })
+    .where(eq(schema.foods.id, targetFoodId));
 
   await db.delete(schema.foods).where(eq(schema.foods.id, sourceFoodId));
 }

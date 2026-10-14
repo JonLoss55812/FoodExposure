@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.210` (`src/lib/constants.ts`). 995 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.211` (`src/lib/constants.ts`). 999 tests pass across
 63 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 995 tests, 63 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 999 tests, 63 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 995 tests, 63 suites
+npm run test         # 999 tests, 63 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -151,7 +151,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **995 tests across 63 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **999 tests across 63 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -215,7 +215,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 995 tests, 63 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 999 tests, 63 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -266,9 +266,22 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.210
+v0.5.211
 
 ## Changelog
+- v0.5.211 — Fix: **merging two foods no longer un-pins a safe food.** `mergeFoods` kept
+  the survivor's food-level fields wholesale (NEXT_STEPS gap #2(b), "a silent choice"),
+  so folding a ⭐ safe-food twin into an unflagged one dropped the child's preferred food
+  out of the pinned Safe Foods row, and a preparation recorded only on the twin vanished.
+  A new step 5, before the source row is deleted, updates the survivor (scoped by its id)
+  in one statement: `is_safe_food = max(own, twin's)` and `default_preparation =
+  coalesce(own, twin's)`. Name and category stay the survivor's — the parent picked that
+  row. +3 real-SQL tests in `cascade-sqlite.test.ts` (twin-only flag and prep carried,
+  another family's food untouched; survivor's own values win; unflagged pair stays
+  unflagged) and +1 unit test pinning the step's scope. The two screen tests that pin
+  the merge's write list now expect six writes. Mutation-verified: dropping the step,
+  reversing the coalesce, taking the twin's flag instead of the max, and scoping by
+  `familyId` each fail 1–2 tests. 999 tests pass across 63 suites. TypeScript clean.
 - v0.5.210 — Fix: **the CSV export's filename names the parent's local day, not the UTC
   one.** `buildExportFilename` read `getUTCFullYear/Month/Date`, so a morning export in
   UTC+10 was named for yesterday and an evening export in UTC-5 for tomorrow — the same

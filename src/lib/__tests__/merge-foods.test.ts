@@ -49,8 +49,20 @@ describe('mergeFoods', () => {
       'update:foodChains',
       'update:foodChains',
       'delete:foodChains',
+      'update:foods',
       'delete:foods',
     ]);
+  });
+
+  it("carries the twin's fields onto the survivor only, before the twin is deleted", async () => {
+    const { db, calls } = makeDb();
+    await mergeFoods(db, 'dup', 'keep');
+
+    // What the SQL does to rows is pinned in cascade-sqlite.test.ts; this pins
+    // that the update touches the survivor and nothing else.
+    expect(calls[4].table).toBe(schema.foods);
+    expect(calls[4].condition).toEqual(eq(schema.foods.id, 'keep'));
+    expect(Object.keys(calls[4].values as object).sort()).toEqual(['defaultPreparation', 'isSafeFood']);
   });
 
   it('moves every exposure to the surviving food', async () => {

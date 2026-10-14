@@ -236,7 +236,7 @@ describe('FoodDetailScreen', () => {
       const kinds = mockDb.writes.map((w) => w.kind);
       // Reassignments first, the source row last: a mid-sequence failure must
       // leave a retryable state, not rows whose parent is already gone.
-      expect(kinds).toEqual(['update', 'update', 'update', 'delete', 'delete']);
+      expect(kinds).toEqual(['update', 'update', 'update', 'delete', 'update', 'delete']);
       // The load-bearing half — the exposures move rather than being deleted.
       expect((mockDb.writes[0] as { values: unknown }).values).toEqual({ foodId: 'food-2' });
 

@@ -73,6 +73,43 @@ describe('destructive helpers against real SQLite (foreign keys on)', () => {
     expect(fkViolations(h)).toEqual([]);
   });
 
+  // v0.5.211: the survivor used to keep only its own food-level fields, so
+  // folding a safe-food twin into an unflagged one silently un-pinned the
+  // child's preferred food. Both reductions are lossless: safe if either was,
+  // and the survivor's preparation unless it never recorded one.
+  function foodRow(h: ReturnType<typeof setup>, id: string) {
+    return h.raw
+      .prepare('SELECT is_safe_food AS safe, default_preparation AS prep FROM foods WHERE id = ?')
+      .get(id) as { safe: number; prep: string | null };
+  }
+
+  it('mergeFoods keeps the safe-food flag when only the twin carried it', async () => {
+    const h = setup();
+    h.raw.exec("UPDATE foods SET is_safe_food = 1, default_preparation = 'steamed' WHERE id = 'apple'");
+    await mergeFoods(h.db, 'apple', 'pear');
+
+    expect(foodRow(h, 'pear')).toEqual({ safe: 1, prep: 'steamed' });
+    // Scoped to the survivor: no other family's food is flagged or filled.
+    expect(foodRow(h, 'kiwi')).toEqual({ safe: 0, prep: null });
+    expect(fkViolations(h)).toEqual([]);
+  });
+
+  it("mergeFoods keeps the survivor's own safe flag and preparation", async () => {
+    const h = setup();
+    h.raw.exec("UPDATE foods SET is_safe_food = 1, default_preparation = 'raw' WHERE id = 'pear'");
+    h.raw.exec("UPDATE foods SET default_preparation = 'steamed' WHERE id = 'apple'");
+    await mergeFoods(h.db, 'apple', 'pear');
+
+    expect(foodRow(h, 'pear')).toEqual({ safe: 1, prep: 'raw' });
+  });
+
+  it('mergeFoods leaves an unflagged pair unflagged', async () => {
+    const h = setup();
+    await mergeFoods(h.db, 'apple', 'pear');
+
+    expect(foodRow(h, 'pear')).toEqual({ safe: 0, prep: null });
+  });
+
   it('a parent-first delete is rejected by the constraint, which is what the dependents-first order avoids', async () => {
     // Guards the premise of the tests above: if foreign keys were silently off
     // in this harness, the ordering would be untested.
