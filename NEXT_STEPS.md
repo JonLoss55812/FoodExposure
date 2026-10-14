@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.208 — 992 tests passing across 63 suites, TypeScript clean.
+Reviewed at: v0.5.211 — 999 tests passing across 63 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -326,6 +326,25 @@ is invisible to it. If a dev build is ever available, a smoke run of the
 onboarding path is the cheapest way to cover that class.
 
 `bun.lock` still lists `uuid` (not regenerated, v0.5.143 precedent).
+
+## Shipped in the v0.5.211 session (2026-10-14)
+
+- v0.5.210 — **fix:** the CSV export's *filename* used the UTC day (`getUTC*`), the
+  defect v0.5.166 fixed for the `date` column. Now via `toLocalIsoString`, with the same
+  injectable `offsetMinutes`.
+- v0.5.211 — **fix:** `mergeFoods` keeps the safe-food flag if either twin had it and
+  fills the survivor's missing preparation from the twin (closes gap #2(b)). One extra
+  `update(foods)` step before the source delete; the screen tests now expect six writes.
+
+**Discovered and deliberately not done:**
+
+- **The merge confirm copy still does not mention the field carry-over.** It says
+  "Nothing is lost", which is now closer to true. Category is still the survivor's
+  alone; if two twins disagree on category, the twin's is discarded silently.
+- **Date-of-day surfaces audit:** `grep -rn getUTC app src` now shows only
+  `toLocalIsoString`'s shifted read and the two coarse year bounds in `validation.ts`
+  (130-year DOB, backdate limit) — both intentional. Use local getters, or
+  `toLocalIsoString(...).slice(0, 10)`, for any new date-bucketed surface.
 
 ## Shipped in the v0.5.208 session (2026-10-12)
 
@@ -802,7 +821,7 @@ onboarding path is the cheapest way to cover that class.
    "Brocolli"/"Broccoli", which are two different strings a parent may be
    keeping apart on purpose. If anyone asks for fuzzy matching, that is a
    different feature with a much worse failure mode (folding away a row that
-   was wanted), not a missing case here. (b) The merge keeps the *target* row's category,
+   was wanted), not a missing case here. (b) ~~The merge keeps the *target* row's category,~~ (safe flag and preparation now carried over in v0.5.211; category still the survivor's)
    preparation and `isSafeFood` wholesale and discards the source's. That is
    the right default (the parent picked the surviving name deliberately) and
    all three are now editable in place, but it is a silent choice — worth a
