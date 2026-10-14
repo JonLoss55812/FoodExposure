@@ -168,7 +168,17 @@ export function formatExposuresCsv(
 // trailing hyphen — matches the v0.5.111 deriveLocalEmailPart pattern.
 const EXPORT_FILENAME_SLUG_MAX = 50;
 
-export function buildExportFilename(childName: string, at: Date = new Date()): string {
+/**
+ * `offsetMinutes` is minutes ahead of UTC, as in `toLocalIsoString`, and
+ * defaults to the device's own offset. The date is the **local** calendar day,
+ * so the filename agrees with the CSV's `date` column (v0.5.166) instead of
+ * naming yesterday or tomorrow for most of the world.
+ */
+export function buildExportFilename(
+  childName: string,
+  at: Date = new Date(),
+  offsetMinutes?: number | null
+): string {
   const safeName = typeof childName === 'string' ? childName : '';
   const slug = safeName
     .toLowerCase()
@@ -179,10 +189,8 @@ export function buildExportFilename(childName: string, at: Date = new Date()): s
     .replace(/-+$/, '');
   const safeSlug = slug.length > 0 ? slug : 'child';
   const safeAt = at instanceof Date && !Number.isNaN(at.getTime()) ? at : new Date();
-  const yyyy = safeAt.getUTCFullYear();
-  const mm = String(safeAt.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(safeAt.getUTCDate()).padStart(2, '0');
-  return `tonguetutor-${safeSlug}-${yyyy}${mm}${dd}.csv`;
+  const ymd = toLocalIsoString(safeAt, offsetMinutes).slice(0, 10).replace(/-/g, '');
+  return `tonguetutor-${safeSlug}-${ymd}.csv`;
 }
 
 export async function fetchExportRows(childId: string): Promise<ExposureRow[]> {

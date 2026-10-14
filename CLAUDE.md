@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.209` (`src/lib/constants.ts`). 992 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.210` (`src/lib/constants.ts`). 995 tests pass across
 63 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 992 tests, 63 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 995 tests, 63 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 992 tests, 63 suites
+npm run test         # 995 tests, 63 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -151,7 +151,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **992 tests across 63 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **995 tests across 63 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -215,7 +215,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 992 tests, 63 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 995 tests, 63 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -266,9 +266,19 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.209
+v0.5.210
 
 ## Changelog
+- v0.5.210 — Fix: **the CSV export's filename names the parent's local day, not the UTC
+  one.** `buildExportFilename` read `getUTCFullYear/Month/Date`, so a morning export in
+  UTC+10 was named for yesterday and an evening export in UTC-5 for tomorrow — the same
+  defect v0.5.166 fixed for the CSV's own `date` column, left behind in the filename a
+  therapist sorts their downloads by. It now takes the date from `toLocalIsoString`, with
+  the same optional `offsetMinutes` (minutes ahead of UTC, default the device's) so the
+  rendering is testable without flipping the host timezone (jsdom ignores `TZ` writes).
+  The existing format tests now pin offset 0; +3 tests (UTC+10 morning, UTC-5 evening,
+  device default at 23:30 local). Reverting to the UTC getters fails all 3. 995 tests pass
+  across 63 suites. TypeScript clean.
 - v0.5.209 — Perf: **the Foods tab reads two columns of the child's exposure history,
   not all twelve.** `loadFoods` ran `db.select().from(exposures)` for the selected child —
   every column (notes, both timestamps, all optional dimensions) of the child's entire,

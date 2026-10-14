@@ -331,17 +331,17 @@ describe('formatExposuresCsv', () => {
 
 describe('buildExportFilename', () => {
   it('lowercases and hyphenates child name with YYYYMMDD suffix', () => {
-    const name = buildExportFilename('Ada Lovelace', iso('2026-04-18T09:00:00.000Z'));
+    const name = buildExportFilename('Ada Lovelace', iso('2026-04-18T09:00:00.000Z'), 0);
     expect(name).toBe('tonguetutor-ada-lovelace-20260418.csv');
   });
 
   it('strips punctuation and collapses whitespace', () => {
-    const name = buildExportFilename("Miles O'Brien, Jr.", iso('2026-01-02T00:00:00.000Z'));
+    const name = buildExportFilename("Miles O'Brien, Jr.", iso('2026-01-02T00:00:00.000Z'), 0);
     expect(name).toBe('tonguetutor-miles-obrien-jr-20260102.csv');
   });
 
   it('falls back to "child" for empty names', () => {
-    const name = buildExportFilename('   ', iso('2026-07-04T00:00:00.000Z'));
+    const name = buildExportFilename('   ', iso('2026-07-04T00:00:00.000Z'), 0);
     expect(name).toBe('tonguetutor-child-20260704.csv');
   });
 
@@ -366,16 +366,16 @@ describe('buildExportFilename', () => {
     const parsed = new Date(`${yyyy}-${mm}-${dd}T00:00:00Z`);
     expect(Number.isNaN(parsed.getTime())).toBe(false);
     // Window check: the fallback was taken within the test span.
-    const beforeUtc = new Date(before);
-    const afterUtc = new Date(after);
-    const beforeYmd = `${beforeUtc.getUTCFullYear()}${String(beforeUtc.getUTCMonth() + 1).padStart(2, '0')}${String(beforeUtc.getUTCDate()).padStart(2, '0')}`;
-    const afterYmd = `${afterUtc.getUTCFullYear()}${String(afterUtc.getUTCMonth() + 1).padStart(2, '0')}${String(afterUtc.getUTCDate()).padStart(2, '0')}`;
+    const beforeLocal = new Date(before);
+    const afterLocal = new Date(after);
+    const beforeYmd = `${beforeLocal.getFullYear()}${String(beforeLocal.getMonth() + 1).padStart(2, '0')}${String(beforeLocal.getDate()).padStart(2, '0')}`;
+    const afterYmd = `${afterLocal.getFullYear()}${String(afterLocal.getMonth() + 1).padStart(2, '0')}${String(afterLocal.getDate()).padStart(2, '0')}`;
     const filenameYmd = `${yyyy}${mm}${dd}`;
     expect(filenameYmd >= beforeYmd && filenameYmd <= afterYmd).toBe(true);
   });
 
   it('passes through a valid Date unchanged (regression lock for the happy path)', () => {
-    const name = buildExportFilename('Emma', iso('2026-05-10T00:00:00.000Z'));
+    const name = buildExportFilename('Emma', iso('2026-05-10T00:00:00.000Z'), 0);
     expect(name).toBe('tonguetutor-emma-20260510.csv');
   });
 
@@ -387,7 +387,7 @@ describe('buildExportFilename', () => {
   // applied AFTER sanitize so the slug is provably valid by construction.
   it('caps slug at 50 chars when given a long childName', () => {
     const longName = 'a'.repeat(200);
-    const name = buildExportFilename(longName, iso('2026-05-10T00:00:00.000Z'));
+    const name = buildExportFilename(longName, iso('2026-05-10T00:00:00.000Z'), 0);
     // tonguetutor-<50 chars>-20260510.csv
     expect(name).toBe(`tonguetutor-${'a'.repeat(50)}-20260510.csv`);
   });
@@ -396,7 +396,7 @@ describe('buildExportFilename', () => {
     // 'a'*48 + ' suffix' (55 chars) → sanitized to 'aaaa…aaaa-suffix'
     // → sliced to 50 chars → 'aaaa…aaaa-s' (48 a's + '-' + 's').
     // Trailing 's' is not a hyphen so the sweep is a no-op here.
-    const name = buildExportFilename('a'.repeat(48) + ' suffix', iso('2026-05-10T00:00:00.000Z'));
+    const name = buildExportFilename('a'.repeat(48) + ' suffix', iso('2026-05-10T00:00:00.000Z'), 0);
     expect(name).toBe(`tonguetutor-${'a'.repeat(48)}-s-20260510.csv`);
   });
 
@@ -404,13 +404,13 @@ describe('buildExportFilename', () => {
     // 'a'*49 + ' ' + 'b' → 'aaaa…aaaa-b' (51 chars). Slice(0,50) leaves
     // 'aaaa…aaaa-' (50 chars ending in hyphen). The trailing-hyphen sweep
     // strips it so the filename never has a dangling -.
-    const name = buildExportFilename('a'.repeat(49) + ' b', iso('2026-05-10T00:00:00.000Z'));
+    const name = buildExportFilename('a'.repeat(49) + ' b', iso('2026-05-10T00:00:00.000Z'), 0);
     expect(name).toBe(`tonguetutor-${'a'.repeat(49)}-20260510.csv`);
     expect(name).not.toContain('--');
   });
 
   it('preserves names at exactly the cap (boundary)', () => {
-    const name = buildExportFilename('a'.repeat(50), iso('2026-05-10T00:00:00.000Z'));
+    const name = buildExportFilename('a'.repeat(50), iso('2026-05-10T00:00:00.000Z'), 0);
     expect(name).toBe(`tonguetutor-${'a'.repeat(50)}-20260510.csv`);
   });
 
@@ -424,23 +424,44 @@ describe('buildExportFilename', () => {
   // v0.5.113 (slug length cap): every present and future caller of
   // buildExportFilename is provably safe regardless of input type.
   it('falls back to "child" when childName is null', () => {
-    const name = buildExportFilename(null as unknown as string, iso('2026-05-10T00:00:00.000Z'));
+    const name = buildExportFilename(null as unknown as string, iso('2026-05-10T00:00:00.000Z'), 0);
     expect(name).toBe('tonguetutor-child-20260510.csv');
   });
 
   it('falls back to "child" when childName is undefined', () => {
-    const name = buildExportFilename(undefined as unknown as string, iso('2026-05-10T00:00:00.000Z'));
+    const name = buildExportFilename(undefined as unknown as string, iso('2026-05-10T00:00:00.000Z'), 0);
     expect(name).toBe('tonguetutor-child-20260510.csv');
   });
 
   it('falls back to "child" when childName is a number', () => {
-    const name = buildExportFilename(42 as unknown as string, iso('2026-05-10T00:00:00.000Z'));
+    const name = buildExportFilename(42 as unknown as string, iso('2026-05-10T00:00:00.000Z'), 0);
     expect(name).toBe('tonguetutor-child-20260510.csv');
   });
 
   it('falls back to "child" when childName is an object', () => {
-    const name = buildExportFilename({} as unknown as string, iso('2026-05-10T00:00:00.000Z'));
+    const name = buildExportFilename({} as unknown as string, iso('2026-05-10T00:00:00.000Z'), 0);
     expect(name).toBe('tonguetutor-child-20260510.csv');
+  });
+
+  // v0.5.210: the filename's date is the parent's *local* calendar day, the
+  // same day the CSV's own `date` column names (v0.5.166). Reading the UTC
+  // getters named yesterday for a morning export east of Greenwich and
+  // tomorrow for an evening export west of it.
+  it('names the local day when it is already tomorrow in UTC+10', () => {
+    // 2026-05-09T22:30Z is 08:30 on 10 May in UTC+10.
+    const name = buildExportFilename('Emma', iso('2026-05-09T22:30:00.000Z'), 600);
+    expect(name).toBe('tonguetutor-emma-20260510.csv');
+  });
+
+  it('names the local day when it is still yesterday in UTC-5', () => {
+    // 2026-05-11T01:00Z is 20:00 on 10 May in UTC-5.
+    const name = buildExportFilename('Emma', iso('2026-05-11T01:00:00.000Z'), -300);
+    expect(name).toBe('tonguetutor-emma-20260510.csv');
+  });
+
+  it("defaults to the device's own calendar day", () => {
+    const at = new Date(2026, 4, 10, 23, 30);
+    expect(buildExportFilename('Emma', at)).toBe('tonguetutor-emma-20260510.csv');
   });
 });
 
