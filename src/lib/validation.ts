@@ -1,7 +1,5 @@
 import { z } from 'zod';
-import { isValidInviteCode, MAX_BACKDATE_YEARS } from './utils';
-
-const DAY_MS = 24 * 60 * 60 * 1000;
+import { getStartOfDay, isValidInviteCode, MAX_BACKDATE_YEARS } from './utils';
 
 const optionalTrimmedText = (max: number, label: string) =>
   z.string()
@@ -106,12 +104,14 @@ export const exposureSchema = z.object({
     .refine(
       (val) => {
         if (!val || !/^\d{4}-\d{2}-\d{2}$/.test(val)) return true;
-        const d = new Date(`${val}T00:00:00Z`);
-        if (Number.isNaN(d.getTime())) return true;
-        // UTC midnight of the named day; a same-day log in a zone ahead of UTC
-        // must not be rejected as "future", so compare against the end of the
-        // named UTC day rather than its start.
-        return d.getTime() - DAY_MS < Date.now();
+        // Compare calendar days on the parent's own calendar: the date is
+        // stored at local midnight by `resolveOccurredAt`, so any day after
+        // today's local date would be a future-dated exposure. (A UTC-midnight
+        // bound with a day of slack accepted tomorrow in nearly every zone.)
+        const [year, month, day] = val.split('-').map(Number);
+        const named = new Date(year, month - 1, day);
+        if (Number.isNaN(named.getTime())) return true;
+        return named.getTime() <= getStartOfDay().getTime();
       },
       { message: 'Date cannot be in the future' }
     )

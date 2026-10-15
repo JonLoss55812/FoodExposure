@@ -1079,9 +1079,12 @@ describe('whitespace handling on optional string fields', () => {
 
 describe('exposureSchema.occurredOn (backdating, v0.5.164)', () => {
   const base = { childId: 'c1', foodId: 'f1', stage: 'eat' as const };
+  // Local getters: the field names a day on the parent's calendar, which is
+  // how `resolveOccurredAt` reads it. A UTC rendering of "now" is tomorrow's
+  // date for every user west of Greenwich in the evening.
   const ymd = (d: Date) =>
-    `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(
-      d.getUTCDate()
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+      d.getDate()
     ).padStart(2, '0')}`;
 
   it('is optional — an absent or blank date parses cleanly', () => {
@@ -1113,6 +1116,30 @@ describe('exposureSchema.occurredOn (backdating, v0.5.164)', () => {
     if (!result.success) {
       expect(result.error.issues[0]?.message).toBe('Date cannot be in the future');
     }
+  });
+
+  describe('the future bound is the local calendar day (v0.5.212)', () => {
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    // The previous bound compared the named day's UTC midnight against
+    // `Date.now() + 1 day`, so tomorrow's date was accepted in nearly every
+    // zone and resolved to local midnight tomorrow: a future-dated exposure.
+    it.each([
+      ['late evening', 23, 30],
+      ['early morning', 0, 30],
+      ['midday', 12, 0],
+    ])('rejects tomorrow and accepts today in the %s', (_label, hour, minute) => {
+      jest.useFakeTimers({ now: new Date(2026, 9, 14, hour, minute) });
+      const tomorrow = exposureSchema.safeParse({ ...base, occurredOn: '2026-10-15' });
+      expect(tomorrow.success).toBe(false);
+      if (!tomorrow.success) {
+        expect(tomorrow.error.issues[0]?.message).toBe('Date cannot be in the future');
+      }
+      expect(exposureSchema.safeParse({ ...base, occurredOn: '2026-10-14' }).success).toBe(true);
+      expect(exposureSchema.safeParse({ ...base, occurredOn: '2026-10-13' }).success).toBe(true);
+    });
   });
 
   it('rejects a date far enough in the past to be a year typo', () => {

@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.211` (`src/lib/constants.ts`). 999 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.212` (`src/lib/constants.ts`). 1002 tests pass across
 63 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -266,9 +266,21 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.211
+v0.5.212
 
 ## Changelog
+- v0.5.212 — Fix: **a backdated exposure can no longer be dated tomorrow.**
+  `exposureSchema.occurredOn`'s not-in-the-future refine compared the named day's *UTC*
+  midnight against `Date.now()` plus a day of slack, so tomorrow's date passed in nearly
+  every zone (west of UTC, always) and `resolveOccurredAt` then stored it at local
+  midnight tomorrow — a future-dated row that `formatRelativeDate` labels "Today" and the
+  CSV dates a day ahead. Applies to the Log form and the per-row date editor (both
+  validate through this field). The refine now parses the day at local midnight, as
+  `resolveOccurredAt` does, and requires it to be at or before `getStartOfDay()`. The
+  existing "accepts today" test built its date with UTC getters — itself tomorrow's date
+  in the evening west of UTC — and now uses local ones. +3 tests (late evening, early
+  morning, midday under fake timers: tomorrow rejected, today and yesterday accepted);
+  all 3 fail against the old refine. 1002 tests pass across 63 suites. TypeScript clean.
 - v0.5.211 — Fix: **merging two foods no longer un-pins a safe food.** `mergeFoods` kept
   the survivor's food-level fields wholesale (NEXT_STEPS gap #2(b), "a silent choice"),
   so folding a ⭐ safe-food twin into an unflagged one dropped the child's preferred food
