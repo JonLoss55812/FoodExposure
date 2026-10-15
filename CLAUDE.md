@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.212` (`src/lib/constants.ts`). 1002 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.213` (`src/lib/constants.ts`). 1005 tests pass across
 63 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 999 tests, 63 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 1005 tests, 63 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 999 tests, 63 suites
+npm run test         # 1005 tests, 63 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -151,7 +151,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **999 tests across 63 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **1005 tests across 63 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -215,7 +215,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 999 tests, 63 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 1005 tests, 63 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -266,9 +266,22 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.212
+v0.5.213
 
 ## Changelog
+- v0.5.213 — Fix: **a child's date-of-birth bound agrees with the age it renders.**
+  `childSchema.dateOfBirth`'s not-in-the-future refine compared the day's *UTC* midnight
+  with the current instant, while `formatChildAge` (Settings rows, CSV `age_months`)
+  parses it at local midnight. West of UTC, tomorrow's date passed in the evening and the
+  child then showed no age anywhere; east of UTC, a same-day birth was rejected in the
+  morning. Both future bounds (this one and v0.5.212's `occurredOn`) now go through one
+  private `isNotAfterLocalToday` helper in `validation.ts`. The "accepts today" helper in
+  the DOB future-guard tests used UTC getters and now uses local ones. +3 tests that, at
+  three times of day under fake timers, pin that today is accepted *and* ages, and
+  tomorrow is rejected *and* does not; the late-evening case (and the existing tomorrow
+  test, once its helper is local) fail against the old refine on this host (UTC-5) —
+  on a UTC host they would pass either way, so the east-of-UTC half is held by the
+  shared helper rather than a test. 1005 tests pass across 63 suites. TypeScript clean.
 - v0.5.212 — Fix: **a backdated exposure can no longer be dated tomorrow.**
   `exposureSchema.occurredOn`'s not-in-the-future refine compared the named day's *UTC*
   midnight against `Date.now()` plus a day of slack, so tomorrow's date passed in nearly

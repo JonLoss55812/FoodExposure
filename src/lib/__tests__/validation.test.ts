@@ -6,6 +6,7 @@ import {
   registerSchema,
   joinFamilySchema,
 } from '../validation';
+import { formatChildAge } from '../utils';
 
 describe('childSchema', () => {
   it('accepts valid child data', () => {
@@ -878,10 +879,11 @@ describe('childSchema.dateOfBirth format validation', () => {
 });
 
 describe('childSchema.dateOfBirth future-date guard', () => {
+  // Local getters: the bound is the parent's calendar day (v0.5.213).
   const yyyymmdd = (d: Date): string => {
-    const yyyy = d.getUTCFullYear();
-    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
-    const dd = String(d.getUTCDate()).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   };
 
@@ -898,6 +900,36 @@ describe('childSchema.dateOfBirth future-date guard', () => {
     if (!result.success) {
       expect(result.error.issues[0].message).toBe('Date of birth cannot be in the future');
     }
+  });
+
+  describe('the bound is the local calendar day, agreeing with formatChildAge (v0.5.213)', () => {
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    // The old bound compared the named day's UTC midnight to the instant, so
+    // west of UTC tomorrow's date passed in the evening — and formatChildAge,
+    // which parses at local midnight, then rendered no age for that child.
+    // East of UTC the same bound rejected a same-day birth in the morning.
+    it.each([
+      ['late evening', 23, 30],
+      ['early morning', 0, 30],
+      ['midday', 12, 0],
+    ])('in the %s, accepts exactly the dates formatChildAge can age', (_label, hour, minute) => {
+      const now = new Date(2026, 9, 14, hour, minute);
+      jest.useFakeTimers({ now });
+
+      const today = childSchema.safeParse({ name: 'Emma', dateOfBirth: '2026-10-14' });
+      expect(today.success).toBe(true);
+      expect(formatChildAge('2026-10-14', now)).not.toBeNull();
+
+      const tomorrow = childSchema.safeParse({ name: 'Emma', dateOfBirth: '2026-10-15' });
+      expect(tomorrow.success).toBe(false);
+      if (!tomorrow.success) {
+        expect(tomorrow.error.issues[0].message).toBe('Date of birth cannot be in the future');
+      }
+      expect(formatChildAge('2026-10-15', now)).toBeNull();
+    });
   });
 
   it('rejects a far-future date (2099-05-07)', () => {

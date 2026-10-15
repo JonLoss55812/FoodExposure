@@ -1,6 +1,21 @@
 import { z } from 'zod';
 import { getStartOfDay, isValidInviteCode, MAX_BACKDATE_YEARS } from './utils';
 
+/**
+ * True when a `YYYY-MM-DD` string names today or an earlier day on the
+ * parent's own calendar. Both date fields are read back at local midnight
+ * (`resolveOccurredAt`, `formatChildAge`), so the future bound must compare
+ * local calendar days too — a UTC-midnight comparison lets tomorrow through
+ * west of Greenwich and turns today away east of it. Malformed input returns
+ * true so the format refine owns that message.
+ */
+function isNotAfterLocalToday(val: string): boolean {
+  const [year, month, day] = val.split('-').map(Number);
+  const named = new Date(year, month - 1, day);
+  if (Number.isNaN(named.getTime())) return true;
+  return named.getTime() <= getStartOfDay().getTime();
+}
+
 const optionalTrimmedText = (max: number, label: string) =>
   z.string()
     .optional()
@@ -30,9 +45,7 @@ export const childSchema = z.object({
       (val) => {
         if (!val) return true;
         if (!/^\d{4}-\d{2}-\d{2}$/.test(val)) return true;
-        const d = new Date(`${val}T00:00:00Z`);
-        if (Number.isNaN(d.getTime())) return true;
-        return d.getTime() <= Date.now();
+        return isNotAfterLocalToday(val);
       },
       { message: 'Date of birth cannot be in the future' }
     )
@@ -104,14 +117,7 @@ export const exposureSchema = z.object({
     .refine(
       (val) => {
         if (!val || !/^\d{4}-\d{2}-\d{2}$/.test(val)) return true;
-        // Compare calendar days on the parent's own calendar: the date is
-        // stored at local midnight by `resolveOccurredAt`, so any day after
-        // today's local date would be a future-dated exposure. (A UTC-midnight
-        // bound with a day of slack accepted tomorrow in nearly every zone.)
-        const [year, month, day] = val.split('-').map(Number);
-        const named = new Date(year, month - 1, day);
-        if (Number.isNaN(named.getTime())) return true;
-        return named.getTime() <= getStartOfDay().getTime();
+        return isNotAfterLocalToday(val);
       },
       { message: 'Date cannot be in the future' }
     )

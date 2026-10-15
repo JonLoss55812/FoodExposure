@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.211 — 999 tests passing across 63 suites, TypeScript clean.
+Reviewed at: v0.5.213 — 1005 tests passing across 63 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -326,6 +326,26 @@ is invisible to it. If a dev build is ever available, a smoke run of the
 onboarding path is the cheapest way to cover that class.
 
 `bun.lock` still lists `uuid` (not regenerated, v0.5.143 precedent).
+
+## Shipped in the v0.5.213 session (2026-10-14)
+
+- v0.5.212 — **fix:** `exposureSchema.occurredOn`'s future bound let **tomorrow** through
+  in nearly every zone (UTC midnight vs `now + 1 day`), and `resolveOccurredAt` stored it
+  at local midnight tomorrow. Affected the Log form and the per-row date editor.
+- v0.5.213 — **fix:** `childSchema.dateOfBirth`'s future bound had the same UTC/local
+  mismatch with `formatChildAge`. Both now use a private `isNotAfterLocalToday` helper.
+
+**Discovered and deliberately not done:**
+
+- **Timezone-dependent tests:** the new tests use `jest.useFakeTimers({ now: new Date(y, m, d, h) })`
+  with local constructors, so they are zone-portable — but whether they *fail* against a
+  regression depends on the host offset (this host is UTC-5). jsdom ignores `TZ` writes
+  (v0.5.166), so there is no cheap way to run the east-of-UTC case. If you want it,
+  inject "today" into the refine instead — not worth it for a 1-line helper.
+- **The lower bounds** (`MAX_BACKDATE_YEARS`, 130-year DOB) still compare UTC instants;
+  off by at most a day at a decades-old boundary — harmless, left alone.
+- **Older tests built "today" with UTC getters** (two were fixed here). `grep -rn getUTC
+  app src --include=*.test.*` before trusting a date fixture that runs in the evening.
 
 ## Shipped in the v0.5.211 session (2026-10-14)
 
