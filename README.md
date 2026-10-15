@@ -21,12 +21,12 @@ Local-only. All data is stored in on-device SQLite; **nothing syncs to a server.
 account system — "signing in" creates a local family record with an invite code. The
 code is never displayed, and Join Family only finds families on the same device.
 
-In-app version: `v0.5.191` (`src/lib/constants.ts`). 936 tests across 51 suites.
+In-app version: `v0.5.213` (`src/lib/constants.ts`). 1005 tests across 63 suites.
 
 ## Requirements
 
-- **Node.js 22+** — one test suite (`src/db/__tests__/migration.test.ts`) imports the built-in
-  `node:sqlite` module.
+- **Node.js 22+** — the real-SQL tests (`src/db/__tests__/`, and every suite built on
+  `src/test-utils/sqlite-db.ts`) import the built-in `node:sqlite` module.
 - **npm** (or Bun — `bun.lock` is committed, but npm is what recent work has used).
 - For iOS/Android: Xcode / Android Studio. **Expo Go will not work** — Unistyles 3.1 requires
   NitroModules, so the native targets need a development build.
@@ -39,14 +39,17 @@ npm install
 
 No flags needed. `node_modules/` and `package-lock.json` are gitignored.
 
-`npm install` reports ~19 moderate advisories. These are **not** fixable — see the v0.5.165
-entry in `CLAUDE.md`; the root advisories have no patched version published upstream, and the
-one that does (`decode-uri-component`) ships ESM-only against a CommonJS consumer.
+`npm audit` reports 59 advisories (13 moderate, 46 high) from 5 root packages. None is
+fixable, and all five are in build/test tooling rather than the app bundle — see "Known
+Limitations" and the v0.5.204 changelog entry in `CLAUDE.md`. Do not run `npm audit fix
+--force`; its "fix" for `esbuild` is a drizzle-kit downgrade.
 
 ## Configure
 
-**Configuration is entirely optional.** The app runs with no `.env` at all. Copy
-`.env.example` to `.env` only if you want telemetry or plan to wire the backend:
+**Configuration is entirely optional.** The app runs with no `.env` at all. To enable
+telemetry, copy `.env.example` to `.env` and uncomment the variables you have real values
+for. Every line in it is commented out on purpose: a placeholder value is not "unset" — a
+fake PostHog key, for example, would initialise PostHog.
 
 | Variable | Read by | If unset |
 |----------|---------|----------|
@@ -54,8 +57,6 @@ one that does (`decode-uri-component`) ships ESM-only against a CommonJS consume
 | `EXPO_PUBLIC_POSTHOG_API_KEY` | `src/lib/posthog.ts` | PostHog init is skipped |
 | `EXPO_PUBLIC_POSTHOG_HOST` | `src/lib/posthog.ts` | Defaults to `https://us.i.posthog.com` |
 | `EXPO_PUBLIC_CONVEX_URL` | `src/providers/ConvexProvider.tsx` | Falls back to a placeholder URL — harmless, nothing queries Convex |
-
-The `SENDY_*` entries in `.env.example` are read by nothing in this repo.
 
 ## Run
 
@@ -66,13 +67,20 @@ npm run android    # expo start --android  (needs a dev build, not Expo Go)
 npm start          # expo start
 ```
 
+**Web caveat.** expo-sqlite on web needs a cross-origin-isolated page, which takes the
+headers `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy:
+credentialless` **on the HTML document**. `metro.config.js` sets them, but under `npm run
+web` they reach only Metro's bundle responses: the HTML at `/` is served without them
+(checked with `curl`, 2026-10-15). So the database may not open in the browser. A static build
+from `npx expo export --platform web` needs its host to send both headers.
+
 On first launch you land in onboarding: create a family, then add a child. From there the
 five tabs are Dashboard, Log, Foods, Progress and Settings.
 
 ## Test
 
 ```bash
-npm run test           # 824 tests, 42 suites
+npm run test           # 1005 tests, 63 suites
 npm run test:watch
 npm run test:coverage
 npx tsc --noEmit       # type check — run this too; it catches things the tests do not
@@ -96,12 +104,12 @@ in `__tests__/` directories next to the code they cover.
 app/        Expo Router pages — (tabs)/, food/, child/, onboarding/
 src/
   components/   Shared UI
-  db/           Drizzle schema + the migration SQL, executed on boot
+  db/           Drizzle schema + numbered migration steps, run on boot (migrate.ts)
   lib/          Pure helpers — most of the test suite targets these
   providers/    Convex, React Query, Database
   stores/       zustand + MMKV (auth, selected child, settings)
   styles/       Unistyles theme
-  test-utils/   Mock db + screen-test helpers
+  test-utils/   Mock db, real in-memory SQLite db, screen-test helpers
 convex/     Scaffolded backend — not called by the app
 ```
 

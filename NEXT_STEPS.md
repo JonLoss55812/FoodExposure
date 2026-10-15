@@ -13,6 +13,16 @@ behind a pre-existing failure.
 > covered. **Before picking work from the gap list, check `git log` and
 > `find app -name '*.test.tsx'` against the claim you are about to act on.**
 
+## Docs session (2026-10-15): correction to the v0.5.205 web claims
+
+The v0.5.206 session below says `metro.config.js` "sends COOP/COEP headers from the dev
+server". `curl` against `npm run web` shows they reach only Metro's **bundle** responses. The
+HTML document at `/` is served without them, and cross-origin isolation is decided by the
+document. So expo-sqlite on web probably still cannot open. Next step: load the page,
+check `crossOriginIsolated` in the console, and if it is false, add the headers to the
+document response. Expo CLI serves the HTML outside Metro's `enhanceMiddleware`, so that
+fix has to happen somewhere else. Details in `.planning/pusher/documentation-2026-10-15.md`.
+
 ## Status of the original plan (v0.1.0 review)
 
 All five priorities from the original review have shipped:

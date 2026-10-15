@@ -59,12 +59,12 @@ app/                       # Expo Router pages (tests colocated in __tests__/)
 
 src/
 ├── components/            Button, FoodCard, ExposureCard, StageIndicator, ProgressBar, …
-├── db/                    client.ts, schema.ts (Drizzle), migration.ts (MIGRATION_SQL)
+├── db/                    client.ts, schema.ts (Drizzle), migration.ts (SQL), migrate.ts (runner)
 ├── lib/                   Pure helpers — the bulk of the test suite lives against these
-├── providers/             Convex, React Query, Database (runs MIGRATION_SQL on boot)
+├── providers/             Convex, React Query, Database (runs runMigrations, then FKs on)
 ├── stores/                zustand + MMKV: auth-store, child-store, settings-store
 ├── styles/                Unistyles theme + contrast tests
-└── test-utils/            mock-db.ts, screen-helpers.tsx (excluded from coverage)
+└── test-utils/            mock-db.ts, sqlite-db.ts, screen-helpers.tsx (excluded from coverage)
 
 convex/                    Scaffolded backend — not called by the app
 ```
@@ -95,8 +95,9 @@ npm start            # expo start
 Unistyles 3.1 needs NitroModules, so **Expo Go will not work** — `npm run ios` / `npm run
 android` build a dev client. Only `npm run web` runs without native tooling.
 
-Configuration is optional. Copy `.env.example` to `.env` if you want telemetry or Convex;
-every one of these is safe to leave unset:
+Configuration is optional. To enable telemetry, copy `.env.example` to `.env` and uncomment the
+variables you have real values for. Every line ships commented out, because a placeholder
+value is not "unset" (a fake PostHog key would initialise PostHog). All are safe to leave unset:
 
 | Variable | Read by | If unset |
 |----------|---------|----------|
@@ -123,6 +124,13 @@ every one of these is safe to leave unset:
   its own transaction. Step 1 is the frozen baseline `MIGRATION_SQL` — **never edit it**;
   append a step (`ALTER TABLE … ADD COLUMN …`). The `CHECK` constraints from
   v0.5.123–v0.5.131 predate this and remain fresh-install-only.
+- **`src/db/migrations/0000_init.sql` is not executed.** It is drizzle-kit output from the
+  initial commit (`drizzle.config.ts` points `out` there) and has none of the later CHECKs or
+  indexes. The boot schema is `MIGRATIONS` in `src/db/migration.ts`. Do not edit the `.sql`
+  file expecting an effect.
+- **`.planning/` is gitignored.** Pusher reports there must be committed with `git add -f`,
+  or they never leave the worktree. Earlier sessions cited `dependencies-2026-10-10.md` and
+  `performance-2026-10-13.md` without committing them, so those files do not exist.
 - **Foreign keys are enforced** (v0.5.193): `DatabaseProvider` runs
   `PRAGMA foreign_keys = ON` after the migrations. Deletes must go dependents-first
   (use `src/lib/cascade-delete.ts`); a parent-first delete now throws. For a test that
@@ -201,14 +209,18 @@ configured.
   (`deriveLocalEmailPart`) and `users.email` has no UNIQUE constraint.
 - **Charts are simple** — bars and tiles, no time-series plots.
 - **Date entry is free text** (`YYYY-MM-DD`), not a picker; no date-picker package is installed.
-- **`npm audit` reports 59 advisories from 5 roots, none fixable** (v0.5.204; full reasoning
-  in `.planning/pusher/dependencies-2026-10-10.md`). `braces`, `node-forge` and `sprintf-js`
+- **`npm audit` reports 59 advisories from 5 roots, none fixable** (v0.5.204; reasoning in that
+  changelog entry). `braces`, `node-forge` and `sprintf-js`
   have no patched release; `decode-uri-component`'s fix is ESM-only (v0.5.165); `esbuild`'s
   "fix" is a drizzle-kit downgrade. All five are in build/test tooling, not the app bundle.
-- **The web export needs COOP/COEP headers from its host.** Since v0.5.205
-  `expo export --platform web` builds, and the dev server sends the headers, but a static
-  host must also send `Cross-Origin-Opener-Policy: same-origin` and
-  `Cross-Origin-Embedder-Policy: credentialless` or expo-sqlite cannot open on web.
+- **Web is probably not cross-origin isolated, so expo-sqlite may not open in a browser.**
+  Since v0.5.205 `expo export --platform web` builds, and `metro.config.js`'s
+  `enhanceMiddleware` sets COOP/COEP. But under `npm run web` those headers reach only
+  Metro's bundle responses. The HTML document at `/` is served without them (checked with
+  `curl` on 2026-10-15), and a browser decides isolation from the document's headers.
+  `metro-config.test.ts` pins that the middleware sets them, not that the page gets them.
+  A static host must send `Cross-Origin-Opener-Policy: same-origin` and
+  `Cross-Origin-Embedder-Policy: credentialless` itself. Never browser-verified.
 
 ## Next Priority
 
@@ -327,7 +339,7 @@ v0.5.213
   runs; the index plan is unchanged, the saving is row materialisation. Device gain not
   measured (expo-sqlite's per-column bridge cost is, if anything, higher). The real-SQL
   `foods-family-scope.test.tsx` covers it: projecting the wrong column fails 2 tests.
-  Report and bench source in `.planning/pusher/performance-2026-10-13.md`. 992 tests pass
+  (The report it cites, `.planning/pusher/performance-2026-10-13.md`, was never committed.) 992 tests pass
   across 63 suites. TypeScript clean.
 - v0.5.208 — Fix: **the crash-recovery screen offers "Go back" when there is somewhere
   to go.** On a modal (food/child detail and add) "Try again" re-renders the same broken
