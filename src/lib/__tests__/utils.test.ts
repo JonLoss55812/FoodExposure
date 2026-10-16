@@ -526,3 +526,26 @@ describe('formatChildAge', () => {
     expect(formatChildAge('2018-07-18', now)).toBe('8y 2m');
   });
 });
+
+describe('ageInMonthsAt — end-of-month birthdays (v0.5.215)', () => {
+  it('counts the month on the last day of a shorter month', () => {
+    // Feb has no 31st, so Feb 28 is the day a Jan 31 baby turns one month.
+    expect(ageInMonthsAt('2025-01-31', new Date(2025, 1, 28, 12))).toBe(1);
+    expect(ageInMonthsAt('2025-03-31', new Date(2025, 3, 30, 12))).toBe(1);
+  });
+
+  it('still waits until that last day', () => {
+    expect(ageInMonthsAt('2025-01-31', new Date(2025, 1, 27, 12))).toBe(0);
+    expect(ageInMonthsAt('2025-03-31', new Date(2025, 3, 29, 12))).toBe(0);
+  });
+
+  it('turns a leap-day baby one year old on Feb 28', () => {
+    expect(ageInMonthsAt('2024-02-29', new Date(2025, 1, 28, 12))).toBe(12);
+    expect(ageInMonthsAt('2024-02-29', new Date(2025, 1, 27, 12))).toBe(11);
+  });
+
+  it('leaves the ordinary day-of-month rule alone in a long month', () => {
+    expect(ageInMonthsAt('2025-01-31', new Date(2025, 2, 30, 12))).toBe(1);
+    expect(ageInMonthsAt('2025-01-31', new Date(2025, 2, 31, 12))).toBe(2);
+  });
+});

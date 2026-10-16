@@ -175,8 +175,11 @@ export function ageInMonthsAt(
   let months =
     (reference.getFullYear() - born.getFullYear()) * 12 +
     (reference.getMonth() - born.getMonth());
-  // Do not count the current month until the day of the month is reached.
-  if (reference.getDate() < born.getDate()) months -= 1;
+  // Do not count the current month until the day of the month is reached —
+  // or, when this month is too short to have that day (born on the 31st,
+  // a leap day), until its last day.
+  const lastDayOfMonth = new Date(reference.getFullYear(), reference.getMonth() + 1, 0).getDate();
+  if (reference.getDate() < Math.min(born.getDate(), lastDayOfMonth)) months -= 1;
   return months;
 }
 

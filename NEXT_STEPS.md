@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.213 — 1005 tests passing across 63 suites, TypeScript clean.
+Reviewed at: v0.5.215 — 1014 tests passing across 63 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -337,6 +337,25 @@ onboarding path is the cheapest way to cover that class.
 
 `bun.lock` still lists `uuid` (not regenerated, v0.5.143 precedent).
 
+## Shipped in the v0.5.215 session (2026-10-16)
+
+- v0.5.214 — **fix (copy):** both merge confirms said "Nothing is lost" even when the
+  twin's category was about to be discarded. `describeMergeOutcome` (in
+  `merge-foods.ts`) names both categories when they differ. Closes the v0.5.211 note.
+- v0.5.215 — **fix:** `ageInMonthsAt` never counted a month whose length is shorter than
+  the birth day (Jan 31 baby = 0 months on Feb 28; leap-day baby 11 months on Feb 28).
+
+**Discovered and deliberately not done:**
+
+- **Rename-collision merge keeps the survivor's casing, not the typed one.** Renaming
+  "Brocolli" to "Broccoli" when "broccoli" exists merges into "broccoli"; the parent's
+  capitalisation is lost (fixable in place afterwards). A follow-up rename of the survivor
+  would add a seventh write and change the existing merge screen tests' write lists, so it
+  was left for a deliberate decision.
+- **Join "Name Already Taken" blocks a signed-out parent from rejoining as themselves**
+  on the same device (v0.5.91 privacy rationale: no password). Each retry under a new
+  name leaves another `users` row. Product decision, not a bug fix.
+
 ## Shipped in the v0.5.213 session (2026-10-14)
 
 - v0.5.212 — **fix:** `exposureSchema.occurredOn`'s future bound let **tomorrow** through
@@ -368,7 +387,7 @@ onboarding path is the cheapest way to cover that class.
 
 **Discovered and deliberately not done:**
 
-- **The merge confirm copy still does not mention the field carry-over.** It says
+- **~~The merge confirm copy still does not mention the field carry-over.~~** (category loss now named, v0.5.214) It says
   "Nothing is lost", which is now closer to true. Category is still the survivor's
   alone; if two twins disagree on category, the twin's is discarded silently.
 - **Date-of-day surfaces audit:** `grep -rn getUTC app src` now shows only
