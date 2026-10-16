@@ -294,6 +294,24 @@ describe('FoodsScreen', () => {
       expect(mockDb.writes).toHaveLength(0);
     });
 
+    it('says when the twin\'s category will be discarded (v0.5.214)', async () => {
+      // A twin filed under a different category loses it on merge; the
+      // confirm must not promise "Nothing is lost" in that case.
+      const APPLE_VEG = food({ id: 'food-9', name: 'apple', category: 'vegetable' });
+      queueLoad([APPLE, APPLE_VEG]);
+      renderScreen();
+
+      await waitFor(() =>
+        expect(screen.getByLabelText('Merge duplicates of Apple')).toBeTruthy(),
+      );
+      await click('Merge duplicates of Apple');
+
+      const body = alertSpy.mock.calls[0][1] as string;
+      expect(body).not.toContain('Nothing is lost');
+      expect(body).toContain('"Apple" stays filed under Fruit');
+      expect(body).toContain('the Vegetable category is not carried over');
+    });
+
     it('merges the later twin into the first and reloads without it', async () => {
       queueLoad([APPLE, APPLE_LOWER]);
       // The reload that follows a successful merge.

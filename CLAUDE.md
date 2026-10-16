@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.213` (`src/lib/constants.ts`). 1005 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.214` (`src/lib/constants.ts`). 1010 tests pass across
 63 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 1005 tests, 63 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 1010 tests, 63 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 1005 tests, 63 suites
+npm run test         # 1010 tests, 63 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -159,7 +159,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **1005 tests across 63 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **1010 tests across 63 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -227,7 +227,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 1005 tests, 63 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 1010 tests, 63 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -278,9 +278,20 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.213
+v0.5.214
 
 ## Changelog
+- v0.5.214 — Fix (copy): **a merge confirm no longer promises "Nothing is lost" when it
+  discards a category.** `mergeFoods` keeps the survivor's category (v0.5.211 carries the
+  safe-food flag and preparation, not category), so folding an "apple" filed under
+  Vegetable into "Apple" under Fruit silently refiled it while both confirms — the Foods
+  tab's duplicate banner and the food detail page's rename-collision merge — said nothing
+  was lost (NEXT_STEPS, v0.5.211 session). New pure `describeMergeOutcome(source, target)`
+  in `src/lib/merge-foods.ts` supplies the confirm's last sentence: the plain promise when
+  the categories match or either is missing, otherwise one naming both ("stays filed under
+  Fruit — the Vegetable category is not carried over"). The rename path's sibling read now
+  projects `category` so the target's is known. +3 unit tests and +1 screen test per entry
+  point, all red before the change. 1010 tests pass across 63 suites. TypeScript clean.
 - v0.5.213 — Fix: **a child's date-of-birth bound agrees with the age it renders.**
   `childSchema.dateOfBirth`'s not-in-the-future refine compared the day's *UTC* midnight
   with the current instant, while `formatChildAge` (Settings rows, CSV `age_months`)
@@ -293,7 +304,7 @@ v0.5.213
   tomorrow is rejected *and* does not; the late-evening case (and the existing tomorrow
   test, once its helper is local) fail against the old refine on this host (UTC-5) —
   on a UTC host they would pass either way, so the east-of-UTC half is held by the
-  shared helper rather than a test. 1005 tests pass across 63 suites. TypeScript clean.
+  shared helper rather than a test. 1010 tests pass across 63 suites. TypeScript clean.
 - v0.5.212 — Fix: **a backdated exposure can no longer be dated tomorrow.**
   `exposureSchema.occurredOn`'s not-in-the-future refine compared the named day's *UTC*
   midnight against `Date.now()` plus a day of slack, so tomorrow's date passed in nearly

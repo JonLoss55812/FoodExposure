@@ -13,7 +13,7 @@ import { useChildStore } from '@/src/stores/child-store';
 import { FOOD_CATEGORIES, CATEGORY_CONFIG, getCategoryConfig } from '@/src/lib/constants';
 import type { FoodCategory, ExposureStage } from '@/src/lib/constants';
 import { partitionSafeFoods, getEmptyStateKind, buildFoodsWithStats, filterFoods, findDuplicateFoodGroups } from '@/src/lib/food-partition';
-import { mergeFoods } from '@/src/lib/merge-foods';
+import { describeMergeOutcome, mergeFoods } from '@/src/lib/merge-foods';
 import { createInFlightLatch } from '@/src/lib/in-flight';
 
 // A render error here stays inside this screen, keeping the navigator (tab bar,
@@ -113,7 +113,7 @@ export default function FoodsScreen() {
     const [target, source] = duplicateGroup;
     Alert.alert(
       'Merge Duplicates?',
-      `"${source.name}" and "${target.name}" are the same food. Every exposure logged against "${source.name}" will move to "${target.name}", and "${source.name}" will be removed. Nothing is lost.`,
+      `"${source.name}" and "${target.name}" are the same food. Every exposure logged against "${source.name}" will move to "${target.name}", and "${source.name}" will be removed. ${describeMergeOutcome(source, target)}`,
       [
         { text: 'Cancel', style: 'cancel' },
         {

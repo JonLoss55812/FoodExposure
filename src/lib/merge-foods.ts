@@ -2,6 +2,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 import * as schema from '@/src/db/schema';
+import { getCategoryConfig } from '@/src/lib/constants';
 
 /**
  * Minimal structural type for the drizzle update+delete builders the merge
@@ -106,4 +107,21 @@ export async function mergeFoods(
     .where(eq(schema.foods.id, targetFoodId));
 
   await db.delete(schema.foods).where(eq(schema.foods.id, sourceFoodId));
+}
+
+/**
+ * The last sentence of a merge confirm. `mergeFoods` keeps the survivor's
+ * category and discards the twin's, so when the two disagree "Nothing is
+ * lost" is false — the confirm names both categories instead. Missing or
+ * equal categories keep the plain promise (the exposures, safe-food flag and
+ * preparation are all carried over).
+ */
+export function describeMergeOutcome(
+  source: { category?: string | null },
+  target: { name: string; category?: string | null },
+): string {
+  const from = source.category;
+  const to = target.category;
+  if (!from || !to || from === to) return 'Nothing is lost.';
+  return `Every exposure is kept, but "${target.name}" stays filed under ${getCategoryConfig(to).label} — the ${getCategoryConfig(from).label} category is not carried over.`;
 }

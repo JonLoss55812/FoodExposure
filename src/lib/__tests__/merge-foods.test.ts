@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import * as schema from '@/src/db/schema';
-import { mergeFoods } from '../merge-foods';
+import { describeMergeOutcome, mergeFoods } from '../merge-foods';
 import type { MergeFoodsDb } from '../merge-foods';
 
 interface RecordedOp {
@@ -154,5 +154,30 @@ describe('mergeFoods', () => {
       ).rejects.toThrow('targetFoodId');
       expect(b.calls).toHaveLength(0);
     }
+  });
+});
+
+describe('describeMergeOutcome', () => {
+  it('promises nothing is lost when both twins share a category', () => {
+    expect(
+      describeMergeOutcome({ category: 'fruit' }, { name: 'Apple', category: 'fruit' }),
+    ).toBe('Nothing is lost.');
+  });
+
+  it('names both categories when the twin\'s would be discarded', () => {
+    const text = describeMergeOutcome(
+      { category: 'vegetable' },
+      { name: 'Apple', category: 'fruit' },
+    );
+    expect(text).not.toContain('Nothing is lost');
+    expect(text).toContain('"Apple" stays filed under Fruit');
+    expect(text).toContain('the Vegetable category is not carried over');
+  });
+
+  it('falls back to the plain promise when either category is unknown', () => {
+    expect(describeMergeOutcome({ category: null }, { name: 'A', category: 'fruit' })).toBe(
+      'Nothing is lost.',
+    );
+    expect(describeMergeOutcome({ category: 'fruit' }, { name: 'A' })).toBe('Nothing is lost.');
   });
 });

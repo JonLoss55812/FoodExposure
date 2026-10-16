@@ -221,6 +221,23 @@ describe('FoodDetailScreen', () => {
       expect(mockRouter.replace).not.toHaveBeenCalled();
     });
 
+    it('warns in the second confirm when the survivor files the food elsewhere (v0.5.214)', async () => {
+      queueLoad();
+      await renderLoaded();
+      mockDb.queueSelect([
+        { id: 'food-1', name: 'Apple', category: 'fruit' },
+        { id: 'food-2', name: 'Pear', category: 'vegetable' },
+      ]);
+      await startRename('pear');
+      await confirmAlert(alertSpy, 'Merge');
+
+      await waitFor(() => expect(alertSpy.mock.calls[1][0]).toBe('Merge Foods?'));
+      const body = alertSpy.mock.calls[1][1] as string;
+      expect(body).not.toContain('Nothing is lost');
+      expect(body).toContain('"Pear" stays filed under Vegetable');
+      expect(body).toContain('the Fruit category is not carried over');
+    });
+
     it('moves every exposure to the surviving food, drops this row, and leaves the screen', async () => {
       queueLoad();
       await renderLoaded();

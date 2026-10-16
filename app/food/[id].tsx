@@ -15,7 +15,7 @@ import { getNextStage, canBumpStage, getHighestStage } from '@/src/lib/stage';
 import { getThresholdForProfile } from '@/src/lib/thresholds';
 import { generateId, formatDate, resolveOccurredAt, toLocalDateInput } from '@/src/lib/utils';
 import { deleteFoodCascade } from '@/src/lib/cascade-delete';
-import { mergeFoods } from '@/src/lib/merge-foods';
+import { describeMergeOutcome, mergeFoods } from '@/src/lib/merge-foods';
 import { findDuplicateFood } from '@/src/lib/food-partition';
 import { foodSchema, exposureSchema } from '@/src/lib/validation';
 import { createInFlightLatch } from '@/src/lib/in-flight';
@@ -506,12 +506,12 @@ export default function FoodDetailScreen() {
    * at the top would strand it the moment the parent taps Cancel (the
    * v0.5.144 placement rule).
    */
-  const handleMergeInto = (targetId: string, targetName: string) => {
+  const handleMergeInto = (targetId: string, targetName: string, targetCategory: string) => {
     if (!food || mergeLatch.busy) return;
     const sourceName = food.name;
     Alert.alert(
       'Merge Foods?',
-      `Every exposure logged against "${sourceName}" will move to "${targetName}", and "${sourceName}" will be removed. Nothing is lost.`,
+      `Every exposure logged against "${sourceName}" will move to "${targetName}", and "${sourceName}" will be removed. ${describeMergeOutcome(food, { name: targetName, category: targetCategory })}`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -558,7 +558,7 @@ export default function FoodDetailScreen() {
       // Rename must not bypass the v0.5.136 uniqueness guard — but the food
       // being renamed is excluded so a case-only fix ("apple" -> "Apple") works.
       const siblings = await db
-        .select({ id: schema.foods.id, name: schema.foods.name })
+        .select({ id: schema.foods.id, name: schema.foods.name, category: schema.foods.category })
         .from(schema.foods)
         .where(eq(schema.foods.familyId, food.familyId));
       const duplicate = findDuplicateFood(siblings, nextName, food.id);
@@ -578,7 +578,7 @@ export default function FoodDetailScreen() {
             { text: 'Cancel', style: 'cancel' },
             {
               text: 'Merge',
-              onPress: () => handleMergeInto(duplicate.id, duplicate.name),
+              onPress: () => handleMergeInto(duplicate.id, duplicate.name, duplicate.category),
             },
           ]
         );
