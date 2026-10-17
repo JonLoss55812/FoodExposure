@@ -311,7 +311,7 @@ v0.5.217
   became 1 on Mar 1, and a leap-day baby was 11 months old on Feb 28 of the next year. The
   threshold is now `min(birth day, last day of this month)`; the ordinary rule is
   unchanged. +4 tests (two red before the fix, two pinning that long months still wait
-  for the day). 1020 tests pass across 63 suites. TypeScript clean.
+  for the day). 1014 tests pass across 63 suites. TypeScript clean.
 - v0.5.214 — Fix (copy): **a merge confirm no longer promises "Nothing is lost" when it
   discards a category.** `mergeFoods` keeps the survivor's category (v0.5.211 carries the
   safe-food flag and preparation, not category), so folding an "apple" filed under
@@ -322,7 +322,7 @@ v0.5.217
   the categories match or either is missing, otherwise one naming both ("stays filed under
   Fruit — the Vegetable category is not carried over"). The rename path's sibling read now
   projects `category` so the target's is known. +3 unit tests and +1 screen test per entry
-  point, all red before the change. 1020 tests pass across 63 suites. TypeScript clean.
+  point, all red before the change. 1014 tests pass across 63 suites. TypeScript clean.
 - v0.5.213 — Fix: **a child's date-of-birth bound agrees with the age it renders.**
   `childSchema.dateOfBirth`'s not-in-the-future refine compared the day's *UTC* midnight
   with the current instant, while `formatChildAge` (Settings rows, CSV `age_months`)
@@ -335,7 +335,7 @@ v0.5.217
   tomorrow is rejected *and* does not; the late-evening case (and the existing tomorrow
   test, once its helper is local) fail against the old refine on this host (UTC-5) —
   on a UTC host they would pass either way, so the east-of-UTC half is held by the
-  shared helper rather than a test. 1020 tests pass across 63 suites. TypeScript clean.
+  shared helper rather than a test. 1014 tests pass across 63 suites. TypeScript clean.
 - v0.5.212 — Fix: **a backdated exposure can no longer be dated tomorrow.**
   `exposureSchema.occurredOn`'s not-in-the-future refine compared the named day's *UTC*
   midnight against `Date.now()` plus a day of slack, so tomorrow's date passed in nearly

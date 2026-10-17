@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.215 — 1014 tests passing across 63 suites, TypeScript clean.
+Reviewed at: v0.5.217 — 1020 tests passing across 63 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -337,6 +337,22 @@ onboarding path is the cheapest way to cover that class.
 
 `bun.lock` still lists `uuid` (not regenerated, v0.5.143 precedent).
 
+## Shipped in the v0.5.217 session (2026-10-17)
+
+- v0.5.216 — **fix:** a rename-collision merge now gives the survivor the spelling the
+  parent typed. `mergeFoods` takes an optional `{ survivorName }`; the Foods-tab banner
+  merge passes none and is unchanged.
+- v0.5.217 — **fix:** Progress "This Week" was a rolling 168 hours, splitting the seventh
+  day by time of day. Now today plus the six previous local days.
+
+**Discovered and deliberately not done:**
+
+- **The rename-merge's second confirm still names the old spelling** ("will move to
+  \"broccoli\"") even though the survivor ends up "Broccoli". Cosmetic; the Merge copy
+  is pinned by four screen tests, so change it together with them.
+- **"This Week" means "last 7 local days", not "since Sunday/Monday".** The label is
+  ambiguous; a calendar week would need a week-start decision (locale). Left as is.
+
 ## Shipped in the v0.5.215 session (2026-10-16)
 
 - v0.5.214 — **fix (copy):** both merge confirms said "Nothing is lost" even when the
@@ -347,11 +363,8 @@ onboarding path is the cheapest way to cover that class.
 
 **Discovered and deliberately not done:**
 
-- **Rename-collision merge keeps the survivor's casing, not the typed one.** Renaming
-  "Brocolli" to "Broccoli" when "broccoli" exists merges into "broccoli"; the parent's
-  capitalisation is lost (fixable in place afterwards). A follow-up rename of the survivor
-  would add a seventh write and change the existing merge screen tests' write lists, so it
-  was left for a deliberate decision.
+- **~~Rename-collision merge keeps the survivor's casing, not the typed one.~~** Fixed in
+  v0.5.216 (`mergeFoods(..., { survivorName })`, set in step 5, still six writes).
 - **Join "Name Already Taken" blocks a signed-out parent from rejoining as themselves**
   on the same device (v0.5.91 privacy rationale: no password). Each retry under a new
   name leaves another `users` row. Product decision, not a bug fix.
