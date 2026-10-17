@@ -65,6 +65,23 @@ describe('mergeFoods', () => {
     expect(Object.keys(calls[4].values as object).sort()).toEqual(['defaultPreparation', 'isSafeFood']);
   });
 
+  it('renames the survivor in the same step when a survivor name is given', async () => {
+    const { db, calls } = makeDb();
+    await mergeFoods(db, 'dup', 'keep', { survivorName: '  Broccoli ' });
+
+    expect(calls).toHaveLength(6);
+    expect(calls[4].condition).toEqual(eq(schema.foods.id, 'keep'));
+    expect((calls[4].values as { name?: string }).name).toBe('Broccoli');
+  });
+
+  it('leaves the survivor name alone when the given name is blank or not a string', async () => {
+    for (const survivorName of ['', '   ', undefined, null, 42]) {
+      const { db, calls } = makeDb();
+      await mergeFoods(db, 'dup', 'keep', { survivorName } as never);
+      expect(Object.keys(calls[4].values as object)).not.toContain('name');
+    }
+  });
+
   it('moves every exposure to the surviving food', async () => {
     const { db, calls } = makeDb();
     await mergeFoods(db, 'dup', 'keep');

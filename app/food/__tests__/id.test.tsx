@@ -262,6 +262,25 @@ describe('FoodDetailScreen', () => {
       await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/(tabs)/foods'));
     });
 
+    /**
+     * The parent typed the corrected spelling; merging into a twin that
+     * differs only in casing must not throw that spelling away.
+     */
+    it('gives the surviving food the spelling the parent typed', async () => {
+      queueLoad();
+      await renderLoaded();
+      mockDb.queueSelect([
+        { id: 'food-1', name: 'Apple' },
+        { id: 'food-2', name: 'pear' },
+      ]);
+      await startRename('  Pear ');
+      await confirmAlert(alertSpy, 'Merge');
+      await pressAlertButton(alertSpy, 'Merge');
+
+      await waitFor(() => expect(mockDb.writes).toHaveLength(6));
+      expect((mockDb.writes[4] as { values: { name?: string } }).values.name).toBe('Pear');
+    });
+
     it('alerts and stays on the screen when the merge fails', async () => {
       queueLoad();
       await renderLoaded();

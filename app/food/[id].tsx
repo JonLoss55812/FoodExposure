@@ -506,7 +506,12 @@ export default function FoodDetailScreen() {
    * at the top would strand it the moment the parent taps Cancel (the
    * v0.5.144 placement rule).
    */
-  const handleMergeInto = (targetId: string, targetName: string, targetCategory: string) => {
+  const handleMergeInto = (
+    targetId: string,
+    targetName: string,
+    targetCategory: string,
+    survivorName?: string
+  ) => {
     if (!food || mergeLatch.busy) return;
     const sourceName = food.name;
     Alert.alert(
@@ -519,7 +524,7 @@ export default function FoodDetailScreen() {
           onPress: async () => {
             if (!mergeLatch.tryAcquire()) return;
             try {
-              await mergeFoods(db, food.id, targetId);
+              await mergeFoods(db, food.id, targetId, { survivorName });
               // This screen's row no longer exists, so replace rather than
               // push — going "back" to a deleted food is the v0.5.6 not-found
               // state, which reads as a failure.
@@ -578,7 +583,8 @@ export default function FoodDetailScreen() {
             { text: 'Cancel', style: 'cancel' },
             {
               text: 'Merge',
-              onPress: () => handleMergeInto(duplicate.id, duplicate.name, duplicate.category),
+              onPress: () =>
+                handleMergeInto(duplicate.id, duplicate.name, duplicate.category, nextName),
             },
           ]
         );

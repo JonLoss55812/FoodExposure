@@ -49,13 +49,17 @@ export interface MergeFoodsDb {
  * loses nothing: it stays a safe food if **either** row was one (otherwise
  * merging a pinned twin into an unflagged one silently un-pins the child's
  * preferred food), and it takes the twin's default preparation only when it
- * never recorded its own. Name and category stay the survivor's — the parent
- * picked that row deliberately.
+ * never recorded its own. Category stays the survivor's. The name does too,
+ * unless `options.survivorName` is given: the rename-collision path passes the
+ * spelling the parent just typed, which differs from the survivor's only in
+ * casing or padding (that is what collided), so keeping the old one would
+ * discard the correction the parent was making.
  */
 export async function mergeFoods(
   db: MergeFoodsDb,
   sourceFoodId: string,
-  targetFoodId: string
+  targetFoodId: string,
+  options: { survivorName?: string } = {}
 ): Promise<void> {
   if (typeof sourceFoodId !== 'string' || sourceFoodId.trim().length === 0) {
     throw new Error('mergeFoods: sourceFoodId must be a non-empty string');
@@ -96,6 +100,9 @@ export async function mergeFoods(
       )
     );
 
+  const survivorName =
+    typeof options.survivorName === 'string' ? options.survivorName.trim() : '';
+
   // One statement, so the survivor is never left half-updated. The subqueries
   // read the source row, which still exists until the next step.
   await db
@@ -103,6 +110,7 @@ export async function mergeFoods(
     .set({
       isSafeFood: sql`max("is_safe_food", coalesce((select "merge_src"."is_safe_food" from "foods" as "merge_src" where "merge_src"."id" = ${sourceFoodId}), 0))`,
       defaultPreparation: sql`coalesce("default_preparation", (select "merge_src"."default_preparation" from "foods" as "merge_src" where "merge_src"."id" = ${sourceFoodId}))`,
+      ...(survivorName ? { name: survivorName } : {}),
     })
     .where(eq(schema.foods.id, targetFoodId));
 

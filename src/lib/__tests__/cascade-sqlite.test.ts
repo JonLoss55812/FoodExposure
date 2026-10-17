@@ -103,6 +103,14 @@ describe('destructive helpers against real SQLite (foreign keys on)', () => {
     expect(foodRow(h, 'pear')).toEqual({ safe: 1, prep: 'raw' });
   });
 
+  it('mergeFoods gives the survivor the spelling the parent typed', async () => {
+    const h = setup();
+    await mergeFoods(h.db, 'apple', 'pear', { survivorName: 'PEAR' });
+
+    const row = h.raw.prepare('SELECT name FROM foods WHERE id = ?').get('pear') as { name: string };
+    expect(row.name).toBe('PEAR');
+  });
+
   it('mergeFoods leaves an unflagged pair unflagged', async () => {
     const h = setup();
     await mergeFoods(h.db, 'apple', 'pear');
