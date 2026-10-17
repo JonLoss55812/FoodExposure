@@ -80,6 +80,34 @@ describe('calcProgressStats', () => {
     expect(stats.totalExposures).toBe(4);
   });
 
+  /**
+   * "This Week" is today plus the six local calendar days before it — the
+   * same local-day bucketing every other date surface uses. A rolling 168-hour
+   * window counted the afternoon of seven days ago but not its morning, and a
+   * backdated row (stored at local midnight) fell in or out depending on the
+   * time of day the Progress tab was opened.
+   */
+  it('counts this week by local calendar day, not a rolling 168 hours', () => {
+    const foods = [food({ id: 'a', name: 'Apple', category: 'fruit' })];
+    const now = new Date(2026, 5, 15, 14, 0).getTime();
+    const exposures = [
+      expo({ foodId: 'a', stage: 'eat', occurredAt: new Date(2026, 5, 8, 15, 0) }),  // 7 days ago, later in the day — out
+      expo({ foodId: 'a', stage: 'eat', occurredAt: new Date(2026, 5, 9, 0, 0) }),   // 6 days ago, local midnight — in
+      expo({ foodId: 'a', stage: 'eat', occurredAt: new Date(2026, 5, 15, 9, 0) }),  // today — in
+    ];
+    expect(calcProgressStats(foods, exposures, 'typical', now).weeklyExposures).toBe(2);
+  });
+
+  it('keeps the whole sixth day in the window just after midnight', () => {
+    const foods = [food({ id: 'a', name: 'Apple', category: 'fruit' })];
+    const now = new Date(2026, 5, 15, 0, 30).getTime();
+    const exposures = [
+      expo({ foodId: 'a', stage: 'eat', occurredAt: new Date(2026, 5, 9, 0, 10) }),  // 6 days ago, early — in
+      expo({ foodId: 'a', stage: 'eat', occurredAt: new Date(2026, 5, 8, 23, 0) }),  // 7 days ago — out
+    ];
+    expect(calcProgressStats(foods, exposures, 'typical', now).weeklyExposures).toBe(1);
+  });
+
   it('averages ratings only over exposures that have a rating', () => {
     const foods = [food({ id: 'a', name: 'Apple', category: 'fruit' })];
     const exposures = [

@@ -38,7 +38,6 @@ export interface ProgressStats {
   foodProgress: FoodProgressRow[];
 }
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const NEAR_TARGET_PCT = 0.8;
 
 export function calcProgressStats(
@@ -98,10 +97,17 @@ export function calcProgressStats(
     categoryCounts[bucket] = (categoryCounts[bucket] || 0) + 1;
   }
 
-  const weekAgo = now - WEEK_MS;
+  // Today plus the six local calendar days before it. A rolling 168-hour
+  // window split the seventh day by time of day, so a backdated row (stored
+  // at local midnight) counted or not depending on when the tab was opened.
+  // setDate, not a millisecond offset, so a DST change cannot shift the edge.
+  const windowStart = new Date(now);
+  windowStart.setHours(0, 0, 0, 0);
+  windowStart.setDate(windowStart.getDate() - 6);
+  const weekStart = windowStart.getTime();
   const weeklyExposures = exposures.filter((e) => {
     const ts = e.occurredAt instanceof Date ? e.occurredAt.getTime() : e.occurredAt;
-    return ts > weekAgo;
+    return ts >= weekStart;
   }).length;
 
   const foodProgress: FoodProgressRow[] = foods
