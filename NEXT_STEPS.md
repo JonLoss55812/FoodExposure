@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.217 — 1020 tests passing across 63 suites, TypeScript clean.
+Reviewed at: v0.5.219 — 1025 tests passing across 64 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -337,6 +337,25 @@ onboarding path is the cheapest way to cover that class.
 
 `bun.lock` still lists `uuid` (not regenerated, v0.5.143 precedent).
 
+## Shipped in the v0.5.219 session (2026-10-19)
+
+- v0.5.218 — **fix (copy):** the rename-merge's second confirm (and its category warning)
+  now names the survivor by the spelling the parent typed, which is what `mergeFoods`
+  writes since v0.5.216. Two confirm-copy tests had typed `pear` into a `Pear` twin; their
+  fixtures flipped casing so they still assert the typed spelling.
+- v0.5.219 — **tests:** `app/(tabs)/_layout.tsx`'s selection repair (foreign selection
+  moved to an own child, empty family -> Add Child, no-op before onboarding) is pinned by a
+  real-SQL suite. `expo-router`'s `Tabs` mocks to a component returning `null` with a
+  `Screen` static.
+
+**Discovered and deliberately not done:**
+
+- **The layout repairs on mount / `familyId` change only, not on focus.** A child deleted
+  in Settings is repaired there via `ensureSelection(remaining)`, so this is fine today; a
+  future delete path that skips that call would leave the stale id until the next launch.
+- **The layout's read failure is logged, never alerted** — the tabs then run on whatever
+  selection MMKV held. Defensible (every screen has its own load Alert), noted only.
+
 ## Shipped in the v0.5.217 session (2026-10-17)
 
 - v0.5.216 — **fix:** a rename-collision merge now gives the survivor the spelling the
@@ -347,9 +366,7 @@ onboarding path is the cheapest way to cover that class.
 
 **Discovered and deliberately not done:**
 
-- **The rename-merge's second confirm still names the old spelling** ("will move to
-  \"broccoli\"") even though the survivor ends up "Broccoli". Cosmetic; the Merge copy
-  is pinned by four screen tests, so change it together with them.
+- **~~The rename-merge's second confirm still names the old spelling.~~** Fixed in v0.5.218.
 - **"This Week" means "last 7 local days", not "since Sunday/Monday".** The label is
   ambiguous; a calendar week would need a week-start decision (locale). Left as is.
 
