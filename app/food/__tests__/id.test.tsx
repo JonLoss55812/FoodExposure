@@ -206,9 +206,9 @@ describe('FoodDetailScreen', () => {
       await renderLoaded();
       mockDb.queueSelect([
         { id: 'food-1', name: 'Apple' },
-        { id: 'food-2', name: 'Pear' },
+        { id: 'food-2', name: 'pear' },
       ]);
-      await startRename('pear');
+      await startRename('Pear');
       await confirmAlert(alertSpy, 'Merge');
 
       // Destructive to *this* row, so it asks again and names both sides.
@@ -226,9 +226,9 @@ describe('FoodDetailScreen', () => {
       await renderLoaded();
       mockDb.queueSelect([
         { id: 'food-1', name: 'Apple', category: 'fruit' },
-        { id: 'food-2', name: 'Pear', category: 'vegetable' },
+        { id: 'food-2', name: 'pear', category: 'vegetable' },
       ]);
-      await startRename('pear');
+      await startRename('Pear');
       await confirmAlert(alertSpy, 'Merge');
 
       await waitFor(() => expect(alertSpy.mock.calls[1][0]).toBe('Merge Foods?'));
@@ -279,6 +279,28 @@ describe('FoodDetailScreen', () => {
 
       await waitFor(() => expect(mockDb.writes).toHaveLength(6));
       expect((mockDb.writes[4] as { values: { name?: string } }).values.name).toBe('Pear');
+    });
+
+    /**
+     * The second confirm must name the food as it will be after the merge.
+     * mergeFoods renames the survivor to the typed spelling (v0.5.216), so
+     * naming the twin's old casing described a row that would not exist.
+     */
+    it('names the typed spelling in the second confirm, not the twin\'s old one', async () => {
+      queueLoad();
+      await renderLoaded();
+      mockDb.queueSelect([
+        { id: 'food-1', name: 'Apple', category: 'fruit' },
+        { id: 'food-2', name: 'pear', category: 'vegetable' },
+      ]);
+      await startRename('Pear');
+      await confirmAlert(alertSpy, 'Merge');
+
+      await waitFor(() => expect(alertSpy.mock.calls[1][0]).toBe('Merge Foods?'));
+      const body = alertSpy.mock.calls[1][1] as string;
+      expect(body).toContain('will move to "Pear"');
+      expect(body).toContain('"Pear" stays filed under Vegetable');
+      expect(body).not.toContain('"pear"');
     });
 
     it('alerts and stays on the screen when the merge fails', async () => {

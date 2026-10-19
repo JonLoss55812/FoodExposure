@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.217` (`src/lib/constants.ts`). 1020 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.218` (`src/lib/constants.ts`). 1021 tests pass across
 63 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 1020 tests, 63 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 1021 tests, 63 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 1020 tests, 63 suites
+npm run test         # 1021 tests, 63 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -159,7 +159,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **1020 tests across 63 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **1021 tests across 63 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -227,7 +227,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 1020 tests, 63 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 1021 tests, 63 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -278,9 +278,19 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.217
+v0.5.218
 
 ## Changelog
+- v0.5.218 — Fix (copy): **the rename-collision merge's second confirm names the food as
+  it will be.** Since v0.5.216 `mergeFoods` renames the survivor to the spelling the
+  parent typed, but the "Merge Foods?" confirm still said exposures "will move to" the
+  twin's old casing ("pear" when the result is "Pear"), and `describeMergeOutcome`'s
+  category warning named it the same way. `handleMergeInto` now uses
+  `survivorName?.trim() || targetName` for both. The Foods-tab banner merge passes no
+  survivor name and is unchanged. +1 screen test (red before the fix); two existing
+  confirm-copy tests typed `pear` into a `Pear` twin, so their correct output is now
+  "pear" — their fixtures flip the casing (twin `pear`, typed `Pear`) and keep their
+  assertions. 1021 tests pass across 63 suites. TypeScript clean.
 - v0.5.217 — Fix: **the Progress tab's "This Week" counts local calendar days.**
   `calcProgressStats` counted exposures newer than `now - 168h`, so the seventh day back
   was split by the time of day: opened at 2pm, an exposure from 3pm seven days ago

@@ -514,9 +514,12 @@ export default function FoodDetailScreen() {
   ) => {
     if (!food || mergeLatch.busy) return;
     const sourceName = food.name;
+    // mergeFoods renames the survivor to survivorName when one is given, so
+    // the confirm names the food as it will be, not the twin's old spelling.
+    const finalName = survivorName?.trim() || targetName;
     Alert.alert(
       'Merge Foods?',
-      `Every exposure logged against "${sourceName}" will move to "${targetName}", and "${sourceName}" will be removed. ${describeMergeOutcome(food, { name: targetName, category: targetCategory })}`,
+      `Every exposure logged against "${sourceName}" will move to "${finalName}", and "${sourceName}" will be removed. ${describeMergeOutcome(food, { name: finalName, category: targetCategory })}`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
