@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.219 — 1025 tests passing across 64 suites, TypeScript clean.
+Reviewed at: v0.5.221 — 1031 tests passing across 65 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -336,6 +336,35 @@ is invisible to it. If a dev build is ever available, a smoke run of the
 onboarding path is the cheapest way to cover that class.
 
 `bun.lock` still lists `uuid` (not regenerated, v0.5.143 precedent).
+
+## Shipped in the v0.5.221 session (2026-10-20)
+
+- v0.5.220 — **fix:** the Foods tab's per-food bars always read `X/15` (`ProgressBar`'s
+  default target) while the Progress tab and food detail page measure against the
+  feeding profile (20 picky, 30 ARFID). `FoodCard` takes a `target`; the Foods tab passes
+  `getThresholdForProfile(feedingProfile)` and lists it in the row renderer's deps (the
+  tab stays mounted while Settings changes the profile — a test pins that).
+- v0.5.221 — **fix:** exposures tied on `occurredAt` (every same-day backdate lands at
+  local midnight) were ordered by the planner. `EXPOSURES_NEWEST_FIRST`
+  (`src/lib/exposure-order.ts`, `occurredAt DESC, createdAt DESC`) now backs the dashboard
+  recent list, food detail history and the CSV export. Real-SQL tests try both insertion
+  orders so rowid order cannot pass them by accident.
+
+**Discovered and deliberately not done:**
+
+- **`ProgressBar` still defaults `target` to 15.** Every caller that matters now passes
+  one, but a new caller that forgets inherits the typical threshold silently. Making
+  `target` required is a small, safe follow-up (grep `<ProgressBar` — the dashboard and
+  Progress-tab rows pass explicit targets already; check before changing).
+- **The food detail page's in-memory re-sort after a date correction** compares
+  `occurredAt` only. `Array.sort` is stable, so ties keep their loaded order, but a row
+  moved onto a tied day is not placed by `createdAt`. Add `createdAt` to `ExposureRow`'s
+  projection if it ever matters. Its query is held by the shared constant, not a screen test.
+- **Rows logged in the same second still tie on `createdAt` too** (whole-second storage).
+  Only the Log form's latch-guarded Save can produce them, one at a time; not worth an id
+  tiebreak (ids are random UUIDs, so it would not be chronological anyway).
+- **A fresh pusher worktree has no `node_modules`;** `npm install` took ~1 min and the
+  baseline was then green (1025/64).
 
 ## Shipped in the v0.5.219 session (2026-10-19)
 
