@@ -2,7 +2,7 @@ import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TextInput, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
 import { StageIndicator, ProgressBar, ExposureCard, EmptyState, Button } from '@/src/components';
@@ -19,6 +19,7 @@ import { describeMergeOutcome, mergeFoods } from '@/src/lib/merge-foods';
 import { findDuplicateFood } from '@/src/lib/food-partition';
 import { foodSchema, exposureSchema } from '@/src/lib/validation';
 import { createInFlightLatch } from '@/src/lib/in-flight';
+import { EXPOSURES_NEWEST_FIRST } from '@/src/lib/exposure-order';
 
 // A render error here stays inside this screen, keeping the navigator (tab bar,
 // modal dismiss) usable; see app/__tests__/route-error-boundaries.test.tsx.
@@ -135,7 +136,7 @@ export default function FoodDetailScreen() {
             eq(schema.exposures.foodId, id),
             eq(schema.exposures.childId, selectedChildId)
           ))
-          .orderBy(desc(schema.exposures.occurredAt));
+          .orderBy(...EXPOSURES_NEWEST_FIRST);
 
         setExposuresList(exps);
       }

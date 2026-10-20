@@ -1,8 +1,9 @@
 import { Share } from 'react-native';
-import { eq, desc } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
 import { ageInMonthsAt } from '@/src/lib/utils';
+import { EXPOSURES_NEWEST_FIRST } from './exposure-order';
 
 export interface ExposureRow {
   occurredAt: Date;
@@ -212,7 +213,7 @@ export async function fetchExportRows(childId: string): Promise<ExposureRow[]> {
     .from(schema.exposures)
     .innerJoin(schema.foods, eq(schema.exposures.foodId, schema.foods.id))
     .where(eq(schema.exposures.childId, childId))
-    .orderBy(desc(schema.exposures.occurredAt));
+    .orderBy(...EXPOSURES_NEWEST_FIRST);
 
   return results.map((r) => ({
     ...r,

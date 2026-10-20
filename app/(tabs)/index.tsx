@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, RefreshControl, ActivityIndicator, A
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { eq, desc, and, gte } from 'drizzle-orm';
+import { eq, and, gte } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
 import { ChildSelector, ExposureCard, EmptyState } from '@/src/components';
@@ -12,6 +12,7 @@ import { useAuthStore } from '@/src/stores/auth-store';
 import { STAGE_ORDER, STAGE_CONFIG } from '@/src/lib/constants';
 import { computeStageCounts } from '@/src/lib/food-partition';
 import { getStartOfDay } from '@/src/lib/utils';
+import { EXPOSURES_NEWEST_FIRST } from '@/src/lib/exposure-order';
 
 // A render error here stays inside this screen, keeping the navigator (tab bar,
 // modal dismiss) usable; see app/__tests__/route-error-boundaries.test.tsx.
@@ -86,7 +87,7 @@ export default function DashboardScreen() {
         .innerJoin(schema.foods, eq(schema.exposures.foodId, schema.foods.id))
         .innerJoin(schema.children, eq(schema.exposures.childId, schema.children.id))
         .where(eq(schema.exposures.childId, childId))
-        .orderBy(desc(schema.exposures.occurredAt))
+        .orderBy(...EXPOSURES_NEWEST_FIRST)
         .limit(10);
       setRecentExposures(recent);
 

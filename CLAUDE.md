@@ -12,8 +12,8 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.220` (`src/lib/constants.ts`). 1027 tests pass across
-64 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
+**Current state:** `APP_VERSION` is `v0.5.221` (`src/lib/constants.ts`). 1031 tests pass across
+65 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
 ## Tech Stack
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 1027 tests, 64 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 1031 tests, 65 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 1027 tests, 64 suites
+npm run test         # 1031 tests, 65 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -159,7 +159,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **1027 tests across 64 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **1031 tests across 65 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -227,7 +227,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 1027 tests, 64 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 1031 tests, 65 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -278,9 +278,23 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.220
+v0.5.221
 
 ## Changelog
+- v0.5.221 — Fix: **exposures that share a timestamp list in a stable, newest-logged-first
+  order.** Every surface ordered by `occurredAt DESC` alone, and ties are routine: a
+  backdated row is stored at local midnight of the named day (v0.5.164) and drizzle keeps
+  whole seconds, so several rows logged for "yesterday" share one instant. Their order was
+  the planner's — it could differ between the screens and the therapist's CSV, and decided
+  which row the dashboard's `LIMIT 10` dropped. New `EXPOSURES_NEWEST_FIRST` in
+  `src/lib/exposure-order.ts` (`occurredAt DESC, createdAt DESC`) is used by the dashboard's
+  recent activity, the food detail page's history and `fetchExportRows`. +4 real-SQL tests
+  (CSV export and dashboard, each with both insertion orders, so the planner's rowid order
+  cannot satisfy them by accident). Mutation-verified: dropping the tie-break fails 2;
+  reverting the dashboard query alone fails 1. The food detail page's in-memory re-sort
+  after a date correction still compares `occurredAt` only (stable sort keeps the loaded
+  order among ties) and its query is held by the shared constant, not a screen test.
+  1031 tests pass across 65 suites. TypeScript clean.
 - v0.5.220 — Fix: **the Foods tab measures each food against the feeding profile's
   threshold.** `FoodCard` drew its bar through `ProgressBar`'s default target of 15, so on
   the picky (20) and ARFID (30) profiles the Foods tab read "2/15" for a food the Progress
@@ -302,7 +316,7 @@ v0.5.220
   onboarding completes. `expo-router`'s `Tabs` is mocked to render nothing. No
   production code changed. Mutation-verified: dropping `ensureSelection` fails 1, the
   family predicate 2, the Add Child redirect 1, the `isOnboarded` guard 1.
-  1027 tests pass across 64 suites. TypeScript clean.
+  1031 tests pass across 65 suites. TypeScript clean.
 - v0.5.218 — Fix (copy): **the rename-collision merge's second confirm names the food as
   it will be.** Since v0.5.216 `mergeFoods` renames the survivor to the spelling the
   parent typed, but the "Merge Foods?" confirm still said exposures "will move to" the

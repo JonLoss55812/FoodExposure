@@ -38,7 +38,7 @@ import { useChildStore } from '@/src/stores/child-store';
 
 const HOUR = 60 * 60 * 1000;
 
-async function logAt(id: string, childId: string, at: Date, foodId = 'apple') {
+async function logAt(id: string, childId: string, at: Date, foodId = 'apple', createdAt = at) {
   await mockSqlite.db.insert(schema.exposures).values({
     id,
     childId,
@@ -46,7 +46,7 @@ async function logAt(id: string, childId: string, at: Date, foodId = 'apple') {
     stage: 'touch',
     loggedBy: 'u1',
     occurredAt: at,
-    createdAt: at,
+    createdAt,
   });
 }
 
@@ -120,5 +120,28 @@ describe('DashboardScreen today count (real SQL)', () => {
     expect(screen.queryByLabelText('Open Kiwi details')).toBeNull();
     expect(screen.queryByLabelText('Open Fig details')).toBeNull();
     expect(alertSpy).not.toHaveBeenCalled();
+  });
+
+  // Two rows backdated to the same day share local midnight. Recent activity
+  // must list the later-logged one first, whichever was inserted first, or the
+  // order (and which row LIMIT 10 drops) is left to the planner.
+  it.each([
+    ['older row inserted first', ['old', 'new'] as const],
+    ['newer row inserted first', ['new', 'old'] as const],
+  ])('lists exposures tied on occurredAt newest-logged first (%s)', async (_label, order) => {
+    const yesterday = new Date(getStartOfDay().getTime() - 24 * HOUR);
+    const rows = {
+      old: () => logAt('t-old', 'c1', yesterday, 'apple', new Date(Date.now() - 2 * HOUR)),
+      new: () => logAt('t-new', 'c1', yesterday, 'pear', new Date(Date.now() - HOUR)),
+    };
+    for (const key of order) await rows[key]();
+
+    await renderDashboard();
+
+    await waitFor(() => expect(screen.getAllByLabelText(/^Open (Apple|Pear) details$/).length).toBe(4));
+    // The seed's own c1 rows (pear, then apple) are from 1970 and come after.
+    expect(
+      screen.getAllByLabelText(/^Open (Apple|Pear) details$/).map((el) => el.getAttribute('aria-label')),
+    ).toEqual(['Open Pear details', 'Open Apple details', 'Open Pear details', 'Open Apple details']);
   });
 });
