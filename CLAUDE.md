@@ -316,7 +316,7 @@ v0.5.221
   onboarding completes. `expo-router`'s `Tabs` is mocked to render nothing. No
   production code changed. Mutation-verified: dropping `ensureSelection` fails 1, the
   family predicate 2, the Add Child redirect 1, the `isOnboarded` guard 1.
-  1031 tests pass across 65 suites. TypeScript clean.
+  1025 tests pass across 64 suites. TypeScript clean.
 - v0.5.218 — Fix (copy): **the rename-collision merge's second confirm names the food as
   it will be.** Since v0.5.216 `mergeFoods` renames the survivor to the spelling the
   parent typed, but the "Merge Foods?" confirm still said exposures "will move to" the
