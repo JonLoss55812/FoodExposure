@@ -8,6 +8,8 @@ interface FoodCardProps {
   category: string;
   currentStage?: ExposureStage;
   exposureCount: number;
+  /** Exposures to acceptance for the active feeding profile (15/20/30). */
+  target?: number;
   isSafeFood: boolean;
   onPress?: () => void;
 }
@@ -17,6 +19,7 @@ export function FoodCard({
   category,
   currentStage,
   exposureCount,
+  target,
   isSafeFood,
   onPress,
 }: FoodCardProps) {
@@ -68,6 +71,7 @@ export function FoodCard({
       </View>
       <ProgressBar
         current={exposureCount}
+        target={target}
         color={stageConfig?.color}
         height={6}
       />

@@ -47,6 +47,7 @@ jest.mock('@/src/db/client', () => ({
 import FoodsScreen from '../foods';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { useChildStore } from '@/src/stores/child-store';
+import { useSettingsStore } from '@/src/stores/settings-store';
 
 const CHILD_ID = 'child-1';
 
@@ -107,6 +108,7 @@ describe('FoodsScreen', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+    useSettingsStore.getState().setFeedingProfile('typical');
   });
 
   it('renders the loaded foods', async () => {
@@ -149,9 +151,41 @@ describe('FoodsScreen', () => {
 
     await waitFor(() => expect(screen.getByText('Apple')).toBeTruthy());
     // FoodCard renders the count through ProgressBar's "current/target"
-    // label, whose target is the component's default 15.
+    // label; the target is the typical profile's threshold, 15.
     expect(screen.getByText('2/15')).toBeTruthy();
     expect(screen.getByText('0/15')).toBeTruthy();
+  });
+
+  it('measures each food against the feeding profile threshold, not a fixed 15', async () => {
+    // The Progress tab and the food detail page both read the profile's
+    // threshold (20 picky, 30 ARFID). A Foods tab still showing "2/15" to an
+    // ARFID parent tells them the food is halfway when it is a fifteenth in.
+    useSettingsStore.getState().setFeedingProfile('arfid');
+    queueLoad(
+      [APPLE, BROCCOLI],
+      [
+        { id: 'e1', foodId: APPLE.id, childId: CHILD_ID, stage: 'taste' },
+        { id: 'e2', foodId: APPLE.id, childId: CHILD_ID, stage: 'smell' },
+      ],
+    );
+    renderScreen();
+
+    await waitFor(() => expect(screen.getByText('Apple')).toBeTruthy());
+    expect(screen.getByText('2/30')).toBeTruthy();
+    expect(screen.getByText('0/30')).toBeTruthy();
+    expect(screen.queryByText('2/15')).toBeNull();
+  });
+
+  it('re-measures the rows when the profile changes while the tab stays mounted', async () => {
+    // Settings is a sibling tab, so the Foods list is still mounted when the
+    // parent switches profile there; a memoized row renderer must not keep 15.
+    queueLoad([APPLE], [{ id: 'e1', foodId: APPLE.id, childId: CHILD_ID, stage: 'taste' }]);
+    renderScreen();
+    await waitFor(() => expect(screen.getByText('1/15')).toBeTruthy());
+
+    act(() => useSettingsStore.getState().setFeedingProfile('picky'));
+
+    await waitFor(() => expect(screen.getByText('1/20')).toBeTruthy());
   });
 
   it('does not query exposures when no child is selected', async () => {

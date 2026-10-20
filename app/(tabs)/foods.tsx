@@ -10,6 +10,8 @@ import * as schema from '@/src/db/schema';
 import { FoodCard, EmptyState } from '@/src/components';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { useChildStore } from '@/src/stores/child-store';
+import { useSettingsStore } from '@/src/stores/settings-store';
+import { getThresholdForProfile } from '@/src/lib/thresholds';
 import { FOOD_CATEGORIES, CATEGORY_CONFIG, getCategoryConfig } from '@/src/lib/constants';
 import type { FoodCategory, ExposureStage } from '@/src/lib/constants';
 import { partitionSafeFoods, getEmptyStateKind, buildFoodsWithStats, filterFoods, findDuplicateFoodGroups } from '@/src/lib/food-partition';
@@ -30,6 +32,9 @@ export default function FoodsScreen() {
   const router = useRouter();
   const { familyId } = useAuthStore();
   const { selectedChildId } = useChildStore();
+  // The same threshold the Progress tab and food detail page measure against;
+  // a fixed 15 here told picky/ARFID parents a food was further along than it is.
+  const threshold = getThresholdForProfile(useSettingsStore((s) => s.feedingProfile));
   const [foods, setFoods] = useState<FoodWithStats[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<FoodCategory | 'all'>('all');
@@ -142,11 +147,12 @@ export default function FoodsScreen() {
         category={item.category}
         currentStage={item.highestStage}
         exposureCount={item.exposureCount}
+        target={threshold}
         isSafeFood={!!item.isSafeFood}
         onPress={() => router.push(`/food/${item.id}`)}
       />
     </View>
-  ), [router]);
+  ), [router, threshold]);
 
   const SafeFoodsSection = safeFoods.length > 0 ? (
     <View style={styles.safeSection} testID="safe-foods-section">

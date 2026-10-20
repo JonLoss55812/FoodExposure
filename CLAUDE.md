@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.219` (`src/lib/constants.ts`). 1025 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.220` (`src/lib/constants.ts`). 1027 tests pass across
 64 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 1025 tests, 64 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 1027 tests, 64 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 1025 tests, 64 suites
+npm run test         # 1027 tests, 64 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -159,7 +159,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **1025 tests across 64 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **1027 tests across 64 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -227,7 +227,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 1025 tests, 64 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 1027 tests, 64 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -278,9 +278,19 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.219
+v0.5.220
 
 ## Changelog
+- v0.5.220 — Fix: **the Foods tab measures each food against the feeding profile's
+  threshold.** `FoodCard` drew its bar through `ProgressBar`'s default target of 15, so on
+  the picky (20) and ARFID (30) profiles the Foods tab read "2/15" for a food the Progress
+  tab and food detail page both show as "2/30" — telling a parent a food is further along
+  than it is. `FoodCard` takes an optional `target`; the Foods tab passes
+  `getThresholdForProfile(feedingProfile)` and lists it in the row renderer's `useCallback`
+  deps, because Settings is a sibling tab and the list stays mounted while the profile
+  changes. +2 screen tests (ARFID rows read /30; a profile change re-measures a mounted
+  list). Mutation-verified: dropping the prop fails 2, dropping the memo dep fails 1.
+  1027 tests pass across 64 suites. TypeScript clean.
 - v0.5.219 — Tests: **the tab layout's child-selection repair is pinned against real
   SQL.** `app/(tabs)/_layout.tsx` is what repairs a persisted `selectedChildId` that
   names another family's child (shared device, sign-out, Join) for every screen that
@@ -292,7 +302,7 @@ v0.5.219
   onboarding completes. `expo-router`'s `Tabs` is mocked to render nothing. No
   production code changed. Mutation-verified: dropping `ensureSelection` fails 1, the
   family predicate 2, the Add Child redirect 1, the `isOnboarded` guard 1.
-  1025 tests pass across 64 suites. TypeScript clean.
+  1027 tests pass across 64 suites. TypeScript clean.
 - v0.5.218 — Fix (copy): **the rename-collision merge's second confirm names the food as
   it will be.** Since v0.5.216 `mergeFoods` renames the survivor to the spelling the
   parent typed, but the "Merge Foods?" confirm still said exposures "will move to" the
