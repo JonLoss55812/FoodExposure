@@ -295,6 +295,22 @@ describe('SettingsScreen — Export Data', () => {
     expect(shareSpy).not.toHaveBeenCalled();
   });
 
+  it("does not show a failed query's SQL and bound values in the alert", async () => {
+    await renderWithChildren([EMMA]);
+    // drizzle's DrizzleQueryError message: the SQL, then the values it bound.
+    mockDb.failReads(
+      new Error('Failed query: select "name" from "children" where "id" = ?\nparams: c-emma-id')
+    );
+
+    await click('Export data as CSV');
+
+    await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+    const [title, body] = alertSpy.mock.calls[0];
+    expect(title).toBe('Export failed');
+    expect(body).not.toMatch(/Failed query|params:|c-emma-id/);
+    expect(body).toMatch(/try again/i);
+  });
+
   it('stays retryable after a failure', async () => {
     await renderWithChildren([EMMA]);
     const failing = createMockDb();

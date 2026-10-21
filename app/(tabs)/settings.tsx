@@ -179,7 +179,10 @@ export default function SettingsScreen() {
       await exportChildData(selectedChildId, child.name, child.dateOfBirth);
     } catch (err) {
       console.error('Failed to export data:', err);
-      Alert.alert('Export failed', err instanceof Error ? err.message : 'Unknown error');
+      // Fixed copy, not err.message: a failed query's message is its SQL plus
+      // the bound values, which means nothing to a parent and puts a child's
+      // data into any screenshot they send for help. The log keeps the detail.
+      Alert.alert('Export failed', 'Your data could not be exported. Please try again.');
     } finally {
       exportLatch.release();
       setExporting(false);
