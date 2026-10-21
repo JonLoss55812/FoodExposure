@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.221 — 1031 tests passing across 65 suites, TypeScript clean.
+Reviewed at: v0.5.222 — 1032 tests passing across 65 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -12,6 +12,14 @@ behind a pre-existing failure.
 > v0.5.162 session then wasted a task re-testing a screen that was already
 > covered. **Before picking work from the gap list, check `git log` and
 > `find app -name '*.test.tsx'` against the claim you are about to act on.**
+
+## Hardening session (2026-10-21, v0.5.222)
+
+The Settings CSV export alert no longer shows the raw query error. Reported, not fixed:
+an Android export above ~1 MB fails with "Failed to open share dialog" (share a file URI
+instead), and `DatabaseProvider.initDb` has no single-flight guard. Add the guard before the
+first non-idempotent `ALTER TABLE` migration step. Details are in
+`.planning/pusher/hardening-2026-10-21.md`.
 
 ## Docs session (2026-10-15): correction to the v0.5.205 web claims
 
