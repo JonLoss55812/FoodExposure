@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.224 — 1032 tests passing across 65 suites, TypeScript clean.
+Reviewed at: v0.5.226 — 1043 tests passing across 67 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -12,6 +12,25 @@ behind a pre-existing failure.
 > v0.5.162 session then wasted a task re-testing a screen that was already
 > covered. **Before picking work from the gap list, check `git log` and
 > `find app -name '*.test.tsx'` against the claim you are about to act on.**
+
+## Build session (2026-10-22, v0.5.225–v0.5.226)
+
+- v0.5.225 — the food detail page's date-correction re-sort breaks `occurredAt` ties by
+  `createdAt`, via a new pure `compareExposuresNewestFirst` (in-memory twin of
+  `EXPOSURES_NEWEST_FIRST`). Closes the v0.5.221 note below.
+- v0.5.226 — `fetchExportRows(childId, familyId)` joins `children` with a family
+  predicate; `exportChildData` takes `{ childId, familyId, childName, dateOfBirth }`.
+  Closes the v0.5.198 "export helper trusts its caller" note.
+
+**Discovered and deliberately not done:**
+
+- **The food-detail bump reloads rather than patching**, so it already gets the query's
+  tie order; only the date editor patched. If another per-row editor ever moves a row,
+  sort with `compareExposuresNewestFirst`, not an `occurredAt` subtraction.
+- **`fetchExportRows` with a blank `familyId` returns `[]` and still shares a header-only
+  CSV.** Settings refuses before reaching it, so unreachable today; a future caller should
+  check the family first if a silent empty export would mislead.
+- **A fresh pusher worktree still has no `node_modules`** — `npm install` first.
 
 ## Build session (2026-10-21, v0.5.223–v0.5.224)
 
@@ -378,7 +397,7 @@ onboarding path is the cheapest way to cover that class.
   one, but a new caller that forgets inherits the typical threshold silently. Making
   `target` required is a small, safe follow-up (grep `<ProgressBar` — the dashboard and
   Progress-tab rows pass explicit targets already; check before changing).
-- **The food detail page's in-memory re-sort after a date correction** compares
+- **~~The food detail page's in-memory re-sort after a date correction~~** (done v0.5.225) compares
   `occurredAt` only. `Array.sort` is stable, so ties keep their loaded order, but a row
   moved onto a tied day is not placed by `createdAt`. Add `createdAt` to `ExposureRow`'s
   projection if it ever matters. Its query is held by the shared constant, not a screen test.
@@ -605,7 +624,7 @@ onboarding path is the cheapest way to cover that class.
 
 **Discovered and deliberately not done:**
 
-- **`fetchExportRows(childId)` itself is still unscoped** — it trusts its caller. The
+- **~~`fetchExportRows(childId)` itself is still unscoped~~** (done v0.5.226) — it trusts its caller. The
   screen now checks the child belongs to the family first, which is sufficient; pushing a
   `familyId` param into `exportChildData` would make the helper self-defending but changes
   its signature and the 7 integration tests. Do it if a second export caller appears.
