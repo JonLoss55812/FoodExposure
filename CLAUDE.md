@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.222` (`src/lib/constants.ts`). 1032 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.223` (`src/lib/constants.ts`). 1033 tests pass across
 65 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 1032 tests, 65 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 1033 tests, 65 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 1032 tests, 65 suites
+npm run test         # 1033 tests, 65 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -159,7 +159,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **1032 tests across 65 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **1033 tests across 65 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -227,7 +227,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 1032 tests, 65 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 1033 tests, 65 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -278,9 +278,19 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.222
+v0.5.223
 
 ## Changelog
+- v0.5.223 — Hardening: **the boot migration runs once even when initialisation is
+  started twice.** `DatabaseProvider.initDb` had no single-flight guard, so a second run
+  begun before the first finished (StrictMode's double effect in development, a retry)
+  read the same `PRAGMA user_version` and re-applied every step. Steps 1–2 are idempotent,
+  so nothing broke yet — but the first `ALTER TABLE … ADD COLUMN` step would make the
+  second run fail "duplicate column" and cover the first run's success with the error
+  screen. `initDb` now holds a `createInFlightLatch()`, released in `finally` so Try Again
+  still works. +1 test in `DatabaseProvider.test.tsx` rendering under `StrictMode`
+  (baseline step and FK pragma each issued once), red before the change; dropping the
+  release fails both retry tests. 1033 tests pass across 65 suites. TypeScript clean.
 - v0.5.222 — Hardening: **a failed CSV export no longer shows the parent a raw query
   error.** Settings' `handleExport` alerted `err.message`, and a failed drizzle query's
   message is `Failed query: <sql>\nparams: <values>` — meaningless to a parent, and it

@@ -1,7 +1,8 @@
-import { ReactNode, useCallback, useEffect, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { View, ActivityIndicator, Text, Pressable } from 'react-native';
 import { expoDb } from '../db/client';
 import { runMigrations } from '../db/migrate';
+import { createInFlightLatch } from '../lib/in-flight';
 
 export function DatabaseProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
@@ -11,7 +12,14 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
   // dead end twice over: nothing was logged (Sentry only hears about errors
   // that reach console.error or are thrown), and the only way past a
   // transient failure such as a locked database was to kill the app.
+  //
+  // Single-flight: a second run started before the first finishes (StrictMode's
+  // double effect, a retry) would read the same user_version and re-apply
+  // every step, and a non-idempotent ALTER TABLE step would then fail and
+  // cover the first run's success with an error screen.
+  const initLatch = useRef(createInFlightLatch()).current;
   const initDb = useCallback(async () => {
+    if (!initLatch.tryAcquire()) return;
     setError(null);
     try {
       await runMigrations(expoDb);
@@ -25,8 +33,10 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error('Failed to initialize database:', err);
       setError(err instanceof Error ? err.message : 'Database initialization failed');
+    } finally {
+      initLatch.release();
     }
-  }, []);
+  }, [initLatch]);
 
   useEffect(() => {
     initDb();

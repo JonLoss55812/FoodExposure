@@ -1,3 +1,4 @@
+import { StrictMode } from 'react';
 import { Text } from 'react-native';
 import { act, render } from '@testing-library/react';
 import { click } from '@/src/test-utils/screen-helpers';
@@ -103,5 +104,29 @@ describe('DatabaseProvider', () => {
 
     expect(getByText('Database Error: second')).toBeTruthy();
     expect(queryByText('App content')).toBeNull();
+  });
+
+  it('runs the migrations once when initialisation is started twice concurrently', async () => {
+    // StrictMode mounts, unmounts and re-mounts every effect in development,
+    // so the init effect fires twice before the first run has finished. Both
+    // runs would read user_version 0 and apply every step; once a step is a
+    // non-idempotent ALTER TABLE, the second run fails "duplicate column" and
+    // its error screen covers the first run's success.
+    mockExecAsync.mockResolvedValue(undefined);
+    let utils!: ReturnType<typeof render>;
+    await act(async () => {
+      utils = render(
+        <StrictMode>
+          <DatabaseProvider>
+            <Text>App content</Text>
+          </DatabaseProvider>
+        </StrictMode>
+      );
+    });
+
+    const calls = mockExecAsync.mock.calls.map(([sql]) => sql as string);
+    expect(calls.filter((sql) => sql.includes('PRAGMA user_version = 1'))).toHaveLength(1);
+    expect(calls.filter((sql) => sql === 'PRAGMA foreign_keys = ON;')).toHaveLength(1);
+    expect(utils.getByText('App content')).toBeTruthy();
   });
 });
