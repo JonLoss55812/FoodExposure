@@ -12,8 +12,8 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.224` (`src/lib/constants.ts`). 1032 tests pass across
-65 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
+**Current state:** `APP_VERSION` is `v0.5.225` (`src/lib/constants.ts`). 1038 tests pass across
+66 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
 ## Tech Stack
@@ -278,9 +278,19 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.224
+v0.5.225
 
 ## Changelog
+- v0.5.225 — Fix: **a date correction on the food detail page orders tied rows the way the
+  load does.** The date editor re-sorted its patched list by `occurredAt` alone, while the
+  load (and the dashboard and CSV) break ties by `createdAt` (v0.5.221). A backdated row is
+  stored at local midnight, so correcting a row onto a day that already had one tied, and
+  the stable sort left the corrected row in its old relative place — below an older-logged
+  row the next load would put after it. New pure `compareExposuresNewestFirst` in
+  `src/lib/exposure-order.ts` (the in-memory twin of `EXPOSURES_NEWEST_FIRST`; a missing
+  `createdAt` sorts as oldest); the history read now projects `createdAt`. +1 screen test
+  (red before) and +5 unit tests; dropping the tie-break fails 4. 1038 tests pass across
+  66 suites. TypeScript clean.
 - v0.5.224 — Refactor (types): **`ProgressBar` and `FoodCard` require a `target`.**
   `ProgressBar` defaulted it to 15 and `FoodCard` passed through an optional one, which is
   how v0.5.220's bug happened: the Foods tab measured picky (20) and ARFID (30) foods

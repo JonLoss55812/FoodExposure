@@ -19,7 +19,7 @@ import { describeMergeOutcome, mergeFoods } from '@/src/lib/merge-foods';
 import { findDuplicateFood } from '@/src/lib/food-partition';
 import { foodSchema, exposureSchema } from '@/src/lib/validation';
 import { createInFlightLatch } from '@/src/lib/in-flight';
-import { EXPOSURES_NEWEST_FIRST } from '@/src/lib/exposure-order';
+import { EXPOSURES_NEWEST_FIRST, compareExposuresNewestFirst } from '@/src/lib/exposure-order';
 
 // A render error here stays inside this screen, keeping the navigator (tab bar,
 // modal dismiss) usable; see app/__tests__/route-error-boundaries.test.tsx.
@@ -27,7 +27,8 @@ export { RouteErrorBoundary as ErrorBoundary } from '@/src/components/RouteError
 
 type ExposureRow = Pick<
   typeof schema.exposures.$inferSelect,
-  'id' | 'stage' | 'rating' | 'notes' | 'occurredAt' | 'mealType' | 'temperature' | 'texture' | 'setting'
+  | 'id' | 'stage' | 'rating' | 'notes' | 'occurredAt' | 'createdAt'
+  | 'mealType' | 'temperature' | 'texture' | 'setting'
 >;
 
 /** PREPARATIONS are stored lowercase; every surface displays them title-cased. */
@@ -126,6 +127,9 @@ export default function FoodDetailScreen() {
           rating: schema.exposures.rating,
           notes: schema.exposures.notes,
           occurredAt: schema.exposures.occurredAt,
+          // Read for the date editor's in-memory re-sort, which must break
+          // ties the way EXPOSURES_NEWEST_FIRST does.
+          createdAt: schema.exposures.createdAt,
           mealType: schema.exposures.mealType,
           temperature: schema.exposures.temperature,
           texture: schema.exposures.texture,
@@ -423,7 +427,7 @@ export default function FoodDetailScreen() {
    * date keeps the row's time of day instead of snapping it to local midnight
    * (or to right now) and re-ordering the history under the parent.
    *
-   * The list is ordered by `occurredAt desc`, so unlike the other three
+   * The list is ordered newest first (`occurredAt`, then `createdAt`), so unlike the other three
    * editors this one has to re-sort after the patch — otherwise the corrected
    * row stays where it was until the screen is reloaded.
    */
@@ -462,7 +466,7 @@ export default function FoodDetailScreen() {
       setExposuresList((rows) =>
         rows
           .map((row) => (row.id === exp.id ? { ...row, occurredAt: next } : row))
-          .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()),
+          .sort(compareExposuresNewestFirst),
       );
       setEditing(null);
     } catch (err) {

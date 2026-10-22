@@ -1658,6 +1658,32 @@ describe('FoodDetailScreen', () => {
       });
     });
 
+    it('places a row corrected onto a tied day by when it was logged', async () => {
+      // A backdated row is stored at local midnight, so a correction onto a
+      // day that already has one ties on `occurredAt`. The load orders ties
+      // newest-logged first (EXPOSURES_NEWEST_FIRST); the in-memory re-sort
+      // must agree, or the corrected row sits below an older-logged one
+      // until the next load reorders it.
+      queueLoad(FOOD, [
+        { ...exp('exp-1', 'taste', new Date(2026, 8, 8)), createdAt: new Date(2026, 8, 8, 9) },
+        { ...exp('exp-2', 'smell', new Date(2026, 8, 1)), createdAt: new Date(2026, 8, 9, 9) },
+      ]);
+      await renderLoaded();
+
+      await openEditor('Smell');
+      typeDate('2026-09-08');
+      await click('Save exposure date');
+
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      await waitFor(() => {
+        const labels = screen
+          .getAllByLabelText(/^Delete (Taste|Smell) exposure from /)
+          .map((el) => el.getAttribute('aria-label') ?? '');
+        expect(labels[0]).toContain('Smell');
+        expect(labels[1]).toContain('Taste');
+      });
+    });
+
     it('writes nothing when the draft names the day already stored', async () => {
       // Resolved against the row's own timestamp, so the stored time of day
       // survives instead of snapping to local midnight (or to now) and
