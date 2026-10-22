@@ -1,5 +1,5 @@
 import { Share } from 'react-native';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
 import { ageInMonthsAt } from '@/src/lib/utils';
@@ -194,7 +194,14 @@ export function buildExportFilename(
   return `tonguetutor-${safeSlug}-${ymd}.csv`;
 }
 
-export async function fetchExportRows(childId: string): Promise<ExposureRow[]> {
+/**
+ * Every exposure for `childId`, provided that child belongs to `familyId`.
+ * The family predicate makes the helper self-defending: a stale or foreign
+ * child id (shared device, sign-out then Join) reads as no rows rather than
+ * handing another family's feeding history to the share sheet. Today's caller
+ * (Settings, v0.5.197) also checks first; this does not rely on it.
+ */
+export async function fetchExportRows(childId: string, familyId: string): Promise<ExposureRow[]> {
   const results = await db
     .select({
       occurredAt: schema.exposures.occurredAt,
@@ -212,7 +219,11 @@ export async function fetchExportRows(childId: string): Promise<ExposureRow[]> {
     })
     .from(schema.exposures)
     .innerJoin(schema.foods, eq(schema.exposures.foodId, schema.foods.id))
-    .where(eq(schema.exposures.childId, childId))
+    .innerJoin(schema.children, eq(schema.exposures.childId, schema.children.id))
+    .where(and(
+      eq(schema.exposures.childId, childId),
+      eq(schema.children.familyId, familyId),
+    ))
     .orderBy(...EXPOSURES_NEWEST_FIRST);
 
   return results.map((r) => ({
@@ -221,12 +232,22 @@ export async function fetchExportRows(childId: string): Promise<ExposureRow[]> {
   }));
 }
 
-export async function exportChildData(
-  childId: string,
-  childName: string,
-  dateOfBirth?: string | null
-): Promise<void> {
-  const rows = await fetchExportRows(childId);
+/**
+ * Named fields rather than positional strings: `childId`, `familyId` and
+ * `childName` are all strings, so a swapped argument would type-check.
+ */
+export async function exportChildData({
+  childId,
+  familyId,
+  childName,
+  dateOfBirth,
+}: {
+  childId: string;
+  familyId: string;
+  childName: string;
+  dateOfBirth?: string | null;
+}): Promise<void> {
+  const rows = await fetchExportRows(childId, familyId);
   const csv = formatExposuresCsv(rows, dateOfBirth);
   const filename = buildExportFilename(childName);
   await Share.share({

@@ -176,7 +176,12 @@ export default function SettingsScreen() {
         Alert.alert('No child selected', 'Add or select a child before exporting.');
         return;
       }
-      await exportChildData(selectedChildId, child.name, child.dateOfBirth);
+      await exportChildData({
+        childId: selectedChildId,
+        familyId,
+        childName: child.name,
+        dateOfBirth: child.dateOfBirth,
+      });
     } catch (err) {
       console.error('Failed to export data:', err);
       // Fixed copy, not err.message: a failed query's message is its SQL plus

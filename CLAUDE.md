@@ -12,8 +12,8 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.225` (`src/lib/constants.ts`). 1038 tests pass across
-66 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
+**Current state:** `APP_VERSION` is `v0.5.226` (`src/lib/constants.ts`). 1043 tests pass across
+67 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
 ## Tech Stack
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 1032 tests, 65 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 1043 tests, 67 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 1032 tests, 65 suites
+npm run test         # 1043 tests, 67 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -159,7 +159,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **1032 tests across 65 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **1043 tests across 67 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -227,7 +227,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 1032 tests, 65 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 1043 tests, 67 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -278,9 +278,20 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.225
+v0.5.226
 
 ## Changelog
+- v0.5.226 — Hardening (data isolation): **the CSV export helper scopes by family
+  itself.** `fetchExportRows(childId)` read a child's whole history by id alone and
+  trusted its caller to have checked the child belongs to the signed-in family (Settings
+  does, since v0.5.197). It now takes `familyId`, joins `children` and adds
+  `eq(children.familyId, familyId)`, so a foreign id reads as no rows whoever calls it.
+  `exportChildData` takes a named-field object (`{ childId, familyId, childName,
+  dateOfBirth }`) instead of positional strings, because three string ids in a row would
+  type-check swapped. +5 real-SQL tests in `export-family-scope-sqlite.test.ts` (own child,
+  foreign child, the given family not a fixed one, blank family, header-only share);
+  dropping the predicate fails 3, and Settings passing `''` fails the existing
+  export screen test. 1043 tests pass across 67 suites. TypeScript clean.
 - v0.5.225 — Fix: **a date correction on the food detail page orders tied rows the way the
   load does.** The date editor re-sorted its patched list by `occurredAt` alone, while the
   load (and the dashboard and CSV) break ties by `createdAt` (v0.5.221). A backdated row is

@@ -58,7 +58,7 @@ beforeEach(() => {
 
 describe('fetchExportRows', () => {
   it('returns an empty array when the child has no exposures', async () => {
-    const rows = await fetchExportRows('child-1');
+    const rows = await fetchExportRows('child-1', 'fam-1');
     expect(rows).toEqual([]);
   });
 
@@ -79,7 +79,7 @@ describe('fetchExportRows', () => {
       notes: null,
     });
 
-    const rows = await fetchExportRows('child-1');
+    const rows = await fetchExportRows('child-1', 'fam-1');
     expect(rows).toHaveLength(1);
     expect(rows[0].occurredAt).toBeInstanceOf(Date);
     expect(rows[0].occurredAt.toISOString()).toBe('2026-04-01T10:00:00.000Z');
@@ -103,16 +103,16 @@ describe('fetchExportRows', () => {
       notes: null,
     });
 
-    const rows = await fetchExportRows('child-1');
+    const rows = await fetchExportRows('child-1', 'fam-1');
     expect(rows[0].occurredAt).toBeInstanceOf(Date);
     expect(rows[0].occurredAt.toISOString()).toBe('2026-04-02T12:00:00.000Z');
   });
 
   it('invokes the query builder chain in the expected order', async () => {
-    await fetchExportRows('child-42');
+    await fetchExportRows('child-42', 'fam-1');
     expect(mockQueryBuilder.select).toHaveBeenCalledTimes(1);
     expect(mockQueryBuilder.from).toHaveBeenCalledTimes(1);
-    expect(mockQueryBuilder.innerJoin).toHaveBeenCalledTimes(1);
+    expect(mockQueryBuilder.innerJoin).toHaveBeenCalledTimes(2);
     expect(mockQueryBuilder.where).toHaveBeenCalledTimes(1);
     expect(mockQueryBuilder.orderBy).toHaveBeenCalledTimes(1);
   });
@@ -137,7 +137,7 @@ describe('exportChildData', () => {
 
     const shareSpy = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' } as never);
 
-    await exportChildData('child-1', 'Ada Lovelace');
+    await exportChildData({ childId: 'child-1', familyId: 'fam-1', childName: 'Ada Lovelace' });
 
     expect(shareSpy).toHaveBeenCalledTimes(1);
     const arg = shareSpy.mock.calls[0][0] as { title: string; message: string };
@@ -152,7 +152,7 @@ describe('exportChildData', () => {
   it('still shares a header-only CSV when the child has no exposures', async () => {
     const shareSpy = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' } as never);
 
-    await exportChildData('child-empty', 'Empty Kid');
+    await exportChildData({ childId: 'child-empty', familyId: 'fam-1', childName: 'Empty Kid' });
 
     expect(shareSpy).toHaveBeenCalledTimes(1);
     const arg = shareSpy.mock.calls[0][0] as { title: string; message: string };
@@ -164,7 +164,7 @@ describe('exportChildData', () => {
   it('propagates errors from Share.share', async () => {
     const shareSpy = jest.spyOn(Share, 'share').mockRejectedValue(new Error('user cancelled'));
 
-    await expect(exportChildData('child-1', 'Ada')).rejects.toThrow('user cancelled');
+    await expect(exportChildData({ childId: 'child-1', familyId: 'fam-1', childName: 'Ada' })).rejects.toThrow('user cancelled');
 
     shareSpy.mockRestore();
   });

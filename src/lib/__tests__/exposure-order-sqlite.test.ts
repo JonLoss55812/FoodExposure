@@ -53,7 +53,7 @@ describe('exposures tied on occurredAt', () => {
     };
     for (const key of order) await rows[key]();
 
-    const tied = (await fetchExportRows('c1')).filter(
+    const tied = (await fetchExportRows('c1', 'f1')).filter(
       (r) => r.occurredAt.getTime() === MIDNIGHT.getTime(),
     );
     expect(tied.map((r) => r.foodName)).toEqual(['Pear', 'Apple']);
