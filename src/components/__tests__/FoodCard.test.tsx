@@ -7,6 +7,7 @@ describe('FoodCard', () => {
     name: 'Broccoli',
     category: 'vegetable' as const,
     exposureCount: 5,
+    target: 20,
     isSafeFood: false,
   };
 
@@ -36,9 +37,9 @@ describe('FoodCard', () => {
     expect(screen.queryByLabelText('Safe food')).toBeNull();
   });
 
-  it('renders exposure progress', () => {
+  it('measures exposure progress against the target it is given', () => {
     render(<FoodCard {...defaultProps} />);
-    expect(screen.getByText('5/15')).toBeTruthy();
+    expect(screen.getByText('5/20')).toBeTruthy();
   });
 
   it('calls onPress when clicked', () => {

@@ -8,8 +8,12 @@ interface FoodCardProps {
   category: string;
   currentStage?: ExposureStage;
   exposureCount: number;
-  /** Exposures to acceptance for the active feeding profile (15/20/30). */
-  target?: number;
+  /**
+   * Exposures to acceptance for the active feeding profile (15/20/30).
+   * Required: a default would silently measure picky and ARFID profiles
+   * against the typical threshold (the v0.5.220 bug).
+   */
+  target: number;
   isSafeFood: boolean;
   onPress?: () => void;
 }

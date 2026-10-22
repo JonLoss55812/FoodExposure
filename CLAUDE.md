@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.223` (`src/lib/constants.ts`). 1033 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.224` (`src/lib/constants.ts`). 1032 tests pass across
 65 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 1033 tests, 65 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 1032 tests, 65 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 1033 tests, 65 suites
+npm run test         # 1032 tests, 65 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -159,7 +159,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **1033 tests across 65 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **1032 tests across 65 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -227,7 +227,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 1033 tests, 65 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 1032 tests, 65 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -278,9 +278,18 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.223
+v0.5.224
 
 ## Changelog
+- v0.5.224 — Refactor (types): **`ProgressBar` and `FoodCard` require a `target`.**
+  `ProgressBar` defaulted it to 15 and `FoodCard` passed through an optional one, which is
+  how v0.5.220's bug happened: the Foods tab measured picky (20) and ARFID (30) foods
+  against the typical threshold without anything failing. Every app caller already passes
+  an explicit target, so the default only served a caller that forgot. Now `tsc` rejects
+  such a caller (verified by deleting the Foods tab's `target` — TS2741). The runtime
+  fallback for a non-finite or non-positive target is unchanged. The ProgressBar test that
+  pinned the default of 15 is removed; FoodCard's progress test now passes a target of 20
+  and asserts `5/20`. 1032 tests pass across 65 suites. TypeScript clean.
 - v0.5.223 — Hardening: **the boot migration runs once even when initialisation is
   started twice.** `DatabaseProvider.initDb` had no single-flight guard, so a second run
   begun before the first finished (StrictMode's double effect in development, a retry)

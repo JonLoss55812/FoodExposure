@@ -3,7 +3,8 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 interface ProgressBarProps {
   current: number;
-  target?: number;
+  /** Required: every bar is measured against a caller-chosen threshold. */
+  target: number;
   color?: string;
   showLabel?: boolean;
   height?: number;
@@ -12,7 +13,7 @@ interface ProgressBarProps {
 
 export function ProgressBar({
   current,
-  target = 15,
+  target,
   color,
   showLabel = true,
   height = 8,
