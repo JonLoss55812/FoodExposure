@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.222 — 1032 tests passing across 65 suites, TypeScript clean.
+Reviewed at: v0.5.224 — 1032 tests passing across 65 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -13,12 +13,26 @@ behind a pre-existing failure.
 > covered. **Before picking work from the gap list, check `git log` and
 > `find app -name '*.test.tsx'` against the claim you are about to act on.**
 
+## Build session (2026-10-21, v0.5.223–v0.5.224)
+
+- v0.5.223 — `DatabaseProvider.initDb` is single-flight (in-flight latch, released in
+  `finally`). The hardening report called it unreachable from a DOM test; rendering under
+  `<StrictMode>` reaches it (double effect), and that test was red before the fix.
+- v0.5.224 — `ProgressBar.target` and `FoodCard.target` are required; the default of 15
+  is gone (closes the v0.5.221 note below).
+
+**Discovered and deliberately not done:**
+
+- **Still open from the hardening session:** an Android CSV export above ~1 MB fails in the
+  share sheet; the fix is sharing a file URI (expo-file-system), which needs a device to verify.
+- **The latch makes a concurrent second `initDb` a silent no-op.** Correct for the StrictMode
+  double effect; if a future caller needs to *await* init, hold the in-flight promise instead.
+
 ## Hardening session (2026-10-21, v0.5.222)
 
 The Settings CSV export alert no longer shows the raw query error. Reported, not fixed:
 an Android export above ~1 MB fails with "Failed to open share dialog" (share a file URI
-instead), and `DatabaseProvider.initDb` has no single-flight guard. Add the guard before the
-first non-idempotent `ALTER TABLE` migration step. Details are in
+instead), and `DatabaseProvider.initDb` had no single-flight guard (done v0.5.223). Details are in
 `.planning/pusher/hardening-2026-10-21.md`.
 
 ## Docs session (2026-10-15): correction to the v0.5.205 web claims
@@ -360,7 +374,7 @@ onboarding path is the cheapest way to cover that class.
 
 **Discovered and deliberately not done:**
 
-- **`ProgressBar` still defaults `target` to 15.** Every caller that matters now passes
+- **~~`ProgressBar` still defaults `target` to 15.~~** Done v0.5.224. Every caller that matters now passes
   one, but a new caller that forgets inherits the typical threshold silently. Making
   `target` required is a small, safe follow-up (grep `<ProgressBar` — the dashboard and
   Progress-tab rows pass explicit targets already; check before changing).
