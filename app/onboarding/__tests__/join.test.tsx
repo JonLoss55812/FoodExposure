@@ -153,6 +153,9 @@ describe('JoinFamilyScreen', () => {
     expect(auth.isAuthenticated).toBe(true);
     expect(auth.familyId).toBe('fam-1');
     expect(auth.displayName).toBe('Anne');
+    // The dashboard sends anyone not onboarded back to /onboarding, so a
+    // joiner who is only logged in bounces straight back to the welcome screen.
+    expect(auth.isOnboarded).toBe(true);
     expect(alertSpy).not.toHaveBeenCalled();
   });
 

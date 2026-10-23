@@ -12,7 +12,7 @@ import { createInFlightLatch } from '@/src/lib/in-flight';
 
 export default function JoinFamilyScreen() {
   const router = useRouter();
-  const { login } = useAuthStore();
+  const { login, setOnboarded } = useAuthStore();
   const [inviteCode, setInviteCode] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -79,6 +79,10 @@ export default function JoinFamilyScreen() {
         email,
         displayName: trimmedName,
       });
+      // Joining an existing family completes onboarding: the dashboard sends
+      // anyone not onboarded back to /onboarding, and logout() resets the flag.
+      // A family with no children yet is routed to Add Child by the tab layout.
+      setOnboarded(true);
 
       router.replace('/(tabs)' as any);
     } catch (err) {

@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.226` (`src/lib/constants.ts`). 1043 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.227` (`src/lib/constants.ts`). 1043 tests pass across
 67 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -278,9 +278,18 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.226
+v0.5.227
 
 ## Changelog
+- v0.5.227 — Fix: **joining a family no longer bounces the parent back to the welcome
+  screen.** `app/onboarding/join.tsx` called `login()` but never `setOnboarded(true)`, and
+  the dashboard replaces to `/onboarding` whenever `isOnboarded` is false. Since v0.5.80
+  `logout()` resets that flag, so every join — on a fresh install or after Sign Out —
+  landed on the welcome screen signed in, one "Get Started" tap away from creating a new
+  family and abandoning the joined one. The join now sets the flag after login; a family
+  with no children is still routed to Add Child by the tab layout. The happy-path test
+  asserts `isOnboarded` (red before the fix; deleting the call fails it). Found by the
+  2026-10-23 critique. 1043 tests pass across 67 suites. TypeScript clean.
 - v0.5.226 — Hardening (data isolation): **the CSV export helper scopes by family
   itself.** `fetchExportRows(childId)` read a child's whole history by id alone and
   trusted its caller to have checked the child belongs to the signed-in family (Settings
