@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.226 — 1043 tests passing across 67 suites, TypeScript clean.
+Reviewed at: v0.5.229 — 1055 tests passing across 69 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -12,6 +12,28 @@ behind a pre-existing failure.
 > v0.5.162 session then wasted a task re-testing a screen that was already
 > covered. **Before picking work from the gap list, check `git log` and
 > `find app -name '*.test.tsx'` against the claim you are about to act on.**
+
+## Build session (2026-10-24, v0.5.228–v0.5.229)
+
+- v0.5.228 — the welcome and Join Family screens forward a parent who *arrives* signed
+  in (deep link, or the dashboard's not-onboarded redirect) to the tabs or to Add Child,
+  via pure `resolveOnboardingEntryRedirect`. Closes the deep-link route in
+  critique-2026-10-23 #2, and the "quit before Add Child, then Get Started orphans the
+  first family" path it implied.
+- v0.5.229 — `onboarding-flow-real-sql.test.tsx`: the first cross-screen flow test (real
+  stores + real SQL), as critique #1 recommended.
+
+**Discovered and deliberately not done:**
+
+- **Critique #2's other half is still open:** the child store does not remember which
+  family its selection belongs to, so MMKV partial corruption (auth reset, child store
+  survives) can still carry a foreign `selectedChildId`. `foods.tsx` and `food/[id].tsx`
+  still read exposures by `selectedChildId` alone. Fix at the store, not per screen.
+- **A signed-in, not-onboarded parent cannot reach Join or Sign Out** — they are sent to
+  Add Child. Correct for the one-family case; if someone started a family by mistake and
+  meant to join, they must add a child first, then Sign Out. Product call if it matters.
+- The flow test still mocks navigation; it is not a substitute for running the app
+  (critique #1).
 
 ## Build session (2026-10-22, v0.5.225–v0.5.226)
 
