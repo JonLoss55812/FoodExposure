@@ -232,4 +232,43 @@ describe('OnboardingScreen', () => {
     // not flip back to idle on a screen that is about to unmount.
     expect(button.getAttribute('aria-busy')).toBe('true');
   });
+  describe('arriving already signed in (deep link, back stack)', () => {
+    const signIn = (onboarded: boolean) => {
+      useAuthStore.getState().login({
+        userId: 'u1',
+        familyId: 'f1',
+        email: 'local@tonguetutor.app',
+        displayName: 'Parent',
+      });
+      useAuthStore.getState().setOnboarded(onboarded);
+    };
+
+    it('forwards an onboarded parent to the tabs instead of offering a second family', async () => {
+      signIn(true);
+      render(<OnboardingScreen />);
+
+      await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/(tabs)'));
+      expect(screen.queryByLabelText('Get Started')).toBeNull();
+      expect(mockDb.writes).toHaveLength(0);
+      expect(useAuthStore.getState().familyId).toBe('f1');
+    });
+
+    it('sends a parent who never added a child on to Add Child, not back to Get Started', async () => {
+      signIn(false);
+      render(<OnboardingScreen />);
+
+      await waitFor(() =>
+        expect(mockRouter.replace).toHaveBeenCalledWith('/onboarding/add-child')
+      );
+      expect(screen.queryByLabelText('Get Started')).toBeNull();
+    });
+
+    it('does not fire for a parent who signs in on this screen', async () => {
+      render(<OnboardingScreen />);
+      await tapGetStarted();
+
+      await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith('/onboarding/add-child'));
+      expect(mockRouter.replace).not.toHaveBeenCalled();
+    });
+  });
 });

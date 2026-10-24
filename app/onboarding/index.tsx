@@ -1,10 +1,11 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, Alert } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { generateId, generateInviteCode } from '@/src/lib/utils';
 import { createInFlightLatch } from '@/src/lib/in-flight';
+import { resolveOnboardingEntryRedirect } from '@/src/lib/onboarding-entry';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
 import { eq } from 'drizzle-orm';
@@ -16,6 +17,13 @@ export default function OnboardingScreen() {
   const [saving, setSaving] = useState(false);
   // `saving` lags a render behind the tap; the latch is synchronous.
   const startLatch = useRef(createInFlightLatch()).current;
+  // Decided once, from the state the parent *arrived* with: signing in on this
+  // screen must not also trigger it (the handler already navigates).
+  const [entryRedirect] = useState(() => resolveOnboardingEntryRedirect(useAuthStore.getState()));
+
+  useEffect(() => {
+    if (entryRedirect) router.replace(entryRedirect as any);
+  }, [entryRedirect, router]);
 
   const handleGetStarted = async () => {
     if (!startLatch.tryAcquire()) return;
@@ -72,6 +80,8 @@ export default function OnboardingScreen() {
       setSaving(false);
     }
   };
+
+  if (entryRedirect) return null;
 
   return (
     <View style={styles.container}>

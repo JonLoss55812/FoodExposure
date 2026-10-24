@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, Alert } from 'react-native';
 import { StyleSheet } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
@@ -9,6 +9,7 @@ import { useAuthStore } from '@/src/stores/auth-store';
 import { generateId, deriveLocalEmailPart, isValidInviteCode } from '@/src/lib/utils';
 import { Button } from '@/src/components';
 import { createInFlightLatch } from '@/src/lib/in-flight';
+import { resolveOnboardingEntryRedirect } from '@/src/lib/onboarding-entry';
 
 export default function JoinFamilyScreen() {
   const router = useRouter();
@@ -21,6 +22,13 @@ export default function JoinFamilyScreen() {
   // below — and the duplicate-email pre-check cannot see an insert that has
   // not committed yet, so both runs would create a users row.
   const joinLatch = useRef(createInFlightLatch()).current;
+  // Decided once, from the state the parent *arrived* with: signing in on this
+  // screen must not also trigger it (the handler already navigates).
+  const [entryRedirect] = useState(() => resolveOnboardingEntryRedirect(useAuthStore.getState()));
+
+  useEffect(() => {
+    if (entryRedirect) router.replace(entryRedirect as any);
+  }, [entryRedirect, router]);
 
   const handleJoin = async () => {
     const trimmedCode = inviteCode.trim().toUpperCase();
@@ -93,6 +101,8 @@ export default function JoinFamilyScreen() {
       setLoading(false);
     }
   };
+
+  if (entryRedirect) return null;
 
   return (
     <View style={styles.container}>

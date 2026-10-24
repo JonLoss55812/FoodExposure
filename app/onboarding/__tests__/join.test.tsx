@@ -207,4 +207,34 @@ describe('JoinFamilyScreen', () => {
     await waitFor(() => expect(mockDb.selectCount()).toBeGreaterThan(readsAfterFirst));
     errorSpy.mockRestore();
   });
+  describe('arriving already signed in (deep link, back stack)', () => {
+    const signIn = (onboarded: boolean) => {
+      useAuthStore.getState().login({
+        userId: 'u1',
+        familyId: 'f1',
+        email: 'parent@tonguetutor.app',
+        displayName: 'Parent',
+      });
+      useAuthStore.getState().setOnboarded(onboarded);
+    };
+
+    it('forwards an onboarded parent to the tabs instead of joining over the session', async () => {
+      signIn(true);
+      render(<JoinFamilyScreen />);
+
+      await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/(tabs)'));
+      expect(screen.queryByLabelText('Join Family')).toBeNull();
+      expect(useAuthStore.getState().familyId).toBe('f1');
+    });
+
+    it('sends a parent who never added a child on to Add Child', async () => {
+      signIn(false);
+      render(<JoinFamilyScreen />);
+
+      await waitFor(() =>
+        expect(mockRouter.replace).toHaveBeenCalledWith('/onboarding/add-child')
+      );
+      expect(screen.queryByLabelText('Join Family')).toBeNull();
+    });
+  });
 });
