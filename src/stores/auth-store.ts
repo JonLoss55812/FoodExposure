@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { createMMKV } from 'react-native-mmkv';
+import { useChildStore } from './child-store';
 
 const storage = createMMKV({ id: 'auth-storage' });
 
@@ -42,6 +43,18 @@ interface AuthState {
   setFamilyId: (familyId: string) => void;
 }
 
+/**
+ * The persisted child selection belongs to the family it was made in. When the
+ * signed-in family changes — including from `null`, which is what a reset or
+ * corrupted auth blob reads as — a surviving selection names another family's
+ * child, so it is dropped here, once, rather than defended against in every
+ * screen that reads `selectedChildId`. The tab layout's `ensureSelection` then
+ * picks one of the new family's children.
+ */
+const dropSelectionIfFamilyChanges = (from: string | null, to: string) => {
+  if (from !== to) useChildStore.getState().clear();
+};
+
 const isValidStringOrNull = (value: unknown): value is string | null =>
   value === null || typeof value === 'string';
 
@@ -49,17 +62,23 @@ const isValidBoolean = (value: unknown): value is boolean => typeof value === 'b
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       userId: null,
       familyId: null,
       email: null,
       displayName: null,
       isAuthenticated: false,
       isOnboarded: false,
-      login: (data) => set({ ...data, isAuthenticated: true }),
+      login: (data) => {
+        dropSelectionIfFamilyChanges(get().familyId, data.familyId);
+        set({ ...data, isAuthenticated: true });
+      },
       logout: () => set({ userId: null, familyId: null, email: null, displayName: null, isAuthenticated: false, isOnboarded: false }),
       setOnboarded: (value) => set({ isOnboarded: value }),
-      setFamilyId: (familyId) => set({ familyId }),
+      setFamilyId: (familyId) => {
+        dropSelectionIfFamilyChanges(get().familyId, familyId);
+        set({ familyId });
+      },
     }),
     {
       name: 'auth-store',

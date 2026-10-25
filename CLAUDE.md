@@ -12,8 +12,8 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.229` (`src/lib/constants.ts`). 1055 tests pass across
-69 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
+**Current state:** `APP_VERSION` is `v0.5.230` (`src/lib/constants.ts`). 1059 tests pass across
+70 suites; `npx tsc --noEmit` is clean. See the changelog at the bottom of this file for the
 per-version history and the rationale behind non-obvious decisions.
 
 ## Tech Stack
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 1055 tests, 69 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 1059 tests, 70 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 1055 tests, 69 suites
+npm run test         # 1059 tests, 70 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -159,7 +159,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **1055 tests across 69 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **1059 tests across 70 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -227,7 +227,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 1055 tests, 69 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 1059 tests, 70 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -278,9 +278,23 @@ app/ — Expo Router pages
   - Brief note on what changed
 
 ## Current Version
-v0.5.229
+v0.5.230
 
 ## Changelog
+- v0.5.230 — Fix (data isolation, at the source): **the child selection is dropped
+  whenever the signed-in family changes.** Eleven versions patched screens one by one
+  against a persisted `selectedChildId` naming another family's child; `foods.tsx` and
+  `food/[id].tsx` still read exposures by it alone (critique-2026-10-23 #2). `login()`
+  and `setFamilyId()` in `auth-store.ts` now clear the child store when the incoming
+  `familyId` differs from the current one — including from `null`, which is what a reset
+  or corrupted auth blob reads as, so MMKV partial corruption (auth gone, child selection
+  survives) is covered too, not only a login over a live session. Same-family re-login
+  keeps the selection. The tab layout's `ensureSelection` then picks one of the new
+  family's children. Per-query family predicates stay as defence in depth. +4 tests in
+  `src/stores/__tests__/auth-store-child-scope.test.ts` (3 red before); always clearing
+  fails 2. `app/food/__tests__/id.test.tsx`'s setup selected a child *before* signing in
+  — exactly the order now refused — and signs in first. 1059 tests pass across 70
+  suites. TypeScript clean.
 - v0.5.229 — Tests: **onboarding is now tested as a flow across screens.** Every
   onboarding suite rendered one screen alone, which is how v0.5.227's bug (Join navigated
   correctly but never set `isOnboarded`, so the *dashboard* bounced the parent back) lived

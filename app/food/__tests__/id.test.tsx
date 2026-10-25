@@ -94,15 +94,16 @@ describe('FoodDetailScreen', () => {
     jest.clearAllMocks();
     alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    useChildStore.getState().selectChild('child-1');
     // The load is family-scoped (see id-family-scope.test.tsx for the real-SQL
-    // proof); sign in to FOOD's family so the queued rows are reached.
+    // proof); sign in to FOOD's family so the queued rows are reached. Sign in
+    // first: a login into a different family drops the child selection.
     useAuthStore.getState().login({
       userId: 'user-1',
       familyId: 'fam-1',
       email: 'u@x.app',
       displayName: 'U',
     });
+    useChildStore.getState().selectChild('child-1');
   });
 
   afterEach(() => {
