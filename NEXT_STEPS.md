@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.229 — 1055 tests passing across 69 suites, TypeScript clean.
+Reviewed at: v0.5.231 — 1059 tests passing across 70 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -12,6 +12,28 @@ behind a pre-existing failure.
 > v0.5.162 session then wasted a task re-testing a screen that was already
 > covered. **Before picking work from the gap list, check `git log` and
 > `find app -name '*.test.tsx'` against the claim you are about to act on.**
+
+## Build session (2026-10-25, v0.5.230–v0.5.231)
+
+- v0.5.230 — `login()` / `setFamilyId()` clear the child selection whenever the family
+  changes (including from `null`). Closes critique-2026-10-23 #2's remaining half at the
+  store: a foreign `selectedChildId` can no longer survive a family switch or an auth-only
+  MMKV reset. Chosen over "store remembers its family" because every route back into a
+  family goes through `login()`, and it needed no signature change across ~45 test call
+  sites. **Tests must sign in before `selectChild`** — the reverse order is now refused.
+- v0.5.231 — **the changelog lives in `CHANGELOG.md`.** CLAUDE.md went from 469 KB to
+  16 KB (critique #3, first recommendation). Add new entries to CHANGELOG.md, not CLAUDE.md.
+
+**Discovered and deliberately not done:**
+
+- **Critique #3's other items are open:** collapse this file to one current gap list
+  (it is 70 KB and still starts by warning it is stale); delete one of the two Convex
+  directives (CLAUDE.md "Next Priority" says wire Convex, a later section here says do
+  not — a product call, so left for a human); extract `useGuardedWrite` from
+  `app/food/[id].tsx`.
+- **The per-screen family predicates are now redundant defence in depth.** Do not add
+  more; do not remove the existing ones either without a reason.
+- **Critique #1 (the app has never run) is unchanged** and remains the biggest risk.
 
 ## Build session (2026-10-24, v0.5.228–v0.5.229)
 
@@ -25,7 +47,7 @@ behind a pre-existing failure.
 
 **Discovered and deliberately not done:**
 
-- **Critique #2's other half is still open:** the child store does not remember which
+- **~~Critique #2's other half is still open:~~** (done v0.5.230) the child store does not remember which
   family its selection belongs to, so MMKV partial corruption (auth reset, child store
   survives) can still carry a foreign `selectedChildId`. `foods.tsx` and `food/[id].tsx`
   still read exposures by `selectedChildId` alone. Fix at the store, not per screen.
