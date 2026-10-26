@@ -812,7 +812,7 @@ export default function FoodDetailScreen() {
             accessibilityLabel={`Change category, currently ${categoryConfig.label}`}
             accessibilityState={{ expanded: editingCategory }}
           >
-            <Text style={[styles.tagText, { color: categoryConfig.color }]}>
+            <Text style={styles.tagText}>
               {categoryConfig.label} <Text style={styles.editHint}>✏️</Text>
             </Text>
           </Pressable>
@@ -833,8 +833,8 @@ export default function FoodDetailScreen() {
             </Text>
           </Pressable>
           {food.isSafeFood && (
-            <View style={[styles.tag, { backgroundColor: '#22C55E20' }]}>
-              <Text style={[styles.tagText, { color: '#22C55E' }]}>Safe Food</Text>
+            <View style={[styles.tag, styles.safeTag]}>
+              <Text style={styles.tagText}>Safe Food</Text>
             </View>
           )}
         </View>
@@ -1299,9 +1299,15 @@ const styles = StyleSheet.create((theme) => ({
     paddingVertical: theme.spacing.xs,
     borderRadius: theme.borderRadius.full,
   },
+  safeTag: {
+    backgroundColor: theme.colors.success + '20',
+  },
+  // The tint carries the category/safe-food hue; the label is theme text.
+  // Category hues as text were 1.9-3.2:1 on their own light tint (AA is 4.5:1).
   tagText: {
     fontSize: theme.fontSize.sm,
     fontWeight: '600',
+    color: theme.colors.text,
   },
   notesEditor: {
     marginTop: theme.spacing.sm,

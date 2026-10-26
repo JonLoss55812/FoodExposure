@@ -37,6 +37,15 @@ describe('FoodCard', () => {
     expect(screen.queryByLabelText('Safe food')).toBeNull();
   });
 
+  // The stage hues (and success green) are 1.8-2.7:1 as text on their own
+  // light tint. The label must be theme text (#0F172A in the mock theme); the
+  // tint and icon carry the hue.
+  it('renders stage and safe-food labels in the theme text colour, not the hue', () => {
+    render(<FoodCard {...defaultProps} isSafeFood={true} currentStage="eat" />);
+    expect(getComputedStyle(screen.getByText('Eat')).color).toBe('rgb(15, 23, 42)');
+    expect(getComputedStyle(screen.getByText('Safe Food')).color).toBe('rgb(15, 23, 42)');
+  });
+
   it('measures exposure progress against the target it is given', () => {
     render(<FoodCard {...defaultProps} />);
     expect(screen.getByText('5/20')).toBeTruthy();

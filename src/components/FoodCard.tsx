@@ -60,7 +60,7 @@ export function FoodCard({
             {stageConfig && (
               <View style={[styles.stageBadge, { backgroundColor: stageConfig.color + '20' }]}>
                 <Text style={{ fontSize: 12 }}>{stageConfig.icon}</Text>
-                <Text style={[styles.stageLabel, { color: stageConfig.color }]}>
+                <Text style={styles.stageLabel}>
                   {stageConfig.label}
                 </Text>
               </View>
@@ -137,9 +137,13 @@ const styles = StyleSheet.create((theme) => ({
     paddingVertical: 2,
     borderRadius: theme.borderRadius.full,
   },
+  // Label text stays on the theme's text colour; the tinted pill and the icon
+  // carry the stage/safe-food hue. As text, the hues themselves are 1.8-2.7:1
+  // on their own light tint — below the 4.5:1 AA needs at 12px.
   stageLabel: {
     fontSize: theme.fontSize.xs,
     fontWeight: '600',
+    color: theme.colors.text,
   },
   safeBadge: {
     backgroundColor: theme.colors.success + '20',
@@ -150,6 +154,6 @@ const styles = StyleSheet.create((theme) => ({
   safeLabel: {
     fontSize: theme.fontSize.xs,
     fontWeight: '600',
-    color: theme.colors.success,
+    color: theme.colors.text,
   },
 }));

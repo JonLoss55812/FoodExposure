@@ -429,6 +429,16 @@ describe('FoodDetailScreen', () => {
       expect(screen.getByLabelText('Category: Fruit')).toBeTruthy();
     });
 
+    it('labels the category and safe-food tags in theme text, not the hue', async () => {
+      // Fruit amber is 1.95:1 and success green 2.05:1 as text on their own
+      // light tint; the tint carries the hue, the label must clear AA.
+      queueLoad({ ...FOOD, isSafeFood: true });
+      await renderLoaded();
+      expect(getComputedStyle(screen.getByText(/^Fruit/)).color).toBe('rgb(15, 23, 42)');
+      // The header badge comes first; the toggle's title also reads "Safe Food".
+      expect(getComputedStyle(screen.getAllByText('Safe Food')[0]).color).toBe('rgb(15, 23, 42)');
+    });
+
     it('persists the picked category and reflects it in the tag', async () => {
       queueLoad();
       await renderLoaded();

@@ -5,6 +5,19 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.232 — Fix (a11y, contrast): **coloured pill labels are drawn in theme text, not
+  their hue.** The stage badge and "Safe Food" badge on every Foods-list row
+  (`FoodCard`), and the category and "Safe Food" tags on food detail, rendered their label
+  in the pill's own hue over a 12.5% tint of it. In light mode that's 1.76:1 (Eat) to
+  4.13:1 (Other). Every one is under the 4.5:1 AA floor at 12–14px, and Red/Grain/Dairy/Other
+  also fail in dark mode. The tint and the emoji still carry the hue; the label is now
+  `theme.colors.text` (≥15:1 on every tint, light and dark). The food-detail safe tag's
+  hardcoded `#22C55E` literals became `theme.colors.success` + a `safeTag` style. The
+  contrast suite never caught this because it only checks theme tokens, and these hues
+  come from `STAGE_CONFIG` / `CATEGORY_CONFIG`. +2 tests (`FoodCard.test.tsx`,
+  `app/food/__tests__/id.test.tsx`) assert the computed label colour. Each fails when its
+  source file is reverted, and the id test also fails if only the safe-tag hunk is reverted.
+  1061 tests pass across 70 suites. TypeScript clean.
 - v0.5.231 — Docs: **the changelog moves from `CLAUDE.md` to this file.** CLAUDE.md
   was ~469 KB, ~450 KB of it changelog, loaded into every agent session
   (critique-2026-10-23 #3). It now keeps conventions and current state; the versioning
