@@ -67,6 +67,13 @@ describe('AddFoodScreen', () => {
     expect(screen.getByLabelText('Add Food')).toBeTruthy();
   });
 
+  it('gives the header Cancel link a 44pt tap target', () => {
+    // The header link is text-only; the min-height makes its tap target 44pt
+    // rather than the ~20px line of text (react-native-web ignores hitSlop).
+    render(<AddFoodScreen />);
+    expect(getComputedStyle(screen.getByLabelText('Cancel and go back')).minHeight).toBe('44px');
+  });
+
   it('rejects a whitespace-only name through the schema and issues no query', async () => {
     render(<AddFoodScreen />);
     typeName('   ');

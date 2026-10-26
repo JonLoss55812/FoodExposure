@@ -99,6 +99,7 @@ export default function AddFoodScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
         <Pressable
+          style={styles.backAction}
           onPress={() => router.back()}
           accessibilityRole="button"
           accessibilityLabel="Cancel and go back"
@@ -217,8 +218,16 @@ const styles = StyleSheet.create((theme) => ({
   },
   header: {
     paddingHorizontal: theme.spacing.md,
-    paddingTop: 60,
+    paddingTop: 48,
     gap: theme.spacing.sm,
+  },
+  // A 44pt tap target for the header link without moving it: the 12px this
+  // adds above the ~20px text line comes out of the header's paddingTop.
+  backAction: {
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
   },
   back: {
     fontSize: theme.fontSize.md,

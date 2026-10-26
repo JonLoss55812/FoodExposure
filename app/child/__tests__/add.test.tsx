@@ -87,6 +87,13 @@ describe('AddChildScreen', () => {
     expect(screen.getByLabelText('Add Child')).toBeTruthy();
   });
 
+  it('gives the header Cancel link a 44pt tap target', () => {
+    // The header link is text-only; the min-height makes its tap target 44pt
+    // rather than the ~20px line of text (react-native-web ignores hitSlop).
+    render(<AddChildScreen />);
+    expect(getComputedStyle(screen.getByLabelText('Cancel')).minHeight).toBe('44px');
+  });
+
   it('rejects a whitespace-only name through the schema and writes nothing', async () => {
     render(<AddChildScreen />);
     type("Child's name", '   ');

@@ -5,6 +5,16 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.233 — Fix (a11y, tap targets): **the header Back / Cancel links get a 44pt tap
+  target.** On Add Food, Food Detail (loaded and not-found), Add Child and Edit Child, the
+  header link was a bare text pressable about 20px tall. frontend-2026-10-05 left it open
+  because a min-height would push the header down about 24px. Each now has a `backAction`
+  style (`minHeight`/`minWidth` 44, `alignSelf: 'flex-start'` so it no longer spans the
+  full header width). The header's `paddingTop` drops 60 → 48 so the text stays at the same
+  height on screen. The title below moves down about 12px. +4 tests assert the computed
+  `minHeight` (all 4 fail with the source reverted; the food-detail test also fails if
+  only the not-found branch loses the style). 1065 tests pass across 70 suites.
+  TypeScript clean. Not checked on a device.
 - v0.5.232 — Fix (a11y, contrast): **coloured pill labels are drawn in theme text, not
   their hue.** The stage badge and "Safe Food" badge on every Foods-list row
   (`FoodCard`), and the category and "Safe Food" tags on food detail, rendered their label

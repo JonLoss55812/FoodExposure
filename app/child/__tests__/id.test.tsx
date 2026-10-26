@@ -96,6 +96,13 @@ describe('ChildDetailScreen', () => {
     jest.restoreAllMocks();
   });
 
+  it('gives the header Cancel link a 44pt tap target', async () => {
+    // The header link is text-only; the min-height makes its tap target 44pt
+    // rather than the ~20px line of text (react-native-web ignores hitSlop).
+    await renderWith([NOAH]);
+    expect(getComputedStyle(screen.getByLabelText('Cancel')).minHeight).toBe('44px');
+  });
+
   it('seeds every field from the stored row', async () => {
     await renderWith([NOAH]);
     expect(valueOf("Child's name")).toBe('Noah');

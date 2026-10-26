@@ -15,7 +15,7 @@
  * so alert copy is assertable, and the real zustand stores reset by hand.
  */
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react';
 import { Alert } from 'react-native';
 import { eq } from 'drizzle-orm';
 import * as schema from '@/src/db/schema';
@@ -380,6 +380,20 @@ describe('FoodDetailScreen', () => {
     // target is the line of text alone. getComputedStyle resolves the
     // react-native-web min-height rule even though jsdom has no layout.
     const minHeight = (label: string) => getComputedStyle(screen.getByLabelText(label)).minHeight;
+
+    it('gives the header Back link a 44pt tap target, loaded and not found', async () => {
+    // The header link is text-only; the min-height makes its tap target 44pt
+    // rather than the ~20px line of text (react-native-web ignores hitSlop).
+      queueLoad(FOOD, []);
+      await renderLoaded();
+      expect(minHeight('Back')).toBe('44px');
+      cleanup();
+
+      queueLoad(null);
+      await renderSettled();
+      await waitFor(() => expect(screen.getByText('Food Not Found')).toBeTruthy());
+      expect(minHeight('Back')).toBe('44px');
+    });
 
     it('gives the rename Save and Cancel actions a 44pt tap target', async () => {
       queueLoad(FOOD, []);

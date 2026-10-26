@@ -90,7 +90,7 @@ export default function ChildDetailScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Cancel">
+        <Pressable style={styles.backAction} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Cancel">
           <Text style={styles.back}>Cancel</Text>
         </Pressable>
         <Text style={styles.title}>
@@ -120,8 +120,16 @@ const styles = StyleSheet.create((theme) => ({
   },
   header: {
     paddingHorizontal: theme.spacing.md,
-    paddingTop: 60,
+    paddingTop: 48,
     gap: theme.spacing.sm,
+  },
+  // A 44pt tap target for the header link without moving it: the 12px this
+  // adds above the ~20px text line comes out of the header's paddingTop.
+  backAction: {
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
   },
   back: {
     fontSize: theme.fontSize.md,
