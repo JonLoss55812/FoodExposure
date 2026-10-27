@@ -5,6 +5,16 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.234 — Fix (a11y, contrast): **input placeholders take their colour from the theme.**
+  Six inputs (Search foods, Join Family ×2, Log Exposure notes + date, Add Food name)
+  hardcoded `placeholderTextColor="#94A3B8"`: 2.56:1 on white, and Search foods has no
+  visible label for the placeholder to lean on. They now use `theme.colors.textTertiary`
+  (4.55:1 light / 5.71:1 dark on `inputBackground`), as food detail's two editors already
+  did. `join.tsx`, `log.tsx` and `food/add.tsx` gained a `useUnistyles()` call for it.
+  New `src/styles/__tests__/placeholder-color.test.ts` scans every `.tsx` under `app/` and
+  `src/` and fails on a string-literal `placeholderTextColor` (4 files failed before the
+  fix); `contrast.test.ts` pins `textTertiary` on `inputBackground` in both themes.
+  1099 tests pass across 71 suites. TypeScript clean.
 - v0.5.233 — Fix (a11y, tap targets): **the header Back / Cancel links get a 44pt tap
   target.** On Add Food, Food Detail (loaded and not-found), Add Child and Edit Child, the
   header link was a bare text pressable about 20px tall. frontend-2026-10-05 left it open

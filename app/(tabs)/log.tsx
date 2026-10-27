@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TextInput, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StyleSheet } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -24,6 +24,7 @@ export { RouteErrorBoundary as ErrorBoundary } from '@/src/components/RouteError
 
 export default function LogExposureScreen() {
   const router = useRouter();
+  const { theme } = useUnistyles();
   const { familyId, userId } = useAuthStore();
   const { selectedChildId, selectChild, ensureSelection } = useChildStore();
   const [childrenList, setChildrenList] = useState<(typeof schema.children.$inferSelect)[]>([]);
@@ -373,7 +374,7 @@ export default function LogExposureScreen() {
                   value={value}
                   onChangeText={onChange}
                   placeholder="YYYY-MM-DD (leave blank for now)"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={theme.colors.textTertiary}
                   maxLength={10}
                   autoCapitalize="none"
                   accessibilityLabel="Date (optional)"
@@ -395,7 +396,7 @@ export default function LogExposureScreen() {
                   value={value}
                   onChangeText={onChange}
                   placeholder="How did it go? Any observations..."
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={theme.colors.textTertiary}
                   multiline
                   numberOfLines={3}
                   maxLength={500}

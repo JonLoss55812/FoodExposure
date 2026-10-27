@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { View, Text, TextInput, ScrollView, Pressable, Alert } from 'react-native';
-import { StyleSheet } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -22,6 +22,7 @@ export { RouteErrorBoundary as ErrorBoundary } from '@/src/components/RouteError
 
 export default function AddFoodScreen() {
   const router = useRouter();
+  const { theme } = useUnistyles();
   const { familyId } = useAuthStore();
 
   const [saving, setSaving] = useState(false);
@@ -121,7 +122,7 @@ export default function AddFoodScreen() {
               value={value}
               onChangeText={onChange}
               placeholder="e.g., Broccoli, Chicken Nuggets"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={theme.colors.textTertiary}
               autoCapitalize="words"
               maxLength={80}
               accessibilityLabel="Food name"

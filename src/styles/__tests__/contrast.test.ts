@@ -60,6 +60,12 @@ describe('theme contrast (WCAG 2.1 AA)', () => {
       }
     );
 
+    it('textTertiary meets AA as placeholder text on inputBackground', () => {
+      expect(
+        contrastRatio(theme.colors.textTertiary, theme.colors.inputBackground)
+      ).toBeGreaterThanOrEqual(AA_NORMAL);
+    });
+
     it('primaryStrong meets AA as text on light surfaces and on primaryLight chips', () => {
       for (const surface of [...surfaces, theme.colors.primaryLight]) {
         expect(contrastRatio(theme.colors.primaryStrong, surface)).toBeGreaterThanOrEqual(AA_NORMAL);

@@ -226,7 +226,7 @@ export default function FoodsScreen() {
           value={searchQuery}
           onChangeText={setSearchQuery}
           placeholder="Search foods..."
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor={theme.colors.textTertiary}
           accessibilityLabel="Search foods"
         />
       </View>

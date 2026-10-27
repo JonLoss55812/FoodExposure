@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, Alert } from 'react-native';
-import { StyleSheet } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/src/db/client';
@@ -13,6 +13,7 @@ import { resolveOnboardingEntryRedirect } from '@/src/lib/onboarding-entry';
 
 export default function JoinFamilyScreen() {
   const router = useRouter();
+  const { theme } = useUnistyles();
   const { login, setOnboarded } = useAuthStore();
   const [inviteCode, setInviteCode] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -124,7 +125,7 @@ export default function JoinFamilyScreen() {
               value={displayName}
               onChangeText={setDisplayName}
               placeholder="Enter your name"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={theme.colors.textTertiary}
               autoCapitalize="words"
               maxLength={50}
               accessibilityLabel="Your name"
@@ -138,7 +139,7 @@ export default function JoinFamilyScreen() {
               value={inviteCode}
               onChangeText={(text) => setInviteCode(text.toUpperCase())}
               placeholder="ABC123"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={theme.colors.textTertiary}
               autoCapitalize="characters"
               maxLength={6}
               accessibilityLabel="Invite code"
