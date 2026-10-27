@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.233 — 1065 tests passing across 70 suites, TypeScript clean.
+Reviewed at: v0.5.235 — 1115 tests passing across 71 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -12,6 +12,31 @@ behind a pre-existing failure.
 > v0.5.162 session then wasted a task re-testing a screen that was already
 > covered. **Before picking work from the gap list, check `git log` and
 > `find app -name '*.test.tsx'` against the claim you are about to act on.**
+
+## Build session (2026-10-27, v0.5.234–v0.5.235)
+
+- v0.5.234 — the six `placeholderTextColor="#94A3B8"` literals (frontend-2026-10-26 "seen,
+  not done") now use `theme.colors.textTertiary`. A source-scan test fails on any
+  string-literal placeholder colour under `app/` or `src/`.
+- v0.5.235 — `StageIndicator`'s reached-stage labels were drawn in the hue of the dot they
+  sit on (1.00:1, invisible in the Log form picker). Now they use a shared `onStage` ink.
+  Unreached dots use theme tokens instead of hex literals.
+
+**Discovered and deliberately not done:**
+
+- **The jest theme is a hand-copied mock** (`src/__mocks__/react-native-unistyles.ts`).
+  A token added to `theme.ts` but not there resolves to `undefined` in tests (black text,
+  no error). A test that the mock's `colors` is a superset of `lightTheme.colors` would
+  catch the drift. Better still, build the mock from `lightTheme`, if that avoids the
+  circular import (`theme.ts` calls `StyleSheet.configure` from the mocked module).
+- **`DatabaseProvider.tsx` still hardcodes `#C2410C` / `#F97316`** (retry link, spinner).
+  It renders before or outside the themed tree, so a token may not be reachable there.
+  Check that before "fixing" it.
+- **Stage/category hues as non-text graphics** (progress bar fills, stage dots) are
+  ~1.9–2.7:1 on white, under WCAG 1.4.11's 3:1. The text alongside them carries the
+  information, so this is a design call, not a bug fix.
+- The contrast suite still does not check `CATEGORY_CONFIG` hues wherever they're used as
+  text. Today none are; the v0.5.232 fix removed the last one.
 
 ## Build session (2026-10-25, v0.5.230–v0.5.231)
 
