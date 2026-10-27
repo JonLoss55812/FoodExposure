@@ -5,6 +5,22 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.235 — Fix (a11y, contrast): **the stage picker's reached-stage labels are visible.**
+  `StageIndicator` (md/lg — the Log Exposure stage picker and the food-detail ladder) draws
+  each label *inside* its dot, and a reached stage's dot is filled with the stage hue. The
+  label was drawn in that same hue: 1.00:1, so every reached stage's name was invisible.
+  On the Log form, the default `tolerate` stage was blank, and picking Eat blanked all six.
+  Reached labels now use a new shared token `onStage` (`#0F172A`, ≥6.56:1 on all six hues in
+  both themes; white would be ~2.5:1). Unreached dots replace the hardcoded `#E2E8F0` /
+  `#94A3B8` (2.20:1) with `theme.colors.border` / `textSecondary` (6.15:1 light, 6.97:1
+  dark), so in dark mode they are no longer a pale block. +2 component tests assert the
+  computed label colour (both fail with the component reverted; the unreached-dot
+  *background* assertion can't distinguish the old literal from the light `border` token,
+  so the label colour is what catches the revert). +7 contrast tests pin `onStage` on each
+  stage hue and `textSecondary` on `border`, per theme. **The jest theme is the hand-copied
+  `src/__mocks__/react-native-unistyles.ts`, not `theme.ts`.** A new token must be added
+  there too, or it resolves to `undefined` in tests. 1115 tests pass across 71 suites.
+  TypeScript clean.
 - v0.5.234 — Fix (a11y, contrast): **input placeholders take their colour from the theme.**
   Six inputs (Search foods, Join Family ×2, Log Exposure notes + date, Add Food name)
   hardcoded `placeholderTextColor="#94A3B8"`: 2.56:1 on white, and Search foods has no

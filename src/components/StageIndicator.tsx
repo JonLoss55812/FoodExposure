@@ -1,5 +1,5 @@
 import { View, Text, Pressable } from 'react-native';
-import { StyleSheet } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { STAGE_ORDER, STAGE_CONFIG, type ExposureStage } from '../lib/constants';
 
 interface StageIndicatorProps {
@@ -45,6 +45,7 @@ export function StageIndicator({
   size = 'md',
   interactive = false,
 }: StageIndicatorProps) {
+  const { theme } = useUnistyles();
   const currentIndex = currentStage ? STAGE_ORDER.indexOf(currentStage) : -1;
 
   return (
@@ -60,14 +61,18 @@ export function StageIndicator({
             style={[
               styles.dot,
               dotSizeStyles[size],
-              { backgroundColor: isActive ? config.color : '#E2E8F0' },
+              { backgroundColor: isActive ? config.color : theme.colors.border },
               isCurrent && styles.currentDot,
             ]}
           >
             <Text style={[styles.icon, iconSizeStyles[size]]}>{config.icon}</Text>
             {size !== 'sm' && (
               <Text
-                style={[styles.label, { color: isActive ? config.color : '#94A3B8' }]}
+                // The label sits on the dot, so it cannot be drawn in the dot's hue.
+                style={[
+                  styles.label,
+                  { color: isActive ? theme.colors.onStage : theme.colors.textSecondary },
+                ]}
                 numberOfLines={1}
               >
                 {config.label}

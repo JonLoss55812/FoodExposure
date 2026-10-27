@@ -121,4 +121,27 @@ describe('StageIndicator', () => {
     fireEvent.click(screen.getByLabelText('Stage: Taste'));
     expect(onSelect).toHaveBeenCalledWith('taste');
   });
+
+  it('draws an active stage label in dark ink, not in the hue of the dot it sits on (v0.5.235)', () => {
+    // The label is a child of the dot, whose background is the stage hue. It
+    // used to be drawn in that same hue: 1.00:1, invisible on every reached
+    // stage of the Log form picker.
+    render(<StageIndicator size="md" currentStage="taste" />);
+    for (const label of ['Tolerate', 'Taste']) {
+      const text = screen.getByText(label);
+      const dot = text.parentElement as HTMLElement;
+      expect(getComputedStyle(text).color).toBe('rgb(15, 23, 42)');
+      expect(getComputedStyle(text).color).not.toBe(getComputedStyle(dot).backgroundColor);
+    }
+  });
+
+  it('draws an unreached stage from theme tokens (v0.5.235)', () => {
+    // Was hardcoded #E2E8F0 / #94A3B8: 2.20:1, and a pale block in dark mode.
+    render(<StageIndicator size="md" currentStage="taste" />);
+    const text = screen.getByText('Eat');
+    expect(getComputedStyle(text).color).toBe('rgb(71, 85, 105)'); // textSecondary
+    expect(getComputedStyle(text.parentElement as HTMLElement).backgroundColor).toBe(
+      'rgb(226, 232, 240)', // border
+    );
+  });
 });

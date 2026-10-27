@@ -1,4 +1,5 @@
 import { darkTheme, lightTheme } from '../theme';
+import { STAGE_CONFIG, STAGE_ORDER } from '../../lib/constants';
 
 /**
  * WCAG 2.1 relative luminance / contrast ratio.
@@ -63,6 +64,20 @@ describe('theme contrast (WCAG 2.1 AA)', () => {
     it('textTertiary meets AA as placeholder text on inputBackground', () => {
       expect(
         contrastRatio(theme.colors.textTertiary, theme.colors.inputBackground)
+      ).toBeGreaterThanOrEqual(AA_NORMAL);
+    });
+
+    // StageIndicator draws its label on the dot: onStage on a reached
+    // stage's hue, textSecondary on an unreached (border-filled) dot.
+    it.each(STAGE_ORDER)('onStage meets AA on the %s dot', (stage) => {
+      expect(
+        contrastRatio(theme.colors.onStage, STAGE_CONFIG[stage].color)
+      ).toBeGreaterThanOrEqual(AA_NORMAL);
+    });
+
+    it('textSecondary meets AA on an unreached stage dot (border)', () => {
+      expect(
+        contrastRatio(theme.colors.textSecondary, theme.colors.border)
       ).toBeGreaterThanOrEqual(AA_NORMAL);
     });
 

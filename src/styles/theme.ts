@@ -8,6 +8,9 @@ const sharedColors = {
   stageTouch: '#FB923C',
   stageTaste: '#F472B6',
   stageEat: '#34D399',
+  // Text drawn on a filled stage-hue dot (StageIndicator). Fixed dark ink in
+  // both themes: >= 6.5:1 on all six hues; white would be ~2.5:1.
+  onStage: '#0F172A',
   // Category colors
   categoryProtein: '#EF4444',
   categoryVegetable: '#22C55E',

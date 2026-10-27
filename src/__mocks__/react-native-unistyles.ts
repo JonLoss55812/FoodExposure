@@ -32,6 +32,7 @@ const mockTheme = {
     stageTouch: '#FB923C',
     stageTaste: '#F472B6',
     stageEat: '#34D399',
+    onStage: '#0F172A',
     categoryProtein: '#EF4444',
     categoryVegetable: '#22C55E',
     categoryFruit: '#F59E0B',
