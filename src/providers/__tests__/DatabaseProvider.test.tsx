@@ -17,6 +17,12 @@ jest.mock('../../db/client', () => ({
 
 import { DatabaseProvider } from '../DatabaseProvider';
 import { MIGRATION_SQL } from '../../db/migration';
+import { lightTheme } from '../../styles/theme';
+
+function rgb(hex: string) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+}
 
 async function renderProvider() {
   let utils!: ReturnType<typeof render>;
@@ -128,5 +134,22 @@ describe('DatabaseProvider', () => {
     expect(calls.filter((sql) => sql.includes('PRAGMA user_version = 1'))).toHaveLength(1);
     expect(calls.filter((sql) => sql === 'PRAGMA foreign_keys = ON;')).toHaveLength(1);
     expect(utils.getByText('App content')).toBeTruthy();
+  });
+
+  it('draws the error screen in theme colours, not hardcoded ones', async () => {
+    // It used CSS 'red' (4.00:1 on white, under AA for body text) and a hex
+    // literal for the retry link, and set no background, so in dark mode the
+    // light-theme ink sat on whatever was behind it.
+    mockExecAsync.mockRejectedValueOnce(new Error('database is locked'));
+    const { getByText } = await renderProvider();
+
+    const message = getByText('Database Error: database is locked');
+    expect(getComputedStyle(message).color).toBe(rgb(lightTheme.colors.error));
+    expect(getComputedStyle(getByText('Try Again')).color).toBe(
+      rgb(lightTheme.colors.primaryStrong)
+    );
+    expect(getComputedStyle(message.parentElement as HTMLElement).backgroundColor).toBe(
+      rgb(lightTheme.colors.background)
+    );
   });
 });

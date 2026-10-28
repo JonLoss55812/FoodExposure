@@ -1,10 +1,15 @@
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { View, ActivityIndicator, Text, Pressable } from 'react-native';
+import { useUnistyles } from 'react-native-unistyles';
 import { expoDb } from '../db/client';
 import { runMigrations } from '../db/migrate';
 import { createInFlightLatch } from '../lib/in-flight';
 
 export function DatabaseProvider({ children }: { children: ReactNode }) {
+  // Usable here even though this gate wraps every screen: Unistyles 3 needs no
+  // provider, and _layout imports src/styles/theme (StyleSheet.configure)
+  // before it renders.
+  const { theme } = useUnistyles();
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,15 +49,24 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
 
   if (error) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, gap: 16 }}>
-        <Text style={{ color: 'red', textAlign: 'center' }}>Database Error: {error}</Text>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 20,
+          gap: 16,
+          backgroundColor: theme.colors.background,
+        }}
+      >
+        <Text style={{ color: theme.colors.error, textAlign: 'center' }}>Database Error: {error}</Text>
         <Pressable
           onPress={initDb}
           accessibilityRole="button"
           accessibilityLabel="Retry opening the database"
           style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 20 }}
         >
-          <Text style={{ color: '#C2410C', fontWeight: '600' }}>Try Again</Text>
+          <Text style={{ color: theme.colors.primaryStrong, fontWeight: '600' }}>Try Again</Text>
         </Pressable>
       </View>
     );
@@ -60,8 +74,15 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
 
   if (!isReady) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#F97316" />
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: theme.colors.background,
+        }}
+      >
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }

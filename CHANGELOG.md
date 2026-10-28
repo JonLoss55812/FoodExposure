@@ -5,6 +5,17 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.237 — Fix (a11y, theming): **the database gate's error and loading screens use theme
+  tokens.** `DatabaseProvider` drew its error message in CSS `red` (#FF0000, 4.00:1 on white —
+  under AA for body text), the retry link and spinner in hex literals, and set no background,
+  so in dark mode it showed light-theme ink on whatever sat behind it. It now reads
+  `useUnistyles()` (no provider needed in Unistyles 3; `_layout` imports `src/styles/theme`
+  before rendering): `error`, `primaryStrong`, `primary`, `background` — pairings the contrast
+  suite already covers in both themes. +1 test asserts the computed message colour, retry
+  colour and container background; it fails with any one of the three reverted (message and
+  retry colour and background were each mutation-checked). The spinner colour is not asserted:
+  react-native-web's ActivityIndicator does not expose it as a computed style.
+
 - v0.5.236 — Test infra: **the jest unistyles mock serves the real `lightTheme`.**
   `src/__mocks__/react-native-unistyles.ts` carried a hand-copied theme; a token added to
   `theme.ts` but not to the copy resolved to `undefined` in every test (black text, no
