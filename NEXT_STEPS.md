@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.235 — 1115 tests passing across 71 suites, TypeScript clean.
+Reviewed at: v0.5.237 — 1118 tests passing across 72 suites, TypeScript clean.
 `npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
 so a new unused binding will now show up against a clean baseline rather than hiding
 behind a pre-existing failure.
@@ -13,6 +13,22 @@ behind a pre-existing failure.
 > covered. **Before picking work from the gap list, check `git log` and
 > `find app -name '*.test.tsx'` against the claim you are about to act on.**
 
+## Build session (2026-10-28, v0.5.236–v0.5.237)
+
+- v0.5.236 — the jest unistyles mock now serves the real `lightTheme` (lazy `require`,
+  which sidesteps the `theme.ts` → mock import cycle). New tokens no longer need copying.
+- v0.5.237 — `DatabaseProvider`'s error/loading screens use theme tokens; the error text was
+  CSS `red` (4.00:1, under AA) and the screens had no background in dark mode.
+
+**Discovered and deliberately not done:**
+
+- **Tests only ever see the light theme.** The mock has no way to render under
+  `darkTheme`, so dark-mode regressions are covered only by the contrast suite's token
+  pairings, never by a rendered screen. A `__setMockTheme('dark')` hook in the mock would
+  let a component test assert dark colours; not added because no current test needs it.
+- **`DatabaseProvider`'s spinner colour is unasserted** — react-native-web's
+  ActivityIndicator does not expose it as a computed style.
+
 ## Build session (2026-10-27, v0.5.234–v0.5.235)
 
 - v0.5.234 — the six `placeholderTextColor="#94A3B8"` literals (frontend-2026-10-26 "seen,
@@ -24,14 +40,8 @@ behind a pre-existing failure.
 
 **Discovered and deliberately not done:**
 
-- **The jest theme is a hand-copied mock** (`src/__mocks__/react-native-unistyles.ts`).
-  A token added to `theme.ts` but not there resolves to `undefined` in tests (black text,
-  no error). A test that the mock's `colors` is a superset of `lightTheme.colors` would
-  catch the drift. Better still, build the mock from `lightTheme`, if that avoids the
-  circular import (`theme.ts` calls `StyleSheet.configure` from the mocked module).
-- **`DatabaseProvider.tsx` still hardcodes `#C2410C` / `#F97316`** (retry link, spinner).
-  It renders before or outside the themed tree, so a token may not be reachable there.
-  Check that before "fixing" it.
+- ~~Hand-copied jest theme mock~~ (done v0.5.236).
+- ~~`DatabaseProvider.tsx` hardcoded colours~~ (done v0.5.237).
 - **Stage/category hues as non-text graphics** (progress bar fills, stage dots) are
   ~1.9–2.7:1 on white, under WCAG 1.4.11's 3:1. The text alongside them carries the
   information, so this is a design call, not a bug fix.
