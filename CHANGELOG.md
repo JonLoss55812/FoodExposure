@@ -5,6 +5,15 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.236 — Test infra: **the jest unistyles mock serves the real `lightTheme`.**
+  `src/__mocks__/react-native-unistyles.ts` carried a hand-copied theme; a token added to
+  `theme.ts` but not to the copy resolved to `undefined` in every test (black text, no
+  error) — flagged by the v0.5.235 session. The mock now `require`s `lightTheme` lazily
+  (at `useUnistyles()` / `StyleSheet.create` call time), which avoids the import cycle:
+  `theme.ts` imports this mock for `StyleSheet.configure` at load. +2 tests assert
+  identity (`toBe(lightTheme)`) for both entry points; both fail against the old copy,
+  which was deep-equal but not the same object, so they also fail on any future re-copy.
+
 - v0.5.235 — Fix (a11y, contrast): **the stage picker's reached-stage labels are visible.**
   `StageIndicator` (md/lg — the Log Exposure stage picker and the food-detail ladder) draws
   each label *inside* its dot, and a reached stage's dot is filled with the stage hue. The
