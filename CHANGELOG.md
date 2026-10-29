@@ -5,6 +5,16 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.238 — Tests: **"retryable" tests now retry.** A sweep that deleted each of the 30
+  `*Latch.release()` calls in `app/` one at a time found 15 the suite did not notice. Seven
+  are now caught: Settings delete-child failure, the Foods-tab merge banner failure, the food
+  detail merge failure (each test stopped at the error alert and never retried), and the
+  invalid/unchanged early returns of food rename and child rename. Also adds the missing
+  Delete Food failure test: the cascade failing part-way must alert, keep the parent on the
+  food, and let a retry finish it (killed by removing the release, the alert, or by
+  navigating on failure). No app code changed. Remaining survivors are listed in
+  `.planning/pusher/tests-2026-10-28.md`.
+
 - v0.5.237 — Fix (a11y, theming): **the database gate's error and loading screens use theme
   tokens.** `DatabaseProvider` drew its error message in CSS `red` (#FF0000, 4.00:1 on white —
   under AA for body text), the retry link and spinner in hex literals, and set no background,

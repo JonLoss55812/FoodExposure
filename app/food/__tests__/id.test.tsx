@@ -677,7 +677,7 @@ describe('FoodDetailScreen', () => {
       // Fail the second step (exposures), after food_chains already went: the
       // half-done state a real I/O error leaves. Leaving the screen here would
       // hide a food that still exists; holding the latch would strand it.
-      const realDelete = mockDb.db.delete;
+      const realDelete = (mockDb.db as { delete: unknown }).delete;
       let calls = 0;
       (mockDb.db as { delete: unknown }).delete = (table: unknown) => {
         calls += 1;
