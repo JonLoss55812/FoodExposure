@@ -554,6 +554,12 @@ describe('SettingsScreen — Rename Child', () => {
     expect(alertSpy.mock.calls[0][0]).toBe('Invalid Name');
     // Left open so the name can be corrected in place rather than retyped.
     expect(nameInput()).toBeTruthy();
+
+    // ...and the correction must save: a latch stranded by the rejection
+    // would drop this tap silently.
+    await typeName('Emmaline');
+    await click('Save name for Emma');
+    expect(mockDb.writes).toHaveLength(1);
   });
 
   it('treats a draft equal to the stored name after trimming as a no-op', async () => {
@@ -565,6 +571,12 @@ describe('SettingsScreen — Rename Child', () => {
     expect(mockDb.writes).toHaveLength(0);
     expect(alertSpy).not.toHaveBeenCalled();
     await waitFor(() => expect(screen.queryByLabelText("Child's name")).toBeNull());
+
+    // A later real rename still goes through.
+    await click('Rename Emma');
+    await typeName('Emmaline');
+    await click('Save name for Emma');
+    expect(mockDb.writes).toHaveLength(1);
   });
 
   it('abandons the draft on cancel and reseeds from the stored name', async () => {

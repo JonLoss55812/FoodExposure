@@ -143,8 +143,16 @@ describe('FoodDetailScreen', () => {
       await waitFor(() => expect(alertSpy).toHaveBeenCalled());
       expect(alertSpy.mock.calls[0][0]).toBe('Invalid Name');
       expect(mockDb.writes).toHaveLength(0);
-      // The editor stays open so the parent can correct in place.
+      // The editor stays open so the parent can correct in place, and the
+      // correction must save rather than be dropped by a stranded latch.
       expect(screen.getByLabelText('Food name')).toBeTruthy();
+
+      mockDb.queueSelect([{ id: 'food-1', name: 'Apple' }]);
+      fireEvent.change(screen.getByLabelText('Food name'), { target: { value: 'Green Apple' } });
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Save food name'));
+      });
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
     });
 
     it('closes the editor without a query when the name is unchanged after trimming', async () => {
@@ -157,6 +165,11 @@ describe('FoodDetailScreen', () => {
       expect(mockDb.writes).toHaveLength(0);
       expect(mockDb.selectCount()).toBe(readsAfterLoad);
       expect(alertSpy).not.toHaveBeenCalled();
+
+      // A later real rename still goes through.
+      mockDb.queueSelect([{ id: 'food-1', name: 'Apple' }]);
+      await startRename('Green Apple');
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
     });
 
     it('blocks a rename that would collide with a different food (v0.5.136 guard)', async () => {
