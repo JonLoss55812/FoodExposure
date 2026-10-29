@@ -5,6 +5,19 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.239 — Tests: **rendered tests can now see the dark theme.** The jest Unistyles mock
+  served only `lightTheme`, and it evaluated `StyleSheet.create` factories once, at import, so
+  every component was frozen in light mode. A dark-mode regression (v0.5.237: an error screen
+  with no background) could be caught only by the contrast suite's token pairings, never by a
+  rendered screen. `setMockTheme('dark')` (in `src/test-utils/mock-theme.ts`, not the mock
+  itself — importing the mock file directly gives a second module instance the mocked package
+  never sees) switches `useUnistyles().theme`, `rt.colorScheme`, and the factory styles, which
+  now resolve on access, cached per theme. +6 tests: the mock itself, and dark renders of
+  `DatabaseProvider`'s error screen (the `useUnistyles` path) and `RouteErrorBoundary` (the
+  module-level factory path). Mutations: reverting to eager factory evaluation fails 2, and
+  hardcoding the provider's background to `lightTheme` fails 1. Reset in `afterEach`; each test
+  file starts in light.
+
 - v0.5.238 — Tests: **"retryable" tests now retry.** A sweep that deleted each of the 30
   `*Latch.release()` calls in `app/` one at a time found 15 the suite did not notice. Seven
   are now caught: Settings delete-child failure, the Foods-tab merge banner failure, the food

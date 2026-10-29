@@ -6,6 +6,13 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 // the app relies on.
 import { Try } from 'expo-router/build/views/Try';
 import { RouteErrorBoundary } from '../RouteErrorBoundary';
+import { darkTheme, lightTheme } from '@/src/styles/theme';
+import { setMockTheme } from '@/src/test-utils/mock-theme';
+
+function rgb(hex: string) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+}
 
 const mockCaptureException = jest.fn();
 
@@ -138,6 +145,31 @@ describe('RouteErrorBoundary', () => {
       renderCrashed();
       expect(screen.getByText('Something went wrong')).toBeTruthy();
       expect(screen.queryByLabelText('Go back')).toBeNull();
+    });
+  });
+
+  describe('theme', () => {
+    afterEach(() => setMockTheme('light'));
+
+    // The fallback styles come from a module-level StyleSheet.create factory,
+    // so this is the case the mock used to freeze in the light theme.
+    function backgroundOfFallback() {
+      const { container } = render(
+        <Try catch={RouteErrorBoundary}>
+          <Flaky />
+        </Try>
+      );
+      // The boundary's outermost View carries `styles.container`.
+      return getComputedStyle(container.firstChild as HTMLElement).backgroundColor;
+    }
+
+    it('paints the recovery screen with the light background in light mode', () => {
+      expect(backgroundOfFallback()).toBe(rgb(lightTheme.colors.background));
+    });
+
+    it('paints the recovery screen with the dark background in dark mode', () => {
+      setMockTheme('dark');
+      expect(backgroundOfFallback()).toBe(rgb(darkTheme.colors.background));
     });
   });
 });

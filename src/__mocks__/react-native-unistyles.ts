@@ -1,10 +1,16 @@
 import { StyleSheet as RNStyleSheet } from 'react-native';
 
-// The real light theme, not a copy: a hand-copied token list drifted silently
+// The real themes, not copies: a hand-copied token list drifted silently
 // (a token missing here rendered as undefined in tests). Required lazily
 // because theme.ts imports this module for StyleSheet.configure at load time.
+// Light unless a test calls setMockTheme('dark') from src/test-utils/mock-theme.
+function getThemeName(): 'light' | 'dark' {
+  return require('../test-utils/mock-theme').getMockThemeName();
+}
+
 function getTheme() {
-  return require('../styles/theme').lightTheme;
+  const themes = require('../styles/theme');
+  return getThemeName() === 'dark' ? themes.darkTheme : themes.lightTheme;
 }
 
 export const useUnistyles = () => ({
@@ -12,7 +18,9 @@ export const useUnistyles = () => ({
     return getTheme();
   },
   rt: {
-    colorScheme: 'light',
+    get colorScheme() {
+      return getThemeName();
+    },
     screen: { width: 375, height: 812 },
     breakpoint: 'xs',
   },
@@ -40,7 +48,22 @@ function sanitizeStyles(styles: any) {
 export const StyleSheet = {
   create: (stylesOrFn: any) => {
     if (typeof stylesOrFn === 'function') {
-      return RNStyleSheet.create(sanitizeStyles(stylesOrFn(getTheme())));
+      // Components call this once, at import, so evaluating the factory here
+      // would freeze them in whichever theme was current then. Resolve each
+      // style on access instead, caching per theme object.
+      const cache = new Map<unknown, any>();
+      const resolve = () => {
+        const theme = getTheme();
+        if (!cache.has(theme)) {
+          cache.set(theme, RNStyleSheet.create(sanitizeStyles(stylesOrFn(theme))));
+        }
+        return cache.get(theme);
+      };
+      const lazy: any = {};
+      for (const key of Object.keys(resolve())) {
+        Object.defineProperty(lazy, key, { enumerable: true, get: () => resolve()[key] });
+      }
+      return lazy;
     }
     return RNStyleSheet.create(sanitizeStyles(stylesOrFn));
   },

@@ -17,7 +17,8 @@ jest.mock('../../db/client', () => ({
 
 import { DatabaseProvider } from '../DatabaseProvider';
 import { MIGRATION_SQL } from '../../db/migration';
-import { lightTheme } from '../../styles/theme';
+import { darkTheme, lightTheme } from '../../styles/theme';
+import { setMockTheme } from '../../test-utils/mock-theme';
 
 function rgb(hex: string) {
   const n = parseInt(hex.slice(1), 16);
@@ -151,5 +152,23 @@ describe('DatabaseProvider', () => {
     expect(getComputedStyle(message.parentElement as HTMLElement).backgroundColor).toBe(
       rgb(lightTheme.colors.background)
     );
+  });
+
+  it('draws the error screen in the dark theme when the device is dark', async () => {
+    // The v0.5.237 defect was dark-mode only: no background, so light ink sat
+    // on whatever was behind it. The light-theme test above cannot see that.
+    setMockTheme('dark');
+    try {
+      mockExecAsync.mockRejectedValueOnce(new Error('database is locked'));
+      const { getByText } = await renderProvider();
+
+      const message = getByText('Database Error: database is locked');
+      expect(getComputedStyle(message).color).toBe(rgb(darkTheme.colors.error));
+      expect(getComputedStyle(message.parentElement as HTMLElement).backgroundColor).toBe(
+        rgb(darkTheme.colors.background)
+      );
+    } finally {
+      setMockTheme('light');
+    }
   });
 });
