@@ -397,8 +397,18 @@ describe('FoodsScreen', () => {
       await waitFor(() =>
         expect(alertSpy.mock.calls.some((c) => c[0] === 'Error')).toBe(true),
       );
-      // Still offered, so the retry is one tap.
+      // Still offered, so the retry is one tap — and that tap must get
+      // through: a latch held past the failure makes the banner a dead button.
       expect(screen.getByLabelText('Merge duplicates of Apple')).toBeTruthy();
+
+      queueLoad([APPLE]);
+      alertSpy.mockClear();
+      await click('Merge duplicates of Apple');
+      await confirmAlert(alertSpy, 'Merge');
+      await waitFor(() => expect(mockDb.writes.length).toBe(6));
+      await waitFor(() =>
+        expect(screen.queryByLabelText('Merge duplicates of Apple')).toBeNull(),
+      );
     });
   });
 });

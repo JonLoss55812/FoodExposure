@@ -161,6 +161,16 @@ describe('SettingsScreen — Delete Child (v0.5.139)', () => {
     expect(alertSpy.mock.calls[1][0]).toBe('Error');
     expect(screen.getByLabelText('Delete Emma')).toBeTruthy();
     expect(useChildStore.getState().selectedChildId).toBe(EMMA.id);
+
+    // Retryable means the retry gets through: a latch still held after the
+    // failure would leave every Delete button on this screen dead.
+    mockDb = createMockDb();
+    alertSpy.mockClear();
+    await click('Delete Emma');
+    await confirmAlert(alertSpy, 'Delete');
+
+    await waitFor(() => expect(screen.queryByLabelText('Delete Emma')).toBeNull());
+    expect(mockDb.writes).toHaveLength(3);
   });
 
   it('renders no delete rows when the family has no children', async () => {

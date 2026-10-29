@@ -326,6 +326,20 @@ describe('FoodDetailScreen', () => {
       );
       expect(mockRouter.replace).not.toHaveBeenCalled();
       dbRef.update = realUpdate;
+
+      // The editor is still open on the typed name, so a retry is Save again —
+      // and it must reach the merge, not be swallowed by a stranded latch.
+      mockDb.queueSelect([
+        { id: 'food-1', name: 'Apple' },
+        { id: 'food-2', name: 'Pear' },
+      ]);
+      alertSpy.mockClear();
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Save food name'));
+      });
+      await confirmAlert(alertSpy, 'Merge');
+      await pressAlertButton(alertSpy, 'Merge');
+      await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/(tabs)/foods'));
     });
 
     it('allows a case-only fix, which collides only with the food itself', async () => {
@@ -644,6 +658,37 @@ describe('FoodDetailScreen', () => {
       // screen actually runs the cascade rather than a bare food delete.
       expect(mockDb.writes.map((w) => w.kind)).toEqual(['delete', 'delete', 'delete']);
       expect(mockRouter.replace).toHaveBeenCalledWith('/(tabs)/foods');
+    });
+
+    it('alerts and stays on the food when the cascade fails part-way, and a retry finishes it', async () => {
+      // Fail the second step (exposures), after food_chains already went: the
+      // half-done state a real I/O error leaves. Leaving the screen here would
+      // hide a food that still exists; holding the latch would strand it.
+      const realDelete = mockDb.db.delete;
+      let calls = 0;
+      (mockDb.db as { delete: unknown }).delete = (table: unknown) => {
+        calls += 1;
+        if (calls === 2) return { where: () => Promise.reject(new Error('delete failed')) };
+        return (realDelete as (t: unknown) => unknown)(table);
+      };
+
+      queueLoad();
+      await renderLoaded();
+      await click('Delete Apple');
+      await confirmAlert(alertSpy, 'Delete');
+
+      await waitFor(() => expect(alertSpy).toHaveBeenCalledTimes(2));
+      expect(alertSpy.mock.calls[1]).toEqual(['Error', 'Failed to delete food. Please try again.']);
+      expect(mockRouter.replace).not.toHaveBeenCalled();
+      expect(mockDb.writes).toHaveLength(1);
+
+      alertSpy.mockClear();
+      await click('Delete Apple');
+      await confirmAlert(alertSpy, 'Delete');
+
+      await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/(tabs)/foods'));
+      // The retry re-runs the whole cascade; deleting already-gone chains is a no-op.
+      expect(mockDb.writes).toHaveLength(4);
     });
   });
 
