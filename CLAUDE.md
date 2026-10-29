@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.239` (`src/lib/constants.ts`). 1125 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.240` (`src/lib/constants.ts`). 1125 tests pass across
 72 suites; `npx tsc --noEmit` is clean. See `CHANGELOG.md` for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -281,7 +281,7 @@ app/ — Expo Router pages
     session, and the changelog grew it to ~470 KB before v0.5.231)
 
 ## Current Version
-v0.5.239
+v0.5.240
 
 ## Changelog
 See `CHANGELOG.md` (newest first).

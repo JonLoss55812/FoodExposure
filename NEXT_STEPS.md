@@ -1,1130 +1,199 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.238 — 1119 tests passing across 72 suites, TypeScript clean.
-`npx tsc --noEmit --noUnusedLocals` is **also** clean as of v0.5.178 (gap #0 closed),
-so a new unused binding will now show up against a clean baseline rather than hiding
-behind a pre-existing failure.
-
-> **Read this first.** This file was last *fully* rewritten at v0.5.160 and the
-> "Recently shipped" list below lags reality. A session in between added screen
-> suites for the two onboarding screens, the food-detail bump-stage / safe-food
-> paths, and the Settings CSV export without refreshing this file — and the
-> v0.5.162 session then wasted a task re-testing a screen that was already
-> covered. **Before picking work from the gap list, check `git log` and
-> `find app -name '*.test.tsx'` against the claim you are about to act on.**
-
-## Build session (2026-10-28, v0.5.236–v0.5.237)
-
-- v0.5.236 — the jest unistyles mock now serves the real `lightTheme` (lazy `require`,
-  which sidesteps the `theme.ts` → mock import cycle). New tokens no longer need copying.
-- v0.5.237 — `DatabaseProvider`'s error/loading screens use theme tokens; the error text was
-  CSS `red` (4.00:1, under AA) and the screens had no background in dark mode.
-
-**Discovered and deliberately not done:**
-
-- **Tests only ever see the light theme.** The mock has no way to render under
-  `darkTheme`, so dark-mode regressions are covered only by the contrast suite's token
-  pairings, never by a rendered screen. A `__setMockTheme('dark')` hook in the mock would
-  let a component test assert dark colours; not added because no current test needs it.
-- **`DatabaseProvider`'s spinner colour is unasserted** — react-native-web's
-  ActivityIndicator does not expose it as a computed style.
-
-## Build session (2026-10-27, v0.5.234–v0.5.235)
-
-- v0.5.234 — the six `placeholderTextColor="#94A3B8"` literals (frontend-2026-10-26 "seen,
-  not done") now use `theme.colors.textTertiary`. A source-scan test fails on any
-  string-literal placeholder colour under `app/` or `src/`.
-- v0.5.235 — `StageIndicator`'s reached-stage labels were drawn in the hue of the dot they
-  sit on (1.00:1, invisible in the Log form picker). Now they use a shared `onStage` ink.
-  Unreached dots use theme tokens instead of hex literals.
-
-**Discovered and deliberately not done:**
-
-- ~~Hand-copied jest theme mock~~ (done v0.5.236).
-- ~~`DatabaseProvider.tsx` hardcoded colours~~ (done v0.5.237).
-- **Stage/category hues as non-text graphics** (progress bar fills, stage dots) are
-  ~1.9–2.7:1 on white, under WCAG 1.4.11's 3:1. The text alongside them carries the
-  information, so this is a design call, not a bug fix.
-- The contrast suite still does not check `CATEGORY_CONFIG` hues wherever they're used as
-  text. Today none are; the v0.5.232 fix removed the last one.
-
-## Build session (2026-10-25, v0.5.230–v0.5.231)
-
-- v0.5.230 — `login()` / `setFamilyId()` clear the child selection whenever the family
-  changes (including from `null`). Closes critique-2026-10-23 #2's remaining half at the
-  store: a foreign `selectedChildId` can no longer survive a family switch or an auth-only
-  MMKV reset. Chosen over "store remembers its family" because every route back into a
-  family goes through `login()`, and it needed no signature change across ~45 test call
-  sites. **Tests must sign in before `selectChild`** — the reverse order is now refused.
-- v0.5.231 — **the changelog lives in `CHANGELOG.md`.** CLAUDE.md went from 469 KB to
-  16 KB (critique #3, first recommendation). Add new entries to CHANGELOG.md, not CLAUDE.md.
-
-**Discovered and deliberately not done:**
-
-- **Critique #3's other items are open:** collapse this file to one current gap list
-  (it is 70 KB and still starts by warning it is stale); delete one of the two Convex
-  directives (CLAUDE.md "Next Priority" says wire Convex, a later section here says do
-  not — a product call, so left for a human); extract `useGuardedWrite` from
-  `app/food/[id].tsx`.
-- **The per-screen family predicates are now redundant defence in depth.** Do not add
-  more; do not remove the existing ones either without a reason.
-- **Critique #1 (the app has never run) is unchanged** and remains the biggest risk.
-
-## Build session (2026-10-24, v0.5.228–v0.5.229)
-
-- v0.5.228 — the welcome and Join Family screens forward a parent who *arrives* signed
-  in (deep link, or the dashboard's not-onboarded redirect) to the tabs or to Add Child,
-  via pure `resolveOnboardingEntryRedirect`. Closes the deep-link route in
-  critique-2026-10-23 #2, and the "quit before Add Child, then Get Started orphans the
-  first family" path it implied.
-- v0.5.229 — `onboarding-flow-real-sql.test.tsx`: the first cross-screen flow test (real
-  stores + real SQL), as critique #1 recommended.
-
-**Discovered and deliberately not done:**
-
-- **~~Critique #2's other half is still open:~~** (done v0.5.230) the child store does not remember which
-  family its selection belongs to, so MMKV partial corruption (auth reset, child store
-  survives) can still carry a foreign `selectedChildId`. `foods.tsx` and `food/[id].tsx`
-  still read exposures by `selectedChildId` alone. Fix at the store, not per screen.
-- **A signed-in, not-onboarded parent cannot reach Join or Sign Out** — they are sent to
-  Add Child. Correct for the one-family case; if someone started a family by mistake and
-  meant to join, they must add a child first, then Sign Out. Product call if it matters.
-- The flow test still mocks navigation; it is not a substitute for running the app
-  (critique #1).
-
-## Build session (2026-10-22, v0.5.225–v0.5.226)
-
-- v0.5.225 — the food detail page's date-correction re-sort breaks `occurredAt` ties by
-  `createdAt`, via a new pure `compareExposuresNewestFirst` (in-memory twin of
-  `EXPOSURES_NEWEST_FIRST`). Closes the v0.5.221 note below.
-- v0.5.226 — `fetchExportRows(childId, familyId)` joins `children` with a family
-  predicate; `exportChildData` takes `{ childId, familyId, childName, dateOfBirth }`.
-  Closes the v0.5.198 "export helper trusts its caller" note.
-
-**Discovered and deliberately not done:**
-
-- **The food-detail bump reloads rather than patching**, so it already gets the query's
-  tie order; only the date editor patched. If another per-row editor ever moves a row,
-  sort with `compareExposuresNewestFirst`, not an `occurredAt` subtraction.
-- **`fetchExportRows` with a blank `familyId` returns `[]` and still shares a header-only
-  CSV.** Settings refuses before reaching it, so unreachable today; a future caller should
-  check the family first if a silent empty export would mislead.
-- **A fresh pusher worktree still has no `node_modules`** — `npm install` first.
-
-## Build session (2026-10-21, v0.5.223–v0.5.224)
-
-- v0.5.223 — `DatabaseProvider.initDb` is single-flight (in-flight latch, released in
-  `finally`). The hardening report called it unreachable from a DOM test; rendering under
-  `<StrictMode>` reaches it (double effect), and that test was red before the fix.
-- v0.5.224 — `ProgressBar.target` and `FoodCard.target` are required; the default of 15
-  is gone (closes the v0.5.221 note below).
-
-**Discovered and deliberately not done:**
-
-- **Still open from the hardening session:** an Android CSV export above ~1 MB fails in the
-  share sheet; the fix is sharing a file URI (expo-file-system), which needs a device to verify.
-- **The latch makes a concurrent second `initDb` a silent no-op.** Correct for the StrictMode
-  double effect; if a future caller needs to *await* init, hold the in-flight promise instead.
-
-## Hardening session (2026-10-21, v0.5.222)
-
-The Settings CSV export alert no longer shows the raw query error. Reported, not fixed:
-an Android export above ~1 MB fails with "Failed to open share dialog" (share a file URI
-instead), and `DatabaseProvider.initDb` had no single-flight guard (done v0.5.223). Details are in
-`.planning/pusher/hardening-2026-10-21.md`.
-
-## Docs session (2026-10-15): correction to the v0.5.205 web claims
-
-The v0.5.206 session below says `metro.config.js` "sends COOP/COEP headers from the dev
-server". `curl` against `npm run web` shows they reach only Metro's **bundle** responses. The
-HTML document at `/` is served without them, and cross-origin isolation is decided by the
-document. So expo-sqlite on web probably still cannot open. Next step: load the page,
-check `crossOriginIsolated` in the console, and if it is false, add the headers to the
-document response. Expo CLI serves the HTML outside Metro's `enhanceMiddleware`, so that
-fix has to happen somewhere else. Details in `.planning/pusher/documentation-2026-10-15.md`.
-
-## Status of the original plan (v0.1.0 review)
-
-All five priorities from the original review have shipped:
-
-- **P1 Null-child safety** — v0.1.1 (`ensureSelection`, onboarding redirect, per-screen guards).
-- **P2 Exposure hierarchy UX** — v0.2.0 (6-stage picker surfaced, `tolerate` default, one-tap stage bump).
-- **P3 Safe-food surface** — v0.3.0 (pinned Safe Foods row, star badge, detail-page toggle).
-- **P4 Threshold progress** — v0.4.0 (`thresholds.ts`, feeding-profile selector, per-food X/15 bars).
-- **P5 CSV export** — v0.5.0 (RFC 4180 + BOM + formula-injection guard + share sheet).
-- **P6 Coverage uplift** — ongoing; v0.5.1–v0.5.137 hardened validation schemas, stores,
-  helpers, a11y, and DB CHECK constraints extensively. See CLAUDE.md changelog.
-
-## Recently shipped (last two sessions, 2026-08-25/26)
-
-- v0.5.136 — duplicate food-name guard on Add Food (`findDuplicateFood` helper,
-  family-scoped, case-insensitive + trimmed, pre-insert Alert).
-- v0.5.137 — optional chip dimensions (rating/meal/temperature/texture/setting/
-  preparation) deselect on re-tap; previously unclearable once tapped.
-- v0.5.138 — Delete Food on the food detail page (confirm Alert, cascades
-  food_chains + exposures dependents-first, replaces to Foods tab).
-- v0.5.139 — Delete Child rows in Settings → Family (confirm Alert, cascades
-  food_chains + exposures, `ensureSelection` repairs selection; list loads via
-  `useFocusEffect` — the first focus-based reload in the codebase).
-- v0.5.140 — dashboard / Foods / Progress now reload on focus (closes the
-  stale-tab gap below). Spinner is gated to the first load via a `hasLoadedRef`
-  so tab switches refresh silently instead of flashing the ActivityIndicator.
-- v0.5.141 — the two destructive cascades extracted to
-  `src/lib/cascade-delete.ts` and covered by 8 tests (ordering, per-step
-  predicates, mid-sequence failure, blank/non-string id guard).
-- v0.5.142 — the Log Exposure form reloads on focus (closes gap #5) and
-  repairs a `foodId` naming a food deleted since the last load, via a new
-  pure `resolveSelectedFoodId` helper (+7 tests).
-- v0.5.144 — every async write handler is guarded by a *synchronous*
-  in-flight latch (`src/lib/in-flight.ts`) instead of a render-lagged
-  `useState` boolean; two handlers had no guard at all.
-- v0.5.145 — rename a food from the detail page (closes gap #3). Routed
-  through `findDuplicateFood`, which gained an `excludeId` param so a food
-  does not collide with itself on a case-only fix.
-- v0.5.146 — first screen render harness (closes gap #1's blocker):
-  `src/test-utils/mock-db.ts` + `app/onboarding/__tests__/join.test.tsx`.
-- v0.5.147 — screen tests for `app/food/[id].tsx` (13): the v0.5.145 rename
-  (schema rejection, no-op, duplicate collision, the load-bearing case-only
-  `excludeId` fix, happy path, latch release, cancel) and the v0.5.138 delete
-  cascade (confirm copy, cancel, confirm + replace), plus not-found and
-  read-failure. Five source mutations each fail exactly one test.
-- v0.5.148 — screen tests for the Settings Delete Child flow (8): cascade,
-  row drop, and the three `ensureSelection` repair outcomes (selected child
-  deleted -> survivor; last child deleted -> null; other child deleted ->
-  unchanged), plus the retryable failure path. Five mutations verified.
-- v0.5.149 — screen tests for `app/food/add.tsx` (10): the v0.5.136
-  duplicate guard (case-insensitive and whitespace-padded collisions alert
-  and write nothing), the schema rejection path, the family-scoped insert,
-  both Alert actions, and the failure path where a failed lookup must not
-  fall through to the insert. Five mutations verified.
-- v0.5.150 — screen tests for `app/(tabs)/log.tsx` (9): the
-  required-selection guards, the happy-path insert (optional dimensions
-  land as `null`), the `tolerate` default, the v0.5.7 reset (keep child,
-  clear food), and both failure paths. Seven mutations verified.
-- v0.5.151 — the duplicated screen-test seams extracted into
-  `src/test-utils/screen-helpers.tsx` (`SAFE_AREA_METRICS`, a `SafeArea`
-  wrapper, `click`, and the two Alert helpers). All five screen suites now
-  import them instead of carrying private copies.
-- v0.5.152 — screen tests for `app/(tabs)/foods.tsx` (11): the pinned
-  safe-foods row (present once, absent when empty), per-food exposure
-  counts, the skipped exposures query when no child is selected, search
-  and category filtering, both empty states plus Clear Filters, and the
-  load-failure path. Six mutations verified.
-- v0.5.157 — screen tests for `app/(tabs)/index.tsx` (11): the dashboard's
-  three summary numbers, including the load-bearing v0.5.85 Foods Tracked
-  case (a food whose only exposures carry an unknown stage is still counted,
-  and the two implementations only diverge when such a row exists), the
-  highest-stage bucketing, recent-activity routing, both empty states, the
-  load failure, and the not-onboarded redirect. Five mutations verified.
-- v0.5.158 — screen tests for `app/(tabs)/progress.tsx` (11): the three
-  early-return branches and their CTAs, per-food threshold rows, the reached
-  marker, truncation, the rating-gated gauge, and the load failure. Six of
-  seven mutations verified; the seventh is documented as unreachable (see
-  gap #7 below).
-- v0.5.159 — screen tests for `app/child/add.tsx` (10), gap #1's last named
-  target: the `selectChild` call that makes a newly added child the selection,
-  the three schema-owned rejections (whitespace name, US-style date, future
-  date) each issuing zero writes, the family-scoped insert with optionals as
-  `null`, and the retryable insert failure. Six mutations verified.
-- v0.5.160 — a food's **category** is now editable from the detail page
-  (closes gap #3 follow-up (a)). Chip row on the category tag; picking a chip
-  is the commit (closed enum, so no Save step and no uniqueness guard);
-  re-picking the current one is a no-op. +4 screen tests, six mutations
-  verified.
-- v0.5.143 — plain `npm install` works from a wiped tree (closes gap #6):
-  dropped the deprecated unused `@testing-library/jest-native`, pinned
-  `react-test-renderer` to 19.2.0, added `babel-preset-expo` as an explicit
-  devDependency. CLAUDE.md's `bun test` corrected to `bun run test`.
-
-## Shipped in the v0.5.162 session (2026-09-08)
-
-- v0.5.161 — a food's **default preparation** is editable from the detail page,
-  closing gap #3's last named follow-up. It was also not *displayed* there at
-  all, so a value set on Add Food was write-only. Chip row on a new tag beside
-  the category tag. One deliberate difference from the category editor and it
-  is the load-bearing half: the field is nullable, so re-tapping the selected
-  chip **clears** it to `null` (v0.5.137 deselect contract) rather than being a
-  no-op close — otherwise a mis-tap would be permanent all over again. +5
-  tests, four mutations verified.
-- v0.5.162 — the Add Child form is written **once**, in
-  `src/components/ChildForm.tsx`, shared by `app/child/add.tsx` and
-  `app/onboarding/add-child.tsx` (gap #1's dedup note). 505 lines across two
-  files -> 361 across three. No new tests by design: the 34 existing tests
-  across the two host suites pass untouched, and dropping `selectChild` from
-  the shared component now fails three tests across *both* suites where before
-  it would have failed only one file's.
-
-## Shipped in the v0.5.164 session (2026-09-08)
-
-- v0.5.163 — **delete a single exposure** from the food detail page. A
-  mis-logged exposure was permanent: it inflates the per-food count the
-  15/20/30 threshold is read from and can fix the food's highest reached stage
-  at a level the child never reached, and the only removal path was the
-  v0.5.138 Delete Food cascade, which discards *every* exposure for that food
-  across every child. Confirm Alert, delete scoped to the exposure id, local
-  patch, and — the load-bearing half — `highestStage` recomputed from the
-  remaining rows so the "Bump to X" target moves back down. +6 tests, five
-  mutations verified. `createMockDb()`'s recorded delete now carries its
-  `where` predicate so scoping is assertable.
-- v0.5.164 — **backdate an exposure** on the Log form. `occurredAt` was always
-  `new Date()`, so logging the morning after recorded the wrong day on every
-  date-bucketed surface and in the therapist CSV. Optional `YYYY-MM-DD` field,
-  `exposureSchema.occurredOn` (format / not-future / not-older-than
-  `MAX_BACKDATE_YEARS`), and a pure `resolveOccurredAt` that parses at **local**
-  midnight and keeps the current time when the named day is today. +18 tests,
-  five mutations verified; a sixth test was removed as vacuous.
-
-## Shipped in the v0.5.167 session (2026-09-10)
-
-- v0.5.166 — **the CSV export's `date` column was rendered in UTC**, so it named
-  the wrong calendar day for most of the world. Every other date surface in the
-  app buckets by the *local* day (`getStartOfDay`, `formatRelativeDate`, and the
-  v0.5.164 `resolveOccurredAt`, which parses a backdated `YYYY-MM-DD` at local
-  midnight on purpose). An 8am exposure in UTC+10 is stored as 22:00Z the
-  previous day: the dashboard said "Today", the therapist's CSV said yesterday.
-  A backdated row was worse — stored at local midnight, it always exported one
-  day early for every UTC+ user, defeating the whole point of v0.5.164.
-  `toIsoDate` is now an exported, pure `toLocalIsoString(value, offsetMinutes?)`
-  emitting ISO-8601 with an explicit offset. +9 tests, three mutations verified.
-  **Harness fact worth keeping:** jest's jsdom environment resolves the host
-  timezone **once** and ignores later writes to `process.env.TZ` — measured. A
-  test that flips TZ and asserts a rendered date silently asserts nothing. That
-  is why the offset is a parameter; do the same for any future date rendering.
-- v0.5.167 — **correct a logged exposure's stage in place** from the food detail
-  page (closes the edit half of gap #-1). v0.5.163 made an exposure deletable
-  but not editable, so a mis-tapped stage could only be fixed by
-  delete-and-re-log, losing the row's `createdAt` and every optional dimension.
-  Chip row per history row, following the v0.5.160 category editor; the
-  load-bearing half is recomputing `highestStage` in **both** directions so the
-  "Bump to X" target follows a correction up as well as down. +6 tests, seven
-  mutations verified. `createMockDb()` now records an **update**'s `where`
-  predicate too (v0.5.163 did this for `delete`); the eight existing exact
-  `toEqual` update assertions gained `where: expect.anything()`.
-
-## Shipped in the v0.5.169 session (2026-09-11)
-
-- v0.5.168 — **correct a logged exposure's rating** in place. Follows the v0.5.161
-  *preparation* editor, not the v0.5.160 category one, and that is the whole point:
-  `rating` is nullable, so re-tapping the selected chip **clears** it to `null`
-  (v0.5.137 deselect contract) rather than being a no-op close. No `getHighestStage`
-  recompute — unlike stage, rating feeds no derived value on this screen. One
-  structural change rides along: the per-row busy condition, previously duplicated at
-  five sites as `deletingExposureId !== null || savingStageId !== null`, is now a
-  single `rowBusy` local. Not cosmetic — the editors patch `exposuresList` rather than
-  reloading, so two concurrent per-row writes would race on the same list and one
-  would silently clobber the other. +5 tests, six mutations verified.
-- v0.5.169 — **correct a logged exposure's notes** in place. Free text, so it follows
-  the v0.5.145 rename editor (inline `TextInput` seeded from the stored note,
-  explicit Save/Cancel) rather than a chip row, validated through
-  `exposureSchema.shape.notes`. Two consequences of routing through the schema are
-  load-bearing: `optionalTrimmedText` trims, so a draft equal to the stored note after
-  trimming is a no-op that never touches the DB; and it maps a blank draft to
-  `undefined`, persisted as **`null`** — persisting `''` would leave a row reading as
-  noted-but-empty on every surface that gates on truthiness. On failure the editor is
-  left open with the draft intact. +7 tests, eight mutations verified.
-
-## Shipped in the v0.5.172 session (2026-09-14)
-
-- v0.5.171 — **correct a logged exposure's date** in place, the last field named in
-  gap #-1. Free-text `YYYY-MM-DD` editor per history row (the v0.5.169 notes shape),
-  validated by `exposureSchema.shape.occurredOn` and resolved by `resolveOccurredAt`
-  **passed the row's own timestamp as `now`** — that one argument makes a draft naming
-  the day already stored resolve back to the stored instant exactly (so the row keeps
-  its time of day instead of snapping to local midnight and reordering the history),
-  and makes a blank draft a no-op without needing a clear-to-null branch, which would
-  be illegal anyway since `occurredAt` is NOT NULL. The list is ordered by
-  `occurredAt desc`, so this editor — unlike the other three — **re-sorts** after the
-  patch. Seeded through a new pure `toLocalDateInput()` that reads local getters, for
-  the v0.5.166 reason. +13 tests (9 screen, 4 unit), three mutations verified.
-  **One branch was written, measured as unreachable under mutation, and deleted**: a
-  separate blank-draft guard, fully subsumed by the no-op check. Recorded rather than
-  shipped as an unfalsifiable `if`.
-- v0.5.172 — screen tests for the Settings **Preferences card and Sign Out** (+5),
-  the last uncovered paths on that screen. The load-bearing one is the v0.5.80
-  contract that Sign Out calls **both** `clearChildSelection()` and `logout()`;
-  dropping the first leaves the previous family's `selectedChildId` in MMKV, which on
-  a shared device scopes the next person's first render to a child from a family they
-  are not in, and then self-heals — a privacy leak that leaves nothing behind to catch
-  by inspection. Four mutations verified. Harness note: the feeding-profile chips are
-  labelled from `FEEDING_PROFILE_CONFIG`, whose label is the bare `ARFID`; query the
-  config's exact value, same as the v0.5.158 Progress-tab note.
-
-## Shipped in the v0.5.174 session (2026-09-15)
-
-- v0.5.173 — **the SQLite migration is now executed by a test.** This closes the
-  single largest untested surface in the repo: the migration lived in a template
-  literal inside `DatabaseProvider`, a React component no test imports, which is
-  exactly how v0.5.170 shipped a stray backtick that *terminated the enclosing
-  literal* while all 777 tests stayed green — only `tsc` caught it. Every CHECK
-  constraint from v0.5.123–v0.5.131 and every index from v0.5.170 had been
-  asserted by inspection alone. The SQL moves to `src/db/migration.ts` as
-  `MIGRATION_SQL` (provider 132 → 42 lines, string byte-identical apart from
-  dedenting) and `src/db/__tests__/migration.test.ts` runs it against in-memory
-  **`node:sqlite`** — Node 22+, no native module, same dialect, and the same
-  harness v0.5.170 built ad hoc then discarded. **Use it for any future DB-layer
-  work; that layer is no longer untestable.** 25 tests: exact table set,
-  idempotency *and* row preservation across a re-run, the three indexes, the
-  named index the planner picks for each of the four hot queries, the CHECK
-  constraints rejecting 15 out-of-contract values, and — the half a
-  rejection-only suite cannot see — three mirror tests that a constraint
-  narrowed one step too far would fail (inclusive rating boundaries, every enum
-  member, all nine optional dimensions still nullable).
-  **One assertion was measured as too weak and tightened rather than shipped:**
-  asserting only `USING INDEX` per query plan left the v0.5.170
-  `(child_id, food_id)` regression **green**, because on an empty table the
-  planner still reports an index for the `ORDER BY` before filtering. The
-  assertion now names the expected index per query. If you add a query-plan
-  test, name the index.
-- v0.5.174 — **the four per-row exposure editors share one open-editor slot**
-  (closes gap #-1 (b)). See that entry for the detail that matters.
-
-## Shipped in the v0.5.176 session (2026-09-17)
-
-- v0.5.175 — **rename a child in place** from Settings → Family. `children.name` was
-  the last permanent-or-destructive field in the app: foods became correctable across
-  v0.5.145/160/161 and every field on an exposure across v0.5.167–v0.5.171, but a
-  mistyped child name could only be "fixed" by Delete Child, which cascades away every
-  exposure that child has ever logged. Inline `TextInput` per row (the v0.5.169
-  notes-editor shape), validated through `childSchema.shape.name`. **Deliberately no
-  uniqueness guard**, unlike the food rename's `findDuplicateFood(..., excludeId)`:
-  `children` has no uniqueness contract on the add path either, so one here would reject
-  a rename that Add Child allows — do not "fix" that by adding one. +6 tests, seven
-  mutations verified.
-- v0.5.176 — **merge one food into another, losslessly** (closes gap #2). New
-  `src/lib/merge-foods.ts`; wired into the **rename-collision Alert**, which is the only
-  place a parent actually meets their legacy duplicates. Two things to know before
-  touching it. (a) The source `foods` row is deleted **last** and the merge-into-self
-  guard is load-bearing, not defensive noise: without it every exposure is reassigned to
-  a row the last step then deletes. (b) Step 4 (`DELETE FROM food_chains WHERE
-  source_food_id = target_food_id`) exists because rewriting both FK columns can turn a
-  legitimate `dup -> keep` chain into a meaningless `keep -> keep` row. +13 tests, eight
-  mutations verified.
-
-## Shipped in the v0.5.178 session (2026-09-18)
-
-- v0.5.177 — **duplicate foods are now visible on the Foods tab**, with the
-  v0.5.176 lossless merge offered in place. Closes gap #2 follow-up (a).
-- v0.5.178 — **a child's `dateOfBirth` and `notes` are read back** for the
-  first time, on the Settings -> Family rows, via a new pure `formatChildAge`.
-  Half-closes gap #-1.5 (read half only; the edit half still wants a detail
-  screen — see the entry).
-- chore — the long-standing `--noUnusedLocals` failure (gap #0) is fixed, so
-  that strict check now passes from a clean baseline.
-
-**Discovered this session and deliberately not done:**
-
-- **A fresh pusher worktree still has no `node_modules`.** `npm install` took
-  ~1 minute and exited 0, and `jest` is not on PATH until it finishes, so
-  `npm run test` fails with `jest: not found` before then. Budget the minute;
-  use `npx jest`. (Already recorded under gap #6, restated because it cost
-  time again.)
-- **`--testPathPatterns` is a regex, and `app/(tabs)/` contains regex
-  groups.** `--testPathPatterns="tabs/__tests__/foods"` silently matches
-  **zero** files and jest exits 1 with "No tests found" — which looks
-  identical to a green run if you are grepping for `✕`. This wasted a full
-  mutation-testing round that reported four mutations as "caught" when
-  nothing had run at all. Match on the bare filename (`foods.test`) instead,
-  and always assert on the `Tests:` summary line rather than the absence of
-  failures.
-- **`mockDb.writes` is a discriminated union**, so `writes[0].values` does not
-  type-check — narrow on `kind` first (`w.kind === 'update' && w.values`).
-  The existing suites avoid this by asserting `writes.map(w => w.kind)`, which
-  is why it had not come up.
-- **The merge banner's survivor choice is silent**, the same wrinkle gap #2(b)
-  records for the rename-collision merge: the first row's spelling wins and the
-  other's category / preparation / `isSafeFood` are discarded. Low stakes here
-  (group members differ only in casing) and all three fields are editable in
-  place, but it is worth a line in the confirm copy if anyone reports surprise.
-
-## Shipped in the v0.5.181 session (2026-09-28)
-
-- v0.5.180 — `generateId` / `generateInviteCode` use **expo-crypto**. `uuid` v4
-  throws without a global `crypto.getRandomValues`, which Hermes lacks and nothing
-  polyfilled, so every insert path would fail on a device build (the jest web
-  preset has a global crypto, so the suite could not see it). Invite codes also
-  moved off `Math.random`. `uuid` removed from `package.json`.
-- v0.5.181 — Sentry `beforeBreadcrumb` / `beforeSend` redact drizzle's
-  `params:` section (child names, notes) while keeping the SQL and stack.
-  Closes audit finding #3.
-
-**Unverified and worth a human check:** the Hermes crash in v0.5.180 is inferred
-from the `uuid` and Expo sources, not observed on a device. **The first native
-build (`npm run ios` / `android`) should confirm that onboarding, Add Food and
-Log Exposure all insert.** More generally, this shows a blind spot: the suite runs
-on `jest-expo/web`, so any native-only global (crypto, TextEncoder, structuredClone)
-is invisible to it. If a dev build is ever available, a smoke run of the
-onboarding path is the cheapest way to cover that class.
-
-`bun.lock` still lists `uuid` (not regenerated, v0.5.143 precedent).
-
-## Shipped in the v0.5.221 session (2026-10-20)
-
-- v0.5.220 — **fix:** the Foods tab's per-food bars always read `X/15` (`ProgressBar`'s
-  default target) while the Progress tab and food detail page measure against the
-  feeding profile (20 picky, 30 ARFID). `FoodCard` takes a `target`; the Foods tab passes
-  `getThresholdForProfile(feedingProfile)` and lists it in the row renderer's deps (the
-  tab stays mounted while Settings changes the profile — a test pins that).
-- v0.5.221 — **fix:** exposures tied on `occurredAt` (every same-day backdate lands at
-  local midnight) were ordered by the planner. `EXPOSURES_NEWEST_FIRST`
-  (`src/lib/exposure-order.ts`, `occurredAt DESC, createdAt DESC`) now backs the dashboard
-  recent list, food detail history and the CSV export. Real-SQL tests try both insertion
-  orders so rowid order cannot pass them by accident.
-
-**Discovered and deliberately not done:**
-
-- **~~`ProgressBar` still defaults `target` to 15.~~** Done v0.5.224. Every caller that matters now passes
-  one, but a new caller that forgets inherits the typical threshold silently. Making
-  `target` required is a small, safe follow-up (grep `<ProgressBar` — the dashboard and
-  Progress-tab rows pass explicit targets already; check before changing).
-- **~~The food detail page's in-memory re-sort after a date correction~~** (done v0.5.225) compares
-  `occurredAt` only. `Array.sort` is stable, so ties keep their loaded order, but a row
-  moved onto a tied day is not placed by `createdAt`. Add `createdAt` to `ExposureRow`'s
-  projection if it ever matters. Its query is held by the shared constant, not a screen test.
-- **Rows logged in the same second still tie on `createdAt` too** (whole-second storage).
-  Only the Log form's latch-guarded Save can produce them, one at a time; not worth an id
-  tiebreak (ids are random UUIDs, so it would not be chronological anyway).
-- **A fresh pusher worktree has no `node_modules`;** `npm install` took ~1 min and the
-  baseline was then green (1025/64).
-
-## Shipped in the v0.5.219 session (2026-10-19)
-
-- v0.5.218 — **fix (copy):** the rename-merge's second confirm (and its category warning)
-  now names the survivor by the spelling the parent typed, which is what `mergeFoods`
-  writes since v0.5.216. Two confirm-copy tests had typed `pear` into a `Pear` twin; their
-  fixtures flipped casing so they still assert the typed spelling.
-- v0.5.219 — **tests:** `app/(tabs)/_layout.tsx`'s selection repair (foreign selection
-  moved to an own child, empty family -> Add Child, no-op before onboarding) is pinned by a
-  real-SQL suite. `expo-router`'s `Tabs` mocks to a component returning `null` with a
-  `Screen` static.
-
-**Discovered and deliberately not done:**
-
-- **The layout repairs on mount / `familyId` change only, not on focus.** A child deleted
-  in Settings is repaired there via `ensureSelection(remaining)`, so this is fine today; a
-  future delete path that skips that call would leave the stale id until the next launch.
-- **The layout's read failure is logged, never alerted** — the tabs then run on whatever
-  selection MMKV held. Defensible (every screen has its own load Alert), noted only.
-
-## Shipped in the v0.5.217 session (2026-10-17)
-
-- v0.5.216 — **fix:** a rename-collision merge now gives the survivor the spelling the
-  parent typed. `mergeFoods` takes an optional `{ survivorName }`; the Foods-tab banner
-  merge passes none and is unchanged.
-- v0.5.217 — **fix:** Progress "This Week" was a rolling 168 hours, splitting the seventh
-  day by time of day. Now today plus the six previous local days.
-
-**Discovered and deliberately not done:**
-
-- **~~The rename-merge's second confirm still names the old spelling.~~** Fixed in v0.5.218.
-- **"This Week" means "last 7 local days", not "since Sunday/Monday".** The label is
-  ambiguous; a calendar week would need a week-start decision (locale). Left as is.
-
-## Shipped in the v0.5.215 session (2026-10-16)
-
-- v0.5.214 — **fix (copy):** both merge confirms said "Nothing is lost" even when the
-  twin's category was about to be discarded. `describeMergeOutcome` (in
-  `merge-foods.ts`) names both categories when they differ. Closes the v0.5.211 note.
-- v0.5.215 — **fix:** `ageInMonthsAt` never counted a month whose length is shorter than
-  the birth day (Jan 31 baby = 0 months on Feb 28; leap-day baby 11 months on Feb 28).
-
-**Discovered and deliberately not done:**
-
-- **~~Rename-collision merge keeps the survivor's casing, not the typed one.~~** Fixed in
-  v0.5.216 (`mergeFoods(..., { survivorName })`, set in step 5, still six writes).
-- **Join "Name Already Taken" blocks a signed-out parent from rejoining as themselves**
-  on the same device (v0.5.91 privacy rationale: no password). Each retry under a new
-  name leaves another `users` row. Product decision, not a bug fix.
-
-## Shipped in the v0.5.213 session (2026-10-14)
-
-- v0.5.212 — **fix:** `exposureSchema.occurredOn`'s future bound let **tomorrow** through
-  in nearly every zone (UTC midnight vs `now + 1 day`), and `resolveOccurredAt` stored it
-  at local midnight tomorrow. Affected the Log form and the per-row date editor.
-- v0.5.213 — **fix:** `childSchema.dateOfBirth`'s future bound had the same UTC/local
-  mismatch with `formatChildAge`. Both now use a private `isNotAfterLocalToday` helper.
-
-**Discovered and deliberately not done:**
-
-- **Timezone-dependent tests:** the new tests use `jest.useFakeTimers({ now: new Date(y, m, d, h) })`
-  with local constructors, so they are zone-portable — but whether they *fail* against a
-  regression depends on the host offset (this host is UTC-5). jsdom ignores `TZ` writes
-  (v0.5.166), so there is no cheap way to run the east-of-UTC case. If you want it,
-  inject "today" into the refine instead — not worth it for a 1-line helper.
-- **The lower bounds** (`MAX_BACKDATE_YEARS`, 130-year DOB) still compare UTC instants;
-  off by at most a day at a decades-old boundary — harmless, left alone.
-- **Older tests built "today" with UTC getters** (two were fixed here). `grep -rn getUTC
-  app src --include=*.test.*` before trusting a date fixture that runs in the evening.
-
-## Shipped in the v0.5.211 session (2026-10-14)
-
-- v0.5.210 — **fix:** the CSV export's *filename* used the UTC day (`getUTC*`), the
-  defect v0.5.166 fixed for the `date` column. Now via `toLocalIsoString`, with the same
-  injectable `offsetMinutes`.
-- v0.5.211 — **fix:** `mergeFoods` keeps the safe-food flag if either twin had it and
-  fills the survivor's missing preparation from the twin (closes gap #2(b)). One extra
-  `update(foods)` step before the source delete; the screen tests now expect six writes.
-
-**Discovered and deliberately not done:**
-
-- **~~The merge confirm copy still does not mention the field carry-over.~~** (category loss now named, v0.5.214) It says
-  "Nothing is lost", which is now closer to true. Category is still the survivor's
-  alone; if two twins disagree on category, the twin's is discarded silently.
-- **Date-of-day surfaces audit:** `grep -rn getUTC app src` now shows only
-  `toLocalIsoString`'s shifted read and the two coarse year bounds in `validation.ts`
-  (130-year DOB, backdate limit) — both intentional. Use local getters, or
-  `toLocalIsoString(...).slice(0, 10)`, for any new date-bucketed surface.
-
-## Shipped in the v0.5.208 session (2026-10-12)
-
-- v0.5.207 — **fix:** a single-exposure delete or stage correction resolving after a
-  concurrent one-tap Bump spread its stale `exposuresList` over the bump's reload, so the
-  bumped exposure vanished on screen. Both use functional updates now, and `highestStage`
-  is derived with `useMemo` from the list (no more `setHighestStage`). Closes the
-  "exposure-row editors patch the same stale-closure way" note from v0.5.206 — the
-  overlap *did* exist, because Bump is not gated by `rowBusy`.
-- v0.5.208 — **fix:** `RouteErrorBoundary` shows "Go back" (`router.back()`) when
-  `router.canGoBack()` (try/catch-guarded), closing the v0.5.189 "modal recovery screen has
-  no Close button" note. `EmptyState` has an optional `children` slot now.
-
-**Discovered and deliberately not done:**
-
-- **Bump is still not disabled while a row write is in flight.** With functional updates
-  the overlap is now harmless (both writes survive on screen), so gating it would only
-  add friction. Revisit if a row write ever reloads instead of patching.
-- **Go back is not device-verified**, in particular whether `router.canGoBack()` is
-  true inside a per-screen boundary on a modal (it should be — the modal is pushed onto
-  the root stack). If it reads false on device, the link simply does not render.
-- **`npm install` in a fresh pusher worktree** still takes ~1 min; do it before the
-  baseline run (`jest-expo/web` preset not found = no `node_modules`).
-
-## Shipped in the v0.5.206 session (2026-10-11)
-
-- v0.5.205 — **fix (build):** `expo export --platform web` builds. `metro.config.js`
-  adds `wasm` to `assetExts` (expo-sqlite's worker imports `wa-sqlite.wasm`) and sends
-  COOP/COEP headers from the dev server (the worker needs SharedArrayBuffer). Pinned in
-  `src/db/__tests__/metro-config.test.ts`.
-- v0.5.206 — **fix:** the food detail page's four food-level editors patched state from a
-  stale closure, so overlapping writes undid each other on screen. Now a functional
-  `patchFood`; the safe-food toggle got its latch.
-
-**Discovered and deliberately not done:**
-
-- **The web build is not browser-verified.** The export exits 0 and emits the `.wasm`
-  asset, but no page was loaded. Next step: `npm run web`, open it, onboard, log an
-  exposure. If the database fails to open, check `crossOriginIsolated` in the console.
-- **A static host for the web export must send COOP/COEP itself** — the metro
-  middleware only covers the dev server. No hosting is configured, so nothing to change.
-- **~~The exposure-row editors patch `exposuresList` the same stale-closure way~~** (fixed v0.5.207)
-  (`setExposuresList(exposuresList.map(...))`), but `rowBusy` + one `rowEditLatch`
-  already make two row writes impossible at once, so there is no overlap to lose. Only
-  matters if a row write ever becomes concurrent with something else that patches the list.
-
-## Shipped in the v0.5.203 session (2026-10-09)
-
-- v0.5.202 — **fix:** the food detail page's one-tap bump wrote an exposure with the
-  persisted `selectedChildId`, so a stale foreign id put this family's food into another
-  family's child's history (closes the "highest-value next pick" below). The handler now
-  checks the child against `familyId` before the insert. Real-SQL + mock tests.
-- v0.5.203 — **harness fix:** `createSqliteDb()` returned rows via `Object.values` on
-  node:sqlite objects, collapsing duplicate column names — any join selecting two
-  `name` columns read shifted fields. Now `setReturnArrays(true)`. Plus a real-SQL test
-  that the dashboard repairs a foreign selection before its id-only reads.
-
-**Discovered and deliberately not done:**
-
-- **Every `selectedChildId` consumer is now guarded** (grep confirms): dashboard and Log
-  via `ensureSelection`, Progress/Settings export via a family predicate, food-detail
-  bump via a pre-insert check. Foods tab counts and the food-detail history read are
-  id-only but join against a family-scoped food, so a foreign child yields zero rows.
-- **Food detail still *shows* the Bump button for a foreign selection** — tapping it
-  alerts "No child selected" instead of writing. Hiding it would mean validating the
-  child in `loadData`, which adds a read and reorders every queued read in the 79-test
-  mock suite. Not worth it for a state the tab layout repairs on the next tab focus.
-- **Before v0.5.203, real-SQL tests of a join with duplicate column names were
-  unreliable.** Existing ones all passed after the fix, so none was asserting on a
-  shifted field — but if one ever looked "wrong but green", that was why.
-
-## Shipped in the v0.5.201 session (2026-10-08)
-
-- v0.5.200 — **fix:** the Log form could insert an exposure against **another family's
-  child**. Its `childId` mirrors the persisted `selectedChildId`, never checked against
-  the family's children, and the FK passes because the foreign child row exists.
-  `loadData` now calls `ensureSelection(kids)`. Real-SQL test in `log-real-sql.test.tsx`.
-- v0.5.201 — **fix:** the Progress tab's exposures read is scoped through
-  `children.family_id`, so a stale foreign selection reads as No Progress Yet instead of
-  showing another family's history. New `progress-real-sql.test.tsx`.
-
-**Discovered and deliberately not done:**
-
-- **Rule of thumb now:** any read or write keyed by `selectedChildId` must either run
-  after `ensureSelection(kidsOfThisFamily)` (dashboard, Log) or carry a family predicate
-  (Progress, Settings export). Grep `selectedChildId` before adding a new consumer.
-- **Remaining id-only consumers of `selectedChildId`:** the Foods tab's per-child
-  exposure counts and the food detail page's history/bump. Both join against a food that
-  is already family-scoped, so a foreign child yields zero rows — but the food detail
-  **bump** (`handleBumpStage`) *writes* with `selectedChildId`; a stale foreign id would
-  insert an exposure for that child against this family's food. Same fix shape as
-  v0.5.200 (validate the child against the family before the insert). **Done v0.5.202.**
-- **Progress does not repair the selection itself** — a foreign id shows No Progress Yet
-  until the tab layout's effect repairs it. Fine; repairing would duplicate the layout.
-
-## Shipped in the v0.5.199 session (2026-10-07)
-
-- v0.5.199 — **fix:** the dashboard's "Today's Exposures" count read **0 on every
-  device** since the initial commit: raw SQL compared `occurred_at` to
-  `startOfDay.getTime()` (ms), but drizzle `mode: 'timestamp'` stores **seconds**. Now
-  `gte(col, startOfDay)`. Found by writing a real-SQL Log test that read the stored row.
-- +10 real-SQL screen tests (Foods tab, Join Family, Add Food, Log form) plus the
-  dashboard regression test; 12 predicate mutations each fail 1–2 tests.
-
-**Discovered and deliberately not done:**
-
-- **Timestamp unit rule:** every `mode: 'timestamp'` column holds whole seconds. Never
-  compare one in raw SQL against `getTime()`; go through drizzle (`gte`/`lt` on a `Date`).
-  `grep -rn 'sql\`' app src` was clean after this fix. The v0.5.170 index benchmarks
-  seeded ms values — the plans are unit-independent, so still valid.
-- **Seconds precision:** `occurredAt` loses sub-second precision; two exposures logged in
-  the same second sort arbitrarily in history. Harmless; switching to `timestamp_ms`
-  would need a data migration step (x1000) — not worth it.
-- **Still mock-only predicates:** ~~`progress.tsx`~~ (done v0.5.201) and the dashboard's
-  children/recent reads. Same `createSqliteDb()` +
-  `seedTwoFamilies` pattern if you want them; lower risk (read-only, no destructive
-  action hangs off them, unlike the Foods-tab merge banner).
-
-## Shipped in the v0.5.198 session (2026-10-07)
-
-- v0.5.197 — **fix:** the Settings CSV export read the child (and its whole history) by
-  the MMKV `selectedChildId` alone; Settings never repairs that selection, so a stale id
-  from another family exported that family's data. Now scoped by `familyId`; a missing
-  row alerts instead of exporting. Real-SQL tests in
-  `app/(tabs)/__tests__/settings-export-family-scope.test.tsx`.
-- v0.5.198 — **fix:** `mergeFoods`'s self-chain sweep is scoped to the surviving food
-  (closes the v0.5.193 note below). Real-SQL test in `cascade-sqlite.test.ts`.
-
-**Discovered and deliberately not done:**
-
-- **~~`fetchExportRows(childId)` itself is still unscoped~~** (done v0.5.226) — it trusts its caller. The
-  screen now checks the child belongs to the family first, which is sufficient; pushing a
-  `familyId` param into `exportChildData` would make the helper self-defending but changes
-  its signature and the 7 integration tests. Do it if a second export caller appears.
-- **The food detail page's exposure read** (`foodId` + selected child) is the last
-  id-only read from the v0.5.196 list. The food is already family-scoped (v0.5.195), so
-  its exposures can only belong to that family's children — no leak path; left alone.
-- **Settings never calls `ensureSelection` on load** — only the tab layout does. Not a
-  bug after v0.5.197, but it is why the export needed its own guard.
-
-## Shipped in the v0.5.196 session (2026-10-06)
-
-- v0.5.195 — **fix:** `app/food/[id].tsx` loaded its food by id alone, so a route naming
-  another family's food opened it with rename/merge/delete-cascade live. Now scoped by
-  `familyId` (signed-out reads as Food Not Found). Proven against real SQL in
-  `app/food/__tests__/id-family-scope.test.tsx`; the mock-db suite now signs in.
-- v0.5.196 — `app/child/[id].tsx`'s family scoping (v0.5.183, "inspection only") now has
-  real-SQL tests in `app/child/__tests__/id-family-scope.test.tsx`. Closes the first
-  item under the v0.5.193 session below.
-
-**Discovered and deliberately not done:**
-
-- **~~Other id-only reads that trust the store rather than the family.~~** Export done in
-  v0.5.197; see the v0.5.198 session. Original: Settings' CSV
-  export reads the child by `eq(children.id, selectedChildId)` (`settings.tsx:168`), and
-  the food detail page reads exposures by the selected child id. Both lean on
-  `ensureSelection` having repaired the MMKV selection against the family's list; a
-  family predicate (join or `and`) would make them independent of that. Low risk —
-  the selection is repaired on tab focus — so not done. Use the same
-  `createSqliteDb()` + `seedTwoFamilies` pattern if you do.
-- **The `!familyId` early return in the food load survives mutation** by design: without
-  it the query runs on `family_id = ''` and matches nothing. Do not contrive a test.
-
-## Shipped in the v0.5.193 session (2026-10-04)
-
-- v0.5.192 — `src/test-utils/sqlite-db.ts`: a **real drizzle instance** over in-memory
-  `node:sqlite` (drizzle `sqlite-proxy` driver; 0.45 has no node:sqlite driver) with
-  `MIGRATIONS` applied and FKs on, plus a two-family seed. The cascades and `mergeFoods`
-  now have row-level tests with `foreign_key_check` clean afterwards.
-- v0.5.193 — **foreign keys enforced**: migration step 2 (`REPAIR_ORPHANS_SQL`) re-creates
-  missing families, nulls dangling `logged_by`, deletes exposures/chains whose child or food
-  is gone; `DatabaseProvider` then runs `PRAGMA foreign_keys = ON`.
-
-**Discovered and deliberately not done:**
-
-- **~~`createSqliteDb()` makes the critique's "family scoping is held by inspection only"
-  gap closable.~~** Done for `app/child/[id].tsx` (and `app/food/[id].tsx`) in v0.5.195/196. `createMockDb` never evaluates `where`, so e.g. `app/child/[id].tsx`'s
-  family-scoped load is untested. A screen test can now mock `@/src/db/client` with
-  `createSqliteDb().db` and seed a second family's row. Not done — it is a per-screen job;
-  start with `app/child/[id].tsx` (v0.5.183 recorded that guard as inspection-only).
-- **Harness gotcha:** `node:sqlite` enforces FKs **by default**, unlike expo-sqlite. Any
-  raw-SQL fixture that seeds a child row before its parent needs
-  `new DatabaseSync(':memory:', { enableForeignKeyConstraints: false })`.
-- **FK enforcement is not device-verified.** If a device build ever surfaces
-  `FOREIGN KEY constraint failed`, the likeliest cause is an auth-store id (MMKV) that no
-  longer matches a SQLite row — step 2 can only repair rows, not the store.
-- **~~`mergeFoods`'s self-chain sweep is unscoped~~** (fixed v0.5.198) (`source = target` across every family).
-  Harmless — a self-chain is meaningless anywhere and nothing inserts chains — but worth
-  scoping to the target food if `food_chains` ever gets a writer.
-- **CLAUDE.md "Next Priority" still says wire Convex**, contradicting the "Do not wire
-  Convex" rule here (critique #3). Owner decision; left alone.
-
-## Shipped in the v0.5.191 session (2026-10-03)
-
-- v0.5.190 — **versioned schema migrations** (`src/db/migrate.ts`, critique top risk #1).
-  `runMigrations` applies `MIGRATIONS` entries above `PRAGMA user_version`, each atomic
-  with its version bump. `MIGRATION_SQL` is frozen as step 1. **The next schema change
-  is a new step** (`ALTER TABLE … ADD COLUMN …`) — editing step 1 reaches fresh installs
-  only. Tested against `node:sqlite`, 5 mutations verified.
-- v0.5.191 — Join Family copy is honest: "on this device", no false "connect to sync".
-
-**Discovered and deliberately not done:**
-
-- **~~`PRAGMA foreign_keys` is still off.~~** Done in v0.5.192/v0.5.193 — see below.
-- **Join Family is reachable but the invite code is shown nowhere.** Product decision
-  needed: hide the onboarding link until sync exists, or show the code in Settings
-  (which is the out-of-scope invites UI). Copy-only fix shipped meanwhile.
-- **~~`handleToggleSafeFood` still has no latch~~** — done v0.5.206.
-- **CLAUDE.md is ~430 KB**, most of it changelog, loaded into every session. Moving the
-  changelog to `CHANGELOG.md` would change the versioning rule written in CLAUDE.md
-  itself, so it is left for the owner to decide.
-
-## Shipped in the v0.5.189 session (2026-10-01)
-
-- v0.5.188 — CSV export gains a trailing `age_months` column (child's whole-month
-  age at each exposure's timestamp) via a new pure `ageInMonthsAt`, which
-  `formatChildAge` now calls. Blank when unknowable. Settings passes the DOB.
-- v0.5.189 — per-screen `ErrorBoundary` exports on the 5 tabs + 4 food/child
-  modals, so a crash keeps the navigator usable. Pinned in
-  `app/__tests__/route-error-boundaries.test.tsx`.
-
-**Discovered and deliberately not done:**
-
-- **~~The recovery screen on a modal has no Close button.~~** (fixed v0.5.208) Swipe-to-dismiss works
-  on iOS; on Android a modal relies on the hardware back button. A "Go back"
-  secondary action (`router.canGoBack()`) on `RouteErrorBoundary` would help, but
-  `EmptyState` takes one action, and it wants a device to judge.
-- **Per-screen boundaries are not device-verified** — the containment follows from
-  `useScreens.fromImport` (read in `node_modules/expo-router/build/useScreens.js`),
-  not from a device run.
-- **`age_months` is per row, not per file** — deliberately: the export spans the
-  child's whole history. If a therapist wants a header row with current age/DOB,
-  that would break the single-header CSV shape; leave it unless asked.
-
-## Shipped in the v0.5.187 session (2026-09-30)
-
-- v0.5.186 — root `ErrorBoundary` (`src/components/RouteErrorBoundary.tsx`,
-  re-exported from `app/_layout.tsx`). Recovery screen + Try again, explicit
-  `Sentry.captureException` (boundary-caught errors never reach Sentry otherwise),
-  never renders `error.message`. Tests drive expo-router's real `Try` from
-  `expo-router/build/views/Try` — a deep import; if an expo-router upgrade moves
-  it, fix the import path, do not delete the tests.
-- v0.5.187 — `childSchema.dateOfBirth` outputs `undefined` for blank; `ChildForm`
-  back to `?? null`.
-
-**Discovered and deliberately not done:**
-
-- ~~**Nested route boundaries.**~~ Done in v0.5.189 — but note the original idea
-  here was wrong: exporting from `app/(tabs)/_layout.tsx` would *not* keep the tab
-  bar, because expo-router wraps the route's own component (the layout = the
-  navigator). The boundaries are exported from each tab screen and modal instead.
-- **Not device-verified.** That the root boundary also catches errors thrown inside
-  `DatabaseProvider` / the other providers follows from expo-router wrapping the
-  route component, but nothing here proves it on a device.
-- **`exposureSchema.occurredOn` still outputs `''` for blank.** Harmless — it is
-  only fed to `resolveOccurredAt` — so left alone; same one-line transform if it
-  ever gets persisted directly.
-
-## Shipped in the v0.5.183 session (2026-09-29)
-
-- v0.5.182 — `createMockDb().failNextWrite(error?)`: the next insert/update/delete
-  rejects unrecorded, later writes succeed. Three suites' copy-pasted
-  fail-once closures now use it. **~13 other write overrides remain** in
-  `food/[id]`, `foods`, `log` and `settings` tests; most fail a *specific* write
-  kind or inspect args first, so they are a different shape — migrate one only if
-  it is genuinely "fail the next write, then retry".
-- v0.5.183 — `app/child/[id].tsx`: DOB, notes, avatar and name editable via
-  `ChildForm`'s new edit mode, reached by tapping a Settings → Family row. Closes
-  gap #-1.5. Also fixed: a DOB typed then cleared on Add Child persisted `''`.
-
-**Discovered and deliberately not done:**
-
-- ~~**`childSchema.dateOfBirth` still outputs `''` for a blank input.**~~ Fixed in
-  v0.5.187 with a trailing `.transform` — the output type did not change after all.
-- **The Settings row now has two ways to change a name** — inline Rename
-  (v0.5.175) and the detail screen. Both write the same column, so nothing is
-  wrong, but if the row feels crowded, Rename is the one to drop (its 6 tests
-  would go with it).
-- **The detail screen does not refresh the Settings row on return by itself** —
-  it relies on Settings' `useFocusEffect` reload, which already exists. Fine,
-  but it is why the edit screen does not patch any store.
-- **The load's family scoping is untested** — `createMockDb` serves queued rows
-  without evaluating predicates. A predicate-recording read (like writes' `where`)
-  would make that assertable; not worth building for one guard.
-
-## Known gaps worth doing next (discovered, deliberately not done)
-
--1. **~~Every field on an exposure is now correctable in place.~~** Closed as of
-   v0.5.171: stage (v0.5.167), rating (v0.5.168), notes (v0.5.169) and date
-   (v0.5.171) are all editable from the food detail page's Exposure History, and an
-   exposure is deletable (v0.5.163). Two follow-ups survive.
-
-   (a) **Backdating is still typing, not a picker.** Both the Log form's v0.5.164
-   field and the v0.5.171 per-row editor take a free-text `YYYY-MM-DD`. That is the
-   right MVP shape (no new dependency, reuses the `childSchema.dateOfBirth`
-   precedent) but it is one-handed typing on a phone. A picker needs a package —
-   `@react-native-community/datetimepicker` is the obvious one — so it stays a
-   deliberate deferral, not an oversight.
-
-   (b) **~~Four per-row editors now share one render block.~~** Closed in
-   v0.5.174: `editing: { id, field } | null` + `saving: { id, field } | null` +
-   one `rowEditLatch` replace the eight id-valued slots and four latches, and
-   `rowBusy` drops from five terms to two. All 63 existing editor tests passed
-   untouched. **The one thing to know before touching it:** the collapse
-   introduces exactly one new way to be wrong that per-field ids could not —
-   forgetting to discriminate on `field`, so opening any editor opens all four
-   on the row. That mutation left all 63 tests green when measured, so +4 tests
-   in `only one row editor is open at a time (v0.5.173)` now pin it. Keep them
-   if you extract an `<ExposureRowEditor>` component later; the render block is
-   still long, it is just no longer holding eight pieces of state.
-   Two mutations survive and are deliberate, not oversights: dropping the
-   `saving !== null` term from `rowBusy`, and `isSaving`'s field
-   discrimination. Both are unobservable from a DOM test — react-native-web
-   does not serialize `accessibilityState.disabled`, and the single latch
-   already prevents the concurrency `rowBusy` guards. Do not contrive tests
-   for them.
-
-   (c) **The date tests pin literal 2026 dates that must stay in the past.** The
-   `occurredOn` schema's not-future refine reads `Date.now()`, so
-   `app/food/__tests__/id.test.tsx`'s re-sort test uses `2026-09-12` and would have
-   failed had it been written a week earlier — it was, once, with `2026-09-20`. The
-   rest of the suite has the same shape (fixtures dated `new Date(2026, 0, 15)`). Not
-   a defect today and not worth a fake-timer rewrite, but worth knowing before
-   picking a date in a new test.
-
--1.5. **~~A child's `dateOfBirth` and `notes` are readable but still not
-   editable.~~** **Closed in v0.5.183** (`app/child/[id].tsx`, `ChildForm` edit mode). *(Half closed in v0.5.178.)* The **read** half shipped: a new
-   pure `formatChildAge(dateOfBirth, now?)` in `src/lib/utils.ts` (whole
-   months under two — the unit feeding therapy works in for that range —
-   years-and-months above it, local-midnight parse, no month counted until
-   the day of the month is reached, `null` rather than a placeholder for
-   blank / non-string / malformed / rollover / future input) and the
-   Settings -> Family rows now show the age and the notes beneath each
-   child's name, both collapsing when absent. **What survives is the edit
-   half**, and the shape below is still the right one — do not bolt a third
-   inline editor onto the Settings row. `formatChildAge` is ready-made for
-   the detail screen when it lands. Original entry follows.
-
-   **A child's `dateOfBirth` and `notes` are still write-only.** Both are
-   captured by `ChildForm` on Add Child / onboarding and land in SQLite, and
-   then **no surface in the app ever reads them back** — not Settings, not the
-   dashboard, not the CSV export. Same defect class v0.5.161 closed for a
-   food's `defaultPreparation` ("a value set on Add Food was write-only from
-   the moment it was saved"). v0.5.175 made the *name* correctable but
-   deliberately stopped there to stay inside one session's budget. The honest
-   fix is not another inline editor bolted onto the Settings row — it is a
-   `app/child/[id].tsx` detail screen reusing `ChildForm` in an edit mode
-   (seed defaults from the row, issue an `update` instead of an `insert`, skip
-   the `selectChild` call), with the Settings row navigating to it. That would
-   also give DOB somewhere to be *displayed*, which is the actual reason a
-   parent typed it. Budget it as a whole task: `ChildForm` is shared by two
-   hosts and 34 tests, so the refactor needs its own verification pass.
-
--2. **`resolveOccurredAt` is only reachable from the Log form.** The
-   food-detail "Bump to X" one-tap action still writes `occurredAt: new Date()`
-   with no way to backdate. That is defensible — a bump is an
-   in-the-moment action — but if backdating turns out to matter there too, the
-   helper is already pure and tested.
-
-0. **~~Pre-existing `--noUnusedLocals` error.~~** Closed in v0.5.178 —
-   `app/onboarding/__tests__/index.test.tsx:136` kept the `jest.spyOn` call
-   (it silences the handler's expected `console.error`) and dropped the unused
-   binding; `afterEach`'s `jest.restoreAllMocks()` already tore it down. Both
-   `npx tsc --noEmit` and `npx tsc --noEmit --noUnusedLocals` are clean.
-
-1. **Screen tests: 6 screens covered, harness proven.** v0.5.146 built
-   `src/test-utils/mock-db.ts` (structural fake of the drizzle builder:
-   queue reads, assert recorded writes, `failReads()` for catch blocks).
-   v0.5.147 and v0.5.148 copied the pattern to `app/food/[id].tsx` and the
-   Settings Delete Child flow — both destructive cascades are now covered.
-   The seams, and the gotchas that cost time:
-   - `jest.mock('expo-router', ...)` must reference a variable whose name
-     starts with `mock` (jest's out-of-scope guard rejects a plain `router`).
-     Add `useLocalSearchParams` for `[id]`-style routes and `useFocusEffect`
-     (mock it to a plain `useEffect`) for any screen that loads on focus.
-   - Mock `@/src/db/client` with a **getter** so each test's fresh
-     `createMockDb()` is picked up: `{ get db() { return mockDb.db; } }`.
-   - **Tab screens need a `SafeAreaProvider` wrapper** with static
-     `initialMetrics` — `SafeAreaView`'s hook throws without one. This failed
-     all 8 settings tests on the first run; see `settings.test.tsx`.
-   - A confirm `Alert` is testable by reaching into the spy's third argument
-     and invoking the named button's `onPress` inside `act` — see the
-     `confirmAlert` helper, duplicated in both files (worth extracting into
-     `src/test-utils/` if a third screen needs it).
-   - The suite runs on `jest-expo/web` + `@testing-library/react`, so query
-     by `accessibilityLabel` (`getByLabelText`) and use `fireEvent.change`
-     with `{ target: { value } }` for TextInputs, not `changeText`.
-   - react-native-web does **not** serialize `accessibilityState.disabled`
-     to `aria-disabled` on a Pressable; `aria-busy` (v0.5.46) does serialize.
-   - **Known harness limit:** react-native-web never dispatches a second
-     press while the first is in flight, so the same-tick double-tap that
-     `createInFlightLatch` exists for is *not* reachable from a DOM test.
-     A two-tap test will pass with the latch deleted. Do not write one —
-     `in-flight.test.ts` owns those semantics. Mutation-test any new screen
-     test before trusting it; every test in all three files shipped only
-     after independent source mutations each failed exactly one assertion.
-   - **Known cosmetic wart, unresolved:** screens that load in a
-     `useEffect` emit "An update ... was not wrapped in act(...)" warnings
-     (~37 for the food-detail suite). They are console noise only — the
-     suites pass. Wrapping the render in `await act(async () => ...)` and
-     draining microtasks inside the act scope did *not* silence them, and
-     neither did the `console.error` spy that is already installed in
-     `beforeEach`, which suggests the warnings are emitted outside the
-     spy's window rather than that the act wrapping is wrong. Worth ~15
-     focused minutes if it starts hiding real failures; not before.
-   - **Two harness limits found in v0.5.150, worth knowing before the next
-     screen test.** (a) react-native-web does not serialize
-     `accessibilityState.selected` to the DOM, so a chip's *highlight* is
-     not directly assertable — assert the behaviour the selection enables
-     instead (e.g. that Save re-validates cleanly rather than surfacing the
-     "Select a food" error). (b) A screen's focus load runs exactly **once**
-     under the harness, because `useFocusEffect` is mocked to a plain
-     `useEffect` and nothing re-focuses the screen. Anything that only
-     happens on a *second* load is therefore unreachable — which is why the
-     v0.5.142 `resolveSelectedFoodId` repair on the Log form is covered by
-     its unit tests and not through the screen. If that repair ever needs
-     screen-level coverage, the honest way in is a test-only re-render that
-     changes `familyId` (loadData's dependency), not a fake second focus.
-   - **The shared seams now live in `src/test-utils/screen-helpers.tsx`**
-     (v0.5.151): `SAFE_AREA_METRICS`, a `SafeArea` wrapper component,
-     `click(label)`, and two Alert helpers. The Alert pair is deliberately
-     two exports, not one with a flag: `confirmAlert` reads the **first**
-     Alert (so a later failure Alert cannot be mistaken for a confirm
-     dialog on a path that raises both) and `pressAlertButton` reads the
-     **most recent**. Pick by which one the screen under test needs. The
-     `expo-router` and `@/src/db/client` mocks stay per-file — they are
-     `jest.mock` factories, which must be hoisted in the importing module.
-   **All screens with real logic are now covered** (v0.5.159 closed the last
-   one, `app/child/add.tsx`). What remains untested is `app/onboarding/index.tsx`
-   (first-launch: two inserts + login + push), `app/onboarding/add-child.tsx`
-   (a near-duplicate of `app/child/add.tsx` — worth *deduplicating* rather than
-   testing twice; the two files differ only in the navigation they do on
-   success and in the onboarding flag they set), and the two `_layout.tsx`
-   files. None is high-value on its own.
-   One harness note from v0.5.159/160, worth having before the next write-path
-   test: `createMockDb().failReads()` covers **reads only**. To drive a write
-   failure — which is how you reach a handler's catch block on a screen that
-   issues no reads, like `app/child/add.tsx` — replace the mock's `insert` (or
-   `update`) for one call and flip a flag to let the retry through; both new
-   suites do this inline. **Done in v0.5.182:** use `mockDb.failNextWrite()`.
-   Three notes from writing the dashboard and Progress suites (v0.5.157/158):
-   (a) a screen whose `loadData` depends on `selectedChildId` **loads twice**
-   when the load itself changes the selection — `ensureSelection([])` on an
-   empty family clears it, which recreates the callback and re-runs the mocked
-   focus effect. Start such a test with the selection already null if you want
-   an unambiguous read count. (b) Numbers are terrible `getByText` targets on
-   stat-card screens; the same digit recurs in stage rows and category tiles.
-   Scope through the label instead — see `statValue` in `progress.test.tsx`.
-   (c) Text split by an expression (``{label} · {threshold}``) is still one
-   element's `textContent`, so `getByText('Picky · 20')` works, but the label
-   must be the config's exact value (`Picky`, not `Picky Eater`).
-   Two notes from writing the Foods tab suite
-   (v0.5.152): (a) `FlashList` *does* render under `jest-expo/web`,
-   including its `ListHeaderComponent`, so a pinned header section is
-   assertable; (b) `FoodCard` surfaces its exposure count only through
-   `ProgressBar`'s `current/target` label, so assert `'2/15'`, not a
-   phrase like "2 exposures".
-
-2. **~~Legacy duplicate foods are not deduped.~~** Closed in v0.5.176 —
-   `mergeFoods` reassigns the twin's exposures to the surviving row instead of
-   discarding them, offered from the rename-collision Alert. Two follow-ups
-   survive, neither urgent. ~~(a) The merge is only reachable from a rename
-   *collision*.~~ Closed in v0.5.178: a new pure `findDuplicateFoodGroups`
-   (`src/lib/food-partition.ts`) groups the library on the same normalized key
-   `findDuplicateFood` compares on, and the Foods tab shows a banner naming the
-   food and its copy count with a Merge action wired to `mergeFoods`. Three
-   things to know before touching it. It reads **`foods`, not `filteredFoods`**
-   — duplication is a property of the library, not of the current filter, and a
-   search that hides one twin must not read as "the problem went away"; a test
-   pins this. It offers **one group and folds one twin per tap** (the banner
-   reappears while any duplicate remains) rather than queuing confirm dialogs
-   over a destructive action. And the grouping is **exact after normalizing,
-   deliberately not fuzzy** — it catches "apple"/"Apple" and stays silent on
-   "Brocolli"/"Broccoli", which are two different strings a parent may be
-   keeping apart on purpose. If anyone asks for fuzzy matching, that is a
-   different feature with a much worse failure mode (folding away a row that
-   was wanted), not a missing case here. (b) ~~The merge keeps the *target* row's category,~~ (safe flag and preparation now carried over in v0.5.211; category still the survivor's)
-   preparation and `isSafeFood` wholesale and discards the source's. That is
-   the right default (the parent picked the surviving name deliberately) and
-   all three are now editable in place, but it is a silent choice — worth a
-   line in the confirm copy if anyone reports surprise.
-3. **~~No food rename/edit UI.~~** **Fully closed as of v0.5.161** — name
-   (v0.5.145), category (v0.5.160) and default preparation (v0.5.161) are all
-   editable in place. `isSafeFood` was already toggleable from v0.3.0, so every
-   field on `foods` can now be corrected without the delete-and-re-add that
-   discards the exposure history the acceptance threshold is counted from.
-   The one item that survives from this gap is (b): the rename does not
-   normalize casing across the family, so pre-existing legacy duplicates are
-   still separate rows — see gap #2. Original entry follows.
-   Done in v0.5.145 — inline rename on the
-   food detail page, validated through `foodSchema.shape.name` and guarded
-   by `findDuplicateFood(..., excludeId)`. Follow-ups deliberately not done:
-   ~~(a) only the *name* is editable~~ — category shipped in v0.5.160 (chip row
-   on the category tag). **Default preparation is still not editable** and is
-   the last field that requires delete-and-re-add; it is lower stakes than
-   category was (it is display-only — nothing groups or counts by it), so it
-   is a fill-in-the-gap job, not a data-integrity one. (b) the rename does not normalize casing
-   across the family, so pre-existing legacy duplicates are still separate
-   rows (see gap #2); (c) ~~the rename flow is untested~~ — covered by
-   the 7 rename tests added in v0.5.147.
-4. **~~Tab lists are stale after cross-screen writes.~~** Done in v0.5.140 —
-   all four tabs now reload on focus. Follow-up worth knowing about: the
-   focus reload is unconditional, so switching tabs re-runs the queries every
-   time. Fine at current data volumes (a handful of foods/exposures per
-   family); if a family ever accumulates thousands of exposures, gate the
-   reload on a store-level "data changed" counter instead.
-5. **~~`app/(tabs)/log.tsx` still loads on mount only.~~** Done in v0.5.142.
-   Two follow-ups worth knowing: (a) the same "selection outlives the list"
-   problem exists for `childId` — the store's `ensureSelection` repairs it
-   for the tabs, but the Log form mirrors `selectedChildId` into form state
-   via a `useEffect`, so a child deleted mid-session is repaired only because
-   `ensureSelection` moves the store value. Worth confirming once a harness
-   exists. (b) The focus reload is unconditional here too — see gap #4.
-
-6. **~~Tooling gotcha.~~** *(v0.5.164 note: a fresh pusher worktree has no
-   `node_modules` at all — `npm install` from a wiped tree took ~1 min and
-   exited 0, and `bun` is not on PATH in that environment, so use
-   `npx jest` there rather than `bun run test`.)* Mostly resolved in v0.5.143 — plain
-   `npm install` now works and CLAUDE.md documents `bun run test`. Two
-   residual items: (a) `bun.lock` was NOT regenerated for the v0.5.143
-   `package.json` delta (three devDependency lines) because Bun is not
-   installed in the worktree that made the change; the next Bun-equipped
-   session should run plain `bun install` and commit the resulting lockfile
-   churn deliberately. (b) `bun install --frozen-lockfile` still fails under
-   newer Bun versions ("lockfile had changes"); plain `bun install` works.
-
-7. **v0.5.43's threshold-tag refactor is not screen-observable, and that is
-   fine.** Measured in v0.5.158: reverting the Progress header tag from
-   `getThresholdForProfile(feedingProfile)` to `foodProgress[0]?.threshold ?? 15`
-   leaves the whole suite green, on every profile. `calcProgressStats` derives
-   each row's threshold from the same profile and the section is gated on a
-   non-empty list, so the `?? 15` fallback is unreachable. The refactor guards
-   a *future* per-row threshold override (a food-specific allergen threshold
-   was the motivating example). Do not "fix" this by contriving a test —
-   either accept the source shape as the guard, or, if per-row thresholds ever
-   land, the tag becomes genuinely testable and should be covered then.
-
-## NOT in scope (unchanged from original review)
-
-- **Wire Convex** — deferred until real multi-device need. Schema is ready.
-- **Co-parent family invites UI** — `families.inviteCode` exists, but the Join flow
-  **cannot work across devices today**: `app/onboarding/join.tsx` looks the code up in the
-  *local* SQLite `families` table, so it only matches a family created on the same phone,
-  and no screen ever displays the code. Do not describe Join as working until sync exists.
-- **Food chaining** (`convex/foodChains.ts`) — advanced SOS technique, later.
-- **Gamification/streaks/badges** — research warns against pressure-based interventions. Bright red line.
-- **App Store / TestFlight** — off the table per user instruction.
-
-## Do Not
-
-- Do not wire Convex. Revisit later.
-- Do not break the existing tests. Add new; do not refactor existing unless a test is wrong.
-- Do not introduce an analytics SDK beyond the existing PostHog wrapper, feature flags, or i18n. YAGNI.
-- Do not change `app.json` or `eas.json`.
-- Keep following the CLAUDE.md versioning rules: bump `APP_VERSION`, add a changelog entry, run the full suite before every commit.
+Reviewed at: v0.5.240. 1125 tests pass across 72 suites. `npx tsc --noEmit` and
+`npx tsc --noEmit --noUnusedLocals` are both clean.
+
+This file lists only **open** work. At v0.5.240 it was cut from a 72 KB session log, which
+opened with a warning that it was stale, to the list below (critique-2026-10-23 #3). The
+per-version history and the reasons behind each change are in `CHANGELOG.md`. To see the
+old log, run `git show 376a284:NEXT_STEPS.md`.
+
+**How to maintain it:** when you close an item, delete it; do not strike it through. Add
+what you found and chose not to do under the right heading. Check `git log` before you act
+on an item, because this file has lagged behind the code before.
+
+## A. Product decisions for a human
+
+1. **Two Convex directives contradict each other.** CLAUDE.md's "Next Priority" says to wire
+   Convex (`fetchChildren` → `addFood` → `logFood`). Section D below says not to. One of
+   them should be deleted. Until then, sessions treat Convex as out of scope.
+2. **Join Family can be opened, but no screen shows the invite code.**
+   `app/onboarding/join.tsx` looks codes up in local SQLite only, so it works only for a
+   family created on the same phone (the copy says "on this device"). The options are to
+   hide the Join link until sync exists, or to show the code in Settings, which is the
+   out-of-scope invites UI. Do not describe Join as working across devices.
+3. **A signed-in parent who has not finished onboarding cannot reach Join or Sign Out.**
+   `resolveOnboardingEntryRedirect` sends them to Add Child, so a parent who meant to join
+   has to add a child first and then sign out (v0.5.228).
+4. **Join's "Name Already Taken" stops a signed-out parent from rejoining as themselves** on
+   the same device. The v0.5.91 privacy reasoning is that there is no password. Each retry
+   under a new name leaves another `users` row (v0.5.215).
+5. **Stage and category colours used as graphics fall short of WCAG 1.4.11's 3:1.** Progress
+   bar fills and stage dots measure about 1.9–2.7:1 on white. The text beside them carries
+   the information.
+6. **"This Week" means the last 7 local days, not a calendar week.** A calendar week needs a
+   decision about which day the week starts on in each locale (v0.5.217).
+7. **Backdating is typed, not picked.** The Log form and the per-row editor both take
+   free-text `YYYY-MM-DD`. A picker needs a new dependency
+   (`@react-native-community/datetimepicker`).
+8. **Bump cannot be backdated.** "Bump to X" writes `occurredAt: new Date()`. If that needs
+   to change, `resolveOccurredAt` is pure and tested.
+9. **The merge silently keeps the survivor's spelling and row.** `describeMergeOutcome`
+   names both categories when they differ (v0.5.214). Add more copy only if someone reports
+   being surprised.
+10. **Settings → Family offers two ways to rename a child:** the inline Rename (v0.5.175) and
+    the `app/child/[id].tsx` screen. If the row feels crowded, drop the inline one and its
+    6 tests.
+11. **`age_months` is a per-row CSV column.** Moving age into a header row would break the
+    CSV's single-header shape. Change it only if a therapist asks (v0.5.189).
+
+## B. Needs a device or a running app
+
+1. **The app has never been run.** This is the largest risk (critique #1). The flow tests
+   mock navigation, so they do not replace a real run.
+2. **Native globals are untested.** The suite runs on `jest-expo/web`, so it cannot see
+   crypto, TextEncoder or structuredClone on native. The v0.5.180 move from `uuid` to
+   expo-crypto was inferred from source. The first native build should check that
+   onboarding, Add Food and Log Exposure all insert rows.
+3. **On Android, a CSV export above about 1 MB fails** with "Failed to open share dialog".
+   The fix is to write a file with expo-file-system (not installed) and share its URI,
+   instead of passing a string to `Share.share` (`src/lib/export.ts:253`).
+4. **On web, expo-sqlite probably cannot open.** COOP/COEP reach Metro's bundle responses but
+   not the HTML at `/`. To check:
+   - Run `npm run web` and read `crossOriginIsolated` in the console.
+   - If it is false, the headers must reach the document. Expo CLI serves that page outside
+     `enhanceMiddleware`.
+   - A static host must send both headers itself.
+
+   Details are in `.planning/pusher/documentation-2026-10-15.md`.
+5. **Enforced foreign keys have not been seen on a device.** If `FOREIGN KEY constraint
+   failed` appears, suspect an MMKV auth-store id with no matching SQLite row. Migration
+   step 2 repairs rows, not the store.
+6. **The error boundaries have not been seen working on a device.** That covers the
+   per-screen boundaries, whether the root boundary catches provider errors, and
+   `RouteErrorBoundary`'s "Go back". "Go back" needs `router.canGoBack()` to be true
+   inside a modal. If it returns false, the link does not render.
+
+## C. Code work that fits in a session
+
+1. **Extract a `useGuardedWrite` hook from `app/food/[id].tsx`** (critique #3). The file has
+   nine latches, and their release paths differ:
+   - the no-op returns in category and rename release early;
+   - Delete Food releases only on failure, because success navigates away;
+   - the confirm-dialog handlers acquire inside the Alert callback.
+
+   A hook has to keep all of these behaviours. v0.5.238's tests catch half of them if they
+   are lost (`.planning/pusher/tests-2026-10-28.md`). Budget a whole session.
+2. **`handleDeleteFood` guards on the `deleting` state, not on `deleteLatch.busy`.** The
+   merge and delete-exposure handlers use `.busy`. A double tap can open two confirm
+   dialogs, but the latch inside the callback still allows only one delete, so this is
+   cosmetic.
+3. **Regenerate `bun.lock`.** It still lists `uuid`. A session with Bun installed should
+   run a plain `bun install` (not `--frozen-lockfile`) and commit the result.
+4. **Some dashboard reads are tested only against the mock.** `index-real-sql.test.tsx`
+   covers today's count and the foreign-selection repair. It does not cover the children or
+   recent-activity reads. Those reads change nothing, so this is low value.
+5. **The food-detail Bump button stays visible when the selected child belongs to another
+   family.** Tapping it shows "No child selected". Hiding it would add a read to `loadData`
+   and reorder the queued reads in a 79-test suite. That was judged not worth it (v0.5.203).
+6. **`exposureSchema.occurredOn` returns `''` for a blank input.** This is harmless because
+   the value only feeds `resolveOccurredAt`. If it is ever saved directly, add a trailing
+   `.transform`, as `dateOfBirth` has (v0.5.187).
+7. **Tab focus reloads run every time.** At current data sizes that is fine. If a family
+   reaches thousands of exposures, run them only when a store-level "data changed" counter
+   has moved.
+8. **The food-detail suite logs about 37 `act(...)` warnings.** They are only noise. Spend
+   about 15 minutes on them only if they start hiding real failures.
+9. **About 13 hand-written fail-once write overrides remain** in the `food/[id]`, `foods`,
+   `log` and `settings` tests. Move one to `mockDb.failNextWrite()` only if it really means
+   "fail the next write, then retry".
+10. **Write more dark-mode render tests as screens are touched.** Since v0.5.239,
+    `setMockTheme('dark')` from `src/test-utils/mock-theme.ts` switches the jest Unistyles
+    mock. Only `DatabaseProvider` and `RouteErrorBoundary` have dark render tests so far.
+    Reset the theme in `afterEach`.
+11. **The contrast suite does not check `CATEGORY_CONFIG` colours used as text.** No colour
+    is used that way today. Add the check if one ever is.
+
+### Caveats for future callers
+
+- `fetchExportRows` with a blank `familyId` returns `[]`, and the export still shares a CSV
+  with only the header. Settings blocks this case; a new caller should check the family
+  first.
+- A second `initDb` call made while the first is running returns without doing anything.
+  If a caller ever needs to wait for init, keep the in-flight promise instead.
+- The tab layout repairs the child selection on mount and when `familyId` changes, but not
+  on focus. Settings Delete Child calls `ensureSelection(remaining)` itself, and any new
+  delete path must do the same.
+- A per-row editor that moves a row must sort with `compareExposuresNewestFirst`, not by
+  subtracting `occurredAt` values.
+- Before adding anything keyed by `selectedChildId`, grep for it. The new code must either
+  run after `ensureSelection(kidsOfThisFamily)` or include a family predicate. Tests must
+  sign in before they call `selectChild`.
+
+## D. Out of scope, and things not to do
+
+- **Out of scope:**
+  - wiring Convex (see A1)
+  - a co-parent invites UI
+  - food chaining (`convex/foodChains.ts`)
+  - App Store or TestFlight release
+  - gamification, streaks or badges, a firm line because the feeding research warns
+    against pressure
+- **Do not:**
+  - change `app.json` or `eas.json`
+  - add analytics beyond PostHog, feature flags or i18n
+  - skip the version bump, the `CHANGELOG.md` entry or the full suite run
+- **Do not add a uniqueness check to child rename.** Add Child has none, so the check
+  would reject a name that Add Child accepts.
+- **Duplicate-food grouping is exact after normalising, on purpose.** "Brocolli" and
+  "Broccoli" stay separate.
+- **`mergeFoods`:** the merge-into-self guard and deleting the source row last are both
+  needed; neither is extra caution.
+- **The per-screen family predicates are now a second layer of defence.** Do not add more
+  of them, and do not remove the existing ones without a reason.
+- **Keep the 4 "only one row editor is open at a time" tests** if an `<ExposureRowEditor>`
+  component is ever extracted.
+- **Some mutations cannot be caught, so do not write tests for them:**
+  - second taps on the in-flight latches, which `in-flight.test.ts` already covers
+  - the `saving !== null` term in `rowBusy`, and the field check in `isSaving`
+  - the food load's `!familyId` early return
+  - the `?? 15` fallback on the threshold tag
+  - `DatabaseProvider`'s spinner colour, which react-native-web does not expose
+- **These are accepted as they are:**
+  - exposures logged in the same second tie on `createdAt`, because timestamps are stored
+    in whole seconds
+  - the lower date bounds compare UTC instants
+  - Bump stays enabled while a row write is in progress
+
+## E. How to work here
+
+- **A fresh pusher worktree has no `node_modules`.** Run `npm install` first (about a
+  minute). Use `npx jest`, and never run a bare `bun test`.
+- **`--testPathPatterns` is a regex.** The parentheses in `app/(tabs)/` are read as a regex
+  group, so match on the file name (`foods.test`). Always read the `Tests:` summary line.
+- **Screen-test seams:**
+  - mock `expo-router` with a `mock`-prefixed variable, plus `useLocalSearchParams`, and
+    `useFocusEffect` as a plain `useEffect`
+  - mock `@/src/db/client` with a getter
+  - wrap tab screens in `SafeArea`
+  - use `confirmAlert` for the first Alert and `pressAlertButton` for the latest one
+- **`createMockDb`:**
+  - it never evaluates `where` on reads
+  - `failReads()` affects reads only; use `failNextWrite()` for writes
+  - narrow `writes` on `kind` before you read `.values`
+  - a load that depends on `selectedChildId` runs twice if it changes the selection, so
+    start those tests with no child selected
+- **Real SQL:** use `createSqliteDb()` with `seedTwoFamilies` (`node:sqlite`, foreign keys
+  on). A query-plan test must name the index it expects.
+- **react-native-web limits:** it does not put `accessibilityState.selected` or `.disabled`
+  in the DOM, though `aria-busy` is there. Assert the behaviour a selection enables
+  instead. `FoodCard` counts render only as `'2/15'`.
+- **Dates:**
+  - jsdom fixes the timezone once, so pass offsets in as parameters
+  - build fixtures with local `new Date(y, m, d, h)`
+  - fixed 2026 fixture dates must stay in the past, because the not-future check reads
+    `Date.now()`
+- **Schema changes:** append a step to `MIGRATIONS`. Never edit step 1 or
+  `0000_init.sql`.
+- **Mutation-check every new test.** `.planning/` is gitignored, so commit reports kept
+  there with `git add -f`.

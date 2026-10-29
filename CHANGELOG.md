@@ -5,6 +5,17 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.240 — Docs: **NEXT_STEPS.md is now one list of open items** (critique-2026-10-23 #3,
+  the last of its doc items apart from the Convex directive). The file was a 72 KB log of 40+
+  sessions. It opened by warning that it was stale, and closed items sat struck through next
+  to open ones, so each session spent time re-checking what was still true. Now it is 12 KB:
+  every item still open, grouped into human decisions, device-only checks, session-sized
+  code work, things not to do, and how to work here. Closed items were dropped. The items
+  that survived were checked against the code (e.g. `Share.share` in `export.ts`, `uuid` in
+  `bun.lock`, the inline child Rename). New in the list: `handleDeleteFood` guards on
+  `deleting` state rather than `deleteLatch.busy`, and the latch release paths a
+  `useGuardedWrite` hook must preserve. The old log is at `git show 376a284:NEXT_STEPS.md`.
+
 - v0.5.239 — Tests: **rendered tests can now see the dark theme.** The jest Unistyles mock
   served only `lightTheme`, and it evaluated `StyleSheet.create` factories once, at import, so
   every component was frozen in light mode. A dark-mode regression (v0.5.237: an error screen
