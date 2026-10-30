@@ -1125,6 +1125,24 @@ describe('exposureSchema.occurredOn (backdating, v0.5.164)', () => {
     expect(exposureSchema.safeParse({ ...base, occurredOn: '   ' }).success).toBe(true);
   });
 
+  it('outputs a blank or whitespace-only date as absent, never as an empty string', () => {
+    // "Not recorded" round-trips as absent (CLAUDE.md conventions), as
+    // `childSchema.dateOfBirth` already does — so a future caller that saves
+    // the parsed value directly cannot persist `''`.
+    for (const occurredOn of ['', '   ']) {
+      const result = exposureSchema.safeParse({ ...base, occurredOn });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.occurredOn).toBeUndefined();
+    }
+  });
+
+  it('passes a valid date through trimmed and unchanged', () => {
+    const today = ymd(new Date());
+    const result = exposureSchema.safeParse({ ...base, occurredOn: `  ${today}  ` });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.occurredOn).toBe(today);
+  });
+
   it('accepts today and a recent past date', () => {
     expect(exposureSchema.safeParse({ ...base, occurredOn: ymd(new Date()) }).success).toBe(true);
     const week = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);

@@ -5,6 +5,17 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.241 — Fix: **`exposureSchema.occurredOn` now outputs a blank date as absent, not `''`**
+  (NEXT_STEPS C6). Every other optional text field in the schemas maps blank to `undefined`
+  (CLAUDE.md: "never persist `''` for 'not recorded'"), and `childSchema.dateOfBirth` got the
+  same trailing `.transform` at v0.5.187. `occurredOn` was the one exception. It was harmless
+  only because both callers (Log Exposure, the per-row date editor) pass it to
+  `resolveOccurredAt`, which treats `''` and `undefined` alike; a future caller that saved
+  the parsed value directly would have written `''`. The transform runs last, so the three
+  refines still see the trimmed string. +2 tests: blank/whitespace parse to `undefined`, and a
+  padded valid date comes out trimmed and unchanged. Mutation: removing the transform fails the
+  first.
+
 - v0.5.240 — Docs: **NEXT_STEPS.md is now one list of open items** (critique-2026-10-23 #3,
   the last of its doc items apart from the Convex directive). The file was a 72 KB log of 40+
   sessions. It opened by warning that it was stale, and closed items sat struck through next

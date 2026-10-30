@@ -131,7 +131,10 @@ export const exposureSchema = z.object({
         return d.getTime() >= earliest.getTime();
       },
       { message: `Date cannot be more than ${MAX_BACKDATE_YEARS} years ago` }
-    ),
+    )
+    // Blank means "use now", which must reach callers as absent rather than
+    // `''` (the `dateOfBirth` rule). Last, so the refines see the trimmed string.
+    .transform((val) => (val ? val : undefined)),
 });
 
 export type ExposureFormData = z.infer<typeof exposureSchema>;
