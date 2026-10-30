@@ -7,12 +7,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { Try } from 'expo-router/build/views/Try';
 import { RouteErrorBoundary } from '../RouteErrorBoundary';
 import { darkTheme, lightTheme } from '@/src/styles/theme';
-import { setMockTheme } from '@/src/test-utils/mock-theme';
-
-function rgb(hex: string) {
-  const n = parseInt(hex.slice(1), 16);
-  return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
-}
+import { rgb, setMockTheme } from '@/src/test-utils/mock-theme';
 
 const mockCaptureException = jest.fn();
 

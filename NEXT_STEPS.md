@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.240. 1125 tests pass across 72 suites. `npx tsc --noEmit` and
+Reviewed at: v0.5.242. 1134 tests pass across 72 suites. `npx tsc --noEmit` and
 `npx tsc --noEmit --noUnusedLocals` are both clean.
 
 This file lists only **open** work. At v0.5.240 it was cut from a 72 KB session log, which
@@ -87,7 +87,9 @@ on an item, because this file has lagged behind the code before.
 2. **`handleDeleteFood` guards on the `deleting` state, not on `deleteLatch.busy`.** The
    merge and delete-exposure handlers use `.busy`. A double tap can open two confirm
    dialogs, but the latch inside the callback still allows only one delete, so this is
-   cosmetic.
+   cosmetic. Switching to `.busy` would not stop the two dialogs either, because the latch
+   is acquired inside the Alert callback (checked at v0.5.242). Treat this as a consistency
+   edit for the C1 hook, not as a bug fix.
 3. **Regenerate `bun.lock`.** It still lists `uuid`. A session with Bun installed should
    run a plain `bun install` (not `--frozen-lockfile`) and commit the result.
 4. **Some dashboard reads are tested only against the mock.** `index-real-sql.test.tsx`
@@ -96,22 +98,21 @@ on an item, because this file has lagged behind the code before.
 5. **The food-detail Bump button stays visible when the selected child belongs to another
    family.** Tapping it shows "No child selected". Hiding it would add a read to `loadData`
    and reorder the queued reads in a 79-test suite. That was judged not worth it (v0.5.203).
-6. **`exposureSchema.occurredOn` returns `''` for a blank input.** This is harmless because
-   the value only feeds `resolveOccurredAt`. If it is ever saved directly, add a trailing
-   `.transform`, as `dateOfBirth` has (v0.5.187).
-7. **Tab focus reloads run every time.** At current data sizes that is fine. If a family
+6. **Tab focus reloads run every time.** At current data sizes that is fine. If a family
    reaches thousands of exposures, run them only when a store-level "data changed" counter
    has moved.
-8. **The food-detail suite logs about 37 `act(...)` warnings.** They are only noise. Spend
+7. **The food-detail suite logs about 37 `act(...)` warnings.** They are only noise. Spend
    about 15 minutes on them only if they start hiding real failures.
-9. **About 13 hand-written fail-once write overrides remain** in the `food/[id]`, `foods`,
+8. **About 13 hand-written fail-once write overrides remain** in the `food/[id]`, `foods`,
    `log` and `settings` tests. Move one to `mockDb.failNextWrite()` only if it really means
    "fail the next write, then retry".
-10. **Write more dark-mode render tests as screens are touched.** Since v0.5.239,
-    `setMockTheme('dark')` from `src/test-utils/mock-theme.ts` switches the jest Unistyles
-    mock. Only `DatabaseProvider` and `RouteErrorBoundary` have dark render tests so far.
-    Reset the theme in `afterEach`.
-11. **The contrast suite does not check `CATEGORY_CONFIG` colours used as text.** No colour
+9. **Write more dark-mode render tests as screens are touched.** `setMockTheme('dark')` and
+    `rgb()` from `src/test-utils/mock-theme.ts` switch the jest Unistyles mock and compare a
+    computed colour with a theme token. `DatabaseProvider`, `RouteErrorBoundary`, `Button`,
+    `FoodCard` and `ExposureCard` have dark render tests (v0.5.242). Not yet covered:
+    `ChildSelector`, `EmptyState`, `RatingPicker`, `StageIndicator`, `ProgressBar` and every
+    screen. Reset the theme in `afterEach`, and pair each dark assertion with a light one.
+10. **The contrast suite does not check `CATEGORY_CONFIG` colours used as text.** No colour
     is used that way today. Add the check if one ever is.
 
 ### Caveats for future callers

@@ -18,12 +18,7 @@ jest.mock('../../db/client', () => ({
 import { DatabaseProvider } from '../DatabaseProvider';
 import { MIGRATION_SQL } from '../../db/migration';
 import { darkTheme, lightTheme } from '../../styles/theme';
-import { setMockTheme } from '../../test-utils/mock-theme';
-
-function rgb(hex: string) {
-  const n = parseInt(hex.slice(1), 16);
-  return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
-}
+import { rgb, setMockTheme } from '../../test-utils/mock-theme';
 
 async function renderProvider() {
   let utils!: ReturnType<typeof render>;

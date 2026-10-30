@@ -1,6 +1,8 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ExposureCard } from '../ExposureCard';
+import { darkTheme, lightTheme } from '../../styles/theme';
+import { rgb, setMockTheme } from '../../test-utils/mock-theme';
 
 describe('ExposureCard', () => {
   const defaultProps = {
@@ -150,5 +152,35 @@ describe('ExposureCard', () => {
       expect(screen.getByText('Carrots')).toBeTruthy();
       unmount();
     }
+  });
+
+  // The card styles come from a module-level StyleSheet.create factory, the
+  // path the jest mock froze in light mode before v0.5.239. A card painted
+  // with light tokens in dark mode is white-on-white text.
+  describe('theme', () => {
+    afterEach(() => setMockTheme('light'));
+
+    function colours() {
+      render(<ExposureCard {...defaultProps} onPress={() => {}} />);
+      return {
+        background: getComputedStyle(screen.getByLabelText('Open Carrots details')).backgroundColor,
+        name: getComputedStyle(screen.getByText('Carrots')).color,
+      };
+    }
+
+    it('paints the card with the light tokens in light mode', () => {
+      expect(colours()).toEqual({
+        background: rgb(lightTheme.colors.cardBackground),
+        name: rgb(lightTheme.colors.text),
+      });
+    });
+
+    it('paints the card with the dark tokens in dark mode', () => {
+      setMockTheme('dark');
+      expect(colours()).toEqual({
+        background: rgb(darkTheme.colors.cardBackground),
+        name: rgb(darkTheme.colors.text),
+      });
+    });
   });
 });

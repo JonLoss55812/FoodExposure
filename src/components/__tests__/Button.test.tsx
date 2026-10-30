@@ -1,6 +1,8 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { Button } from '../Button';
+import { darkTheme, lightTheme } from '../../styles/theme';
+import { rgb, setMockTheme } from '../../test-utils/mock-theme';
 
 describe('Button', () => {
   it('renders with label', () => {
@@ -80,5 +82,42 @@ describe('Button', () => {
     render(<Button label="Save" onPress={() => {}} />);
     const target = screen.getByLabelText('Save');
     expect(target.getAttribute('aria-busy')).not.toBe('true');
+  });
+
+  // Button reads colours from `useUnistyles()` at render time. The primary
+  // label flips from white (light) to slate (dark) because the dark
+  // primaryStrong is a light orange: a label hardcoded to white would sit at
+  // about 2.3:1 on it, which only a dark render can catch.
+  describe('theme', () => {
+    afterEach(() => setMockTheme('light'));
+
+    function primaryColours() {
+      render(<Button label="Save" onPress={() => {}} />);
+      return {
+        background: getComputedStyle(screen.getByLabelText('Save')).backgroundColor,
+        label: getComputedStyle(screen.getByText('Save')).color,
+      };
+    }
+
+    it('paints the primary button with the light tokens in light mode', () => {
+      expect(primaryColours()).toEqual({
+        background: rgb(lightTheme.colors.primaryStrong),
+        label: rgb(lightTheme.colors.onPrimaryStrong),
+      });
+    });
+
+    it('paints the primary button with the dark tokens in dark mode', () => {
+      setMockTheme('dark');
+      expect(primaryColours()).toEqual({
+        background: rgb(darkTheme.colors.primaryStrong),
+        label: rgb(darkTheme.colors.onPrimaryStrong),
+      });
+    });
+
+    it('paints the secondary label with the dark text token in dark mode', () => {
+      setMockTheme('dark');
+      render(<Button label="Cancel" onPress={() => {}} variant="secondary" />);
+      expect(getComputedStyle(screen.getByText('Cancel')).color).toBe(rgb(darkTheme.colors.text));
+    });
   });
 });

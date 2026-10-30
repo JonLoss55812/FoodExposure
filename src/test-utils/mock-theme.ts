@@ -18,3 +18,12 @@ export function setMockTheme(name: MockThemeName): void {
 export function getMockThemeName(): MockThemeName {
   return current;
 }
+
+/**
+ * A `#RRGGBB` theme token as jsdom's `getComputedStyle` reports it, so a
+ * rendered colour can be compared with `lightTheme`/`darkTheme` directly.
+ */
+export function rgb(hex: string): string {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+}

@@ -5,6 +5,19 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.242 — Tests: **the shared card and button components now have dark-mode render
+  tests** (NEXT_STEPS C10). Before this, only `DatabaseProvider` and `RouteErrorBoundary` were
+  rendered in dark mode. `FoodCard` and `ExposureCard` take their colours from a module-level
+  `StyleSheet.create` factory, and `Button` takes them from `useUnistyles()` at render time. A
+  colour hardcoded to the light theme in either path passes the contrast suite, which checks
+  token pairs, not components. For the cards that means white-on-white text; for the primary
+  Button it means a white label at about 2.3:1 on the dark theme's light orange. +7 tests, each
+  a light/dark pair, so a test that passed in both modes for the wrong reason would show up.
+  Mutations: hardcoding to the light hex the card backgrounds (×2), the card name colours (×2),
+  the primary label, the primary background, or the secondary label each fails exactly 1. The
+  `rgb()` hex→computed-style helper, which two test files had copied, is now exported from
+  `src/test-utils/mock-theme.ts`.
+
 - v0.5.241 — Fix: **`exposureSchema.occurredOn` now outputs a blank date as absent, not `''`**
   (NEXT_STEPS C6). Every other optional text field in the schemas maps blank to `undefined`
   (CLAUDE.md: "never persist `''` for 'not recorded'"), and `childSchema.dateOfBirth` got the
