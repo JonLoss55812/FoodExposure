@@ -5,6 +5,20 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.243 — Chore (supply chain). (1) `zod`'s floor goes from `^4.3.6` to `^4.6.6`
+  (GHSA-mrhx-c7xc-m3w5, memory exhaustion validating oversized constrained collections).
+  The app's schemas use no arrays or sets, so it was not reachable. npm already resolved
+  4.6.7, but the committed `bun.lock` pinned 4.3.6. (2) **`bun.lock` was regenerated**
+  (bun 1.3.14 via npx, `--lockfile-only`). It had drifted since v0.5.204: it still listed
+  `uuid`, `ts-jest`, `@testing-library/jest-native` and react-native 0.83.2, so
+  `bun install --frozen-lockfile` failed at v0.5.242 (reproduced). Bun keeps its existing
+  pins, so only the drifted entries moved. It cannot apply the nested `xcode → uuid`
+  override; see Known Limitations. (3) Test fix: `isoMonthsAgo` in `settings.test.tsx`
+  rolled over on month-end days (Oct 31 − 28 months = "Jun 31" = Jul 1), which failed two
+  age assertions on 2026-10-31. It now pins to the 1st. Verified: 1134 tests pass across
+  72 suites, `tsc --noEmit` is clean, `expo export --platform web` exits 0, and a frozen
+  bun install in a scratch directory succeeds with zod 4.6.7. Audit: 48 advisories from
+  6 roots (report in `.planning/pusher/dependencies-2026-10-31.md`).
 - v0.5.242 — Tests: **the shared card and button components now have dark-mode render
   tests** (NEXT_STEPS C10). Before this, only `DatabaseProvider` and `RouteErrorBoundary` were
   rendered in dark mode. `FoodCard` and `ExposureCard` take their colours from a module-level

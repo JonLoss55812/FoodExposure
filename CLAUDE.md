@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.242` (`src/lib/constants.ts`). 1134 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.243` (`src/lib/constants.ts`). 1134 tests pass across
 72 suites; `npx tsc --noEmit` is clean. See `CHANGELOG.md` for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -209,10 +209,14 @@ configured.
   (`deriveLocalEmailPart`) and `users.email` has no UNIQUE constraint.
 - **Charts are simple** — bars and tiles, no time-series plots.
 - **Date entry is free text** (`YYYY-MM-DD`), not a picker; no date-picker package is installed.
-- **`npm audit` reports 59 advisories from 5 roots, none fixable** (v0.5.204; reasoning in that
-  changelog entry). `braces`, `node-forge` and `sprintf-js`
-  have no patched release; `decode-uri-component`'s fix is ESM-only (v0.5.165); `esbuild`'s
-  "fix" is a drizzle-kit downgrade. All five are in build/test tooling, not the app bundle.
+- **`npm audit` reports 48 advisories from 6 roots, none fixable without an SDK change**
+  (v0.5.243; see `.planning/pusher/dependencies-2026-10-31.md`). `decode-uri-component`
+  (fix is ESM-only, v0.5.165), `esbuild` (fix is a drizzle-kit downgrade), and `deepmerge`,
+  `glob`, `minimatch`, plus `@expo/cli`'s private zod 3 (fixes need Expo SDK 58). The app's
+  own zod is 4.6.7, which is patched. All six roots are in build/test tooling, not the app bundle.
+- **Bun ignores the nested `xcode → uuid` override** in `package.json`. npm applies it, but
+  `bun install` still resolves xcode's uuid to 7.0.3. That is build-time only, and xcode
+  calls only `uuid.v4()`, so it is not reachable (v0.5.204).
 - **Web is probably not cross-origin isolated, so expo-sqlite may not open in a browser.**
   Since v0.5.205 `expo export --platform web` builds, and `metro.config.js`'s
   `enhanceMiddleware` sets COOP/COEP. But under `npm run web` those headers reach only
@@ -281,7 +285,7 @@ app/ — Expo Router pages
     session, and the changelog grew it to ~470 KB before v0.5.231)
 
 ## Current Version
-v0.5.242
+v0.5.243
 
 ## Changelog
 See `CHANGELOG.md` (newest first).
