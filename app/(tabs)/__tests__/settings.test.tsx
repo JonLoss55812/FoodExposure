@@ -664,7 +664,10 @@ describe('SettingsScreen — child date of birth and notes (v0.5.178)', () => {
    * the trap NEXT_STEPS gap #-1(c) records for the date fixtures.
    */
   function isoMonthsAgo(months: number) {
+    // Pin to the 1st: on the 31st, setMonth into a 30-day month rolls forward a day
+    // (Oct 31 - 28 months = "Jun 31" = Jul 1), making the child a month younger.
     const d = new Date();
+    d.setDate(1);
     d.setMonth(d.getMonth() - months);
     const p = (n: number) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
