@@ -5,6 +5,16 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.244 — Fix: exporting a child with no exposures no longer opens the share sheet
+  with a header-only CSV. That file reads to a therapist like a parent who has logged
+  nothing, and Settings' own failed-read test already said so. `exportChildData` now
+  resolves `'shared' | 'empty'` and returns `'empty'` before formatting when
+  `fetchExportRows` finds no rows. Settings then shows "Nothing to export yet", naming
+  the child. The same guard covers a foreign or stale child id, which reads as no rows.
+  Two lib tests that pinned the header-only share now pin that nothing is shared. The
+  Share-error test gets a row so it still reaches `Share.share`. Mutation check: with the
+  guard removed, 3 tests fail. 1135 tests pass across 72 suites (+1); tsc is clean.
+
 - v0.5.243 — Chore (supply chain). (1) `zod`'s floor goes from `^4.3.6` to `^4.6.6`
   (GHSA-mrhx-c7xc-m3w5, memory exhaustion validating oversized constrained collections).
   The app's schemas use no arrays or sets, so it was not reachable. npm already resolved

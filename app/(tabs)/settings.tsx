@@ -176,12 +176,18 @@ export default function SettingsScreen() {
         Alert.alert('No child selected', 'Add or select a child before exporting.');
         return;
       }
-      await exportChildData({
+      const outcome = await exportChildData({
         childId: selectedChildId,
         familyId,
         childName: child.name,
         dateOfBirth: child.dateOfBirth,
       });
+      if (outcome === 'empty') {
+        Alert.alert(
+          'Nothing to export yet',
+          `${child.name} has no logged exposures. Log one first, then export.`
+        );
+      }
     } catch (err) {
       console.error('Failed to export data:', err);
       // Fixed copy, not err.message: a failed query's message is its SQL plus

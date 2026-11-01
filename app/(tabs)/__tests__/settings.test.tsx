@@ -275,6 +275,21 @@ describe('SettingsScreen — Export Data', () => {
     expect(lines[1].endsWith(',16')).toBe(true);
   });
 
+  it('tells the parent there is nothing to export instead of sharing an empty file', async () => {
+    await renderWithChildren([EMMA]);
+    mockDb.queueSelect([{ name: 'Emma' }]);
+    mockDb.queueSelect([]); // Emma has no exposures yet
+
+    await click('Export data as CSV');
+
+    await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+    const [title, body] = alertSpy.mock.calls[0];
+    expect(title).toBe('Nothing to export yet');
+    expect(body).toContain('Emma');
+    expect(shareSpy).not.toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
   it('refuses to export when no child is selected, without reading anything', async () => {
     // Cleared before mount: a post-mount clear does not reach the handler's
     // closure under this harness, and the read count would be ambiguous.

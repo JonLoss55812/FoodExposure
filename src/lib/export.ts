@@ -235,6 +235,10 @@ export async function fetchExportRows(childId: string, familyId: string): Promis
 /**
  * Named fields rather than positional strings: `childId`, `familyId` and
  * `childName` are all strings, so a swapped argument would type-check.
+ *
+ * Resolves `'empty'` without opening the share sheet when there are no rows:
+ * a header-only file reads to a therapist like a parent who logged nothing,
+ * so the caller says so instead of sending one.
  */
 export async function exportChildData({
   childId,
@@ -246,12 +250,14 @@ export async function exportChildData({
   familyId: string;
   childName: string;
   dateOfBirth?: string | null;
-}): Promise<void> {
+}): Promise<'shared' | 'empty'> {
   const rows = await fetchExportRows(childId, familyId);
+  if (rows.length === 0) return 'empty';
   const csv = formatExposuresCsv(rows, dateOfBirth);
   const filename = buildExportFilename(childName);
   await Share.share({
     title: filename,
     message: csv,
   });
+  return 'shared';
 }

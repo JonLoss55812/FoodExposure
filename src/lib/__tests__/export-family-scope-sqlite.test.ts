@@ -42,16 +42,15 @@ describe('fetchExportRows family scope', () => {
 });
 
 describe('exportChildData family scope', () => {
-  it("shares a header-only CSV, never another family's rows", async () => {
+  it("shares nothing, never another family's rows", async () => {
     const shareSpy = jest
       .spyOn(Share, 'share')
       .mockResolvedValue({ action: 'sharedAction' } as never);
 
-    await exportChildData({ childId: 'c9', familyId: 'f1', childName: 'Other' });
+    const outcome = await exportChildData({ childId: 'c9', familyId: 'f1', childName: 'Other' });
 
-    const arg = shareSpy.mock.calls[0][0] as { message: string };
-    expect(arg.message).not.toContain('Kiwi');
-    expect(arg.message.trim().split('\n')).toHaveLength(1);
+    expect(outcome).toBe('empty');
+    expect(shareSpy).not.toHaveBeenCalled();
     shareSpy.mockRestore();
   });
 });

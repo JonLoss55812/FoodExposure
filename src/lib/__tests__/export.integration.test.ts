@@ -137,8 +137,9 @@ describe('exportChildData', () => {
 
     const shareSpy = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' } as never);
 
-    await exportChildData({ childId: 'child-1', familyId: 'fam-1', childName: 'Ada Lovelace' });
+    const outcome = await exportChildData({ childId: 'child-1', familyId: 'fam-1', childName: 'Ada Lovelace' });
 
+    expect(outcome).toBe('shared');
     expect(shareSpy).toHaveBeenCalledTimes(1);
     const arg = shareSpy.mock.calls[0][0] as { title: string; message: string };
     expect(arg.title).toMatch(/^tonguetutor-ada-lovelace-\d{8}\.csv$/);
@@ -149,19 +150,33 @@ describe('exportChildData', () => {
     shareSpy.mockRestore();
   });
 
-  it('still shares a header-only CSV when the child has no exposures', async () => {
+  it("does not open the share sheet when the child has no exposures", async () => {
     const shareSpy = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' } as never);
 
-    await exportChildData({ childId: 'child-empty', familyId: 'fam-1', childName: 'Empty Kid' });
+    const outcome = await exportChildData({ childId: 'child-empty', familyId: 'fam-1', childName: 'Empty Kid' });
 
-    expect(shareSpy).toHaveBeenCalledTimes(1);
-    const arg = shareSpy.mock.calls[0][0] as { title: string; message: string };
-    expect(arg.message.trim()).toBe('date,food,category,safe_food,stage,rating,preparation,texture,temperature,meal,setting,notes,age_months');
+    // A header-only file reads to a therapist like a parent who logged nothing.
+    expect(outcome).toBe('empty');
+    expect(shareSpy).not.toHaveBeenCalled();
 
     shareSpy.mockRestore();
   });
 
   it('propagates errors from Share.share', async () => {
+    mockRowsFromDb.push({
+      occurredAt: new Date('2026-04-10T09:30:00.000Z'),
+      foodName: 'Banana',
+      category: 'fruit',
+      isSafeFood: false,
+      stage: 'touch',
+      rating: null,
+      preparation: null,
+      texture: null,
+      temperature: null,
+      mealType: null,
+      setting: null,
+      notes: null,
+    });
     const shareSpy = jest.spyOn(Share, 'share').mockRejectedValue(new Error('user cancelled'));
 
     await expect(exportChildData({ childId: 'child-1', familyId: 'fam-1', childName: 'Ada' })).rejects.toThrow('user cancelled');
