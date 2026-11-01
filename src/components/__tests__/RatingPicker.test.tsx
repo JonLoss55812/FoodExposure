@@ -1,6 +1,13 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { RatingPicker } from '../RatingPicker';
+import { darkTheme, lightTheme } from '../../styles/theme';
+import { rgb, setMockTheme } from '../../test-utils/mock-theme';
+
+const THEMES = [
+  ['light', lightTheme],
+  ['dark', darkTheme],
+] as const;
 
 describe('RatingPicker', () => {
   it('renders all rating labels', () => {
@@ -98,6 +105,30 @@ describe('RatingPicker', () => {
       render(<RatingPicker onChange={onChange} />);
       fireEvent.click(screen.getByText('Neutral'));
       expect(onChange).toHaveBeenCalledWith(3);
+    });
+  });
+
+  // As with ChildSelector: the selected state is not in the DOM, its style is.
+  describe('theme', () => {
+    afterEach(() => setMockTheme('light'));
+
+    it.each(THEMES)('paints selected and unselected ratings with the %s tokens', (name, theme) => {
+      setMockTheme(name);
+      render(<RatingPicker value={4} onChange={() => {}} />);
+      const selected = getComputedStyle(screen.getByLabelText('Rating: Willing'));
+      expect({
+        selectedBackground: selected.backgroundColor,
+        selectedBorder: selected.borderTopColor,
+        selectedLabel: getComputedStyle(screen.getByText('Willing')).color,
+        otherBackground: getComputedStyle(screen.getByLabelText('Rating: Neutral')).backgroundColor,
+        otherLabel: getComputedStyle(screen.getByText('Neutral')).color,
+      }).toEqual({
+        selectedBackground: rgb(theme.colors.primaryLight),
+        selectedBorder: rgb(theme.colors.primary),
+        selectedLabel: rgb(theme.colors.primaryStrong),
+        otherBackground: rgb(theme.colors.surface),
+        otherLabel: rgb(theme.colors.textSecondary),
+      });
     });
   });
 });

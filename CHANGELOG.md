@@ -5,6 +5,16 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.245 — Test: theme render tests for `EmptyState`, `ProgressBar`, `ChildSelector`,
+  `RatingPicker` and `StageIndicator` (NEXT_STEPS C9). Each file gets one `it.each` over
+  light and dark that compares computed colours with the theme's tokens. A colour
+  hardcoded to either theme's token fails one of the two cases. The selected chip's
+  background, border and label colours are styles, so they reach jsdom even though
+  `accessibilityState.selected` does not. These tests therefore also pin the
+  ChildSelector and RatingPicker highlights, which CLAUDE.md lists as not assertable
+  through state. Mutation check: 9 hardcoded-token edits across the five components each
+  fail exactly one test. 1145 tests pass across 72 suites (+10); tsc is clean.
+
 - v0.5.244 — Fix: exporting a child with no exposures no longer opens the share sheet
   with a header-only CSV. That file reads to a therapist like a parent who has logged
   nothing, and Settings' own failed-read test already said so. `exportChildData` now

@@ -12,7 +12,7 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.244` (`src/lib/constants.ts`). 1135 tests pass across
+**Current state:** `APP_VERSION` is `v0.5.245` (`src/lib/constants.ts`). 1145 tests pass across
 72 suites; `npx tsc --noEmit` is clean. See `CHANGELOG.md` for the
 per-version history and the rationale behind non-obvious decisions.
 
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 1135 tests, 72 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 1145 tests, 72 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -79,7 +79,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 1135 tests, 72 suites
+npm run test         # 1145 tests, 72 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -115,8 +115,9 @@ value is not "unset" (a fake PostHog key would initialise PostHog). All are safe
 - **Web preset:** the suite runs under `jest-expo/web` + jsdom, not on a device. Two known
   limits are load-bearing when writing tests: react-native-web does not serialize
   `accessibilityState.selected`/`.disabled` to the DOM, and computed layout is unavailable —
-  so chip highlights are not assertable from a test. A declared `minHeight` *is*: react-native-web
-  emits it as a CSS rule that jsdom's `getComputedStyle(el).minHeight` resolves (v0.5.194).
+  so the selected *state* is not assertable from a test. The selected *style* is: computed
+  colours reach jsdom, which is how the chip-highlight tests in `ChildSelector.test.tsx`
+  work (v0.5.245). A declared `minHeight` is assertable too: react-native-web emits it as a CSS rule that jsdom's `getComputedStyle(el).minHeight` resolves (v0.5.194).
 - **Expo Router:** typed routes are enabled (`app.json` → `experiments.typedRoutes`). Some
   route strings still need an `as any` cast (e.g. the `/(tabs)` group root).
 - **Schema changes are numbered steps** (v0.5.190): `runMigrations` in `src/db/migrate.ts`
@@ -159,7 +160,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **1135 tests across 72 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **1145 tests across 72 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -231,7 +232,7 @@ configured.
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 1135 tests, 72 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 1145 tests, 72 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -285,7 +286,7 @@ app/ — Expo Router pages
     session, and the changelog grew it to ~470 KB before v0.5.231)
 
 ## Current Version
-v0.5.244
+v0.5.245
 
 ## Changelog
 See `CHANGELOG.md` (newest first).

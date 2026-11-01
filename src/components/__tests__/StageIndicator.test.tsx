@@ -1,6 +1,14 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { StageIndicator } from '../StageIndicator';
+import { darkTheme, lightTheme } from '../../styles/theme';
+import { rgb, setMockTheme } from '../../test-utils/mock-theme';
+import { STAGE_CONFIG } from '../../lib/constants';
+
+const THEMES = [
+  ['light', lightTheme],
+  ['dark', darkTheme],
+] as const;
 
 describe('StageIndicator', () => {
   it('renders stage labels', () => {
@@ -143,5 +151,28 @@ describe('StageIndicator', () => {
     expect(getComputedStyle(text.parentElement as HTMLElement).backgroundColor).toBe(
       'rgb(226, 232, 240)', // border
     );
+  });
+
+  // Stages not yet reached take theme colours read from `useUnistyles()` at
+  // render time; reached ones take their fixed hue and the fixed `onStage` ink.
+  describe('theme', () => {
+    afterEach(() => setMockTheme('light'));
+
+    it.each(THEMES)('paints reached and unreached stages with the %s tokens', (name, theme) => {
+      setMockTheme(name);
+      render(<StageIndicator currentStage="smell" interactive onStageSelect={() => {}} />);
+      const dot = (label: string) => screen.getByLabelText(`Stage: ${label}`).firstElementChild as HTMLElement;
+      expect({
+        unreachedDot: getComputedStyle(dot('Eat')).backgroundColor,
+        unreachedLabel: getComputedStyle(screen.getByText('Eat')).color,
+        reachedDot: getComputedStyle(dot('Smell')).backgroundColor,
+        reachedLabel: getComputedStyle(screen.getByText('Smell')).color,
+      }).toEqual({
+        unreachedDot: rgb(theme.colors.border),
+        unreachedLabel: rgb(theme.colors.textSecondary),
+        reachedDot: rgb(STAGE_CONFIG.smell.color),
+        reachedLabel: rgb(theme.colors.onStage),
+      });
+    });
   });
 });

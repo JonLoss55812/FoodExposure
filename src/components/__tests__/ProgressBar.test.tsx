@@ -1,6 +1,13 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { ProgressBar } from '../ProgressBar';
+import { darkTheme, lightTheme } from '../../styles/theme';
+import { rgb, setMockTheme } from '../../test-utils/mock-theme';
+
+const THEMES = [
+  ['light', lightTheme],
+  ['dark', darkTheme],
+] as const;
 
 describe('ProgressBar', () => {
   it('renders with label showing current/target', () => {
@@ -113,6 +120,27 @@ describe('ProgressBar', () => {
       const { container } = render(<ProgressBar current={3} target={NaN} />);
       expect(screen.getByText('3/1')).toBeTruthy();
       expect(container).toBeTruthy();
+    });
+  });
+
+  // The default fill reads `useUnistyles()` at render time; the label and
+  // track come from the module-level factory. Both paths must follow the theme.
+  describe('theme', () => {
+    afterEach(() => setMockTheme('light'));
+
+    it.each(THEMES)('paints label, track and default fill with the %s tokens', (name, theme) => {
+      setMockTheme(name);
+      render(<ProgressBar current={5} target={10} />);
+      const track = screen.getByRole('progressbar').lastElementChild as HTMLElement;
+      expect({
+        label: getComputedStyle(screen.getByText('5/10')).color,
+        track: getComputedStyle(track).backgroundColor,
+        fill: getComputedStyle(track.firstElementChild as HTMLElement).backgroundColor,
+      }).toEqual({
+        label: rgb(theme.colors.textSecondary),
+        track: rgb(theme.colors.borderLight),
+        fill: rgb(theme.colors.primary),
+      });
     });
   });
 });

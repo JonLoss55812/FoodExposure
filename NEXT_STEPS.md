@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.243. 1134 tests pass across 72 suites. `npx tsc --noEmit` and
+Reviewed at: v0.5.245. 1145 tests pass across 72 suites. `npx tsc --noEmit` and
 `npx tsc --noEmit --noUnusedLocals` are both clean.
 
 This file lists only **open** work. At v0.5.240 it was cut from a 72 KB session log, which
@@ -57,7 +57,7 @@ on an item, because this file has lagged behind the code before.
    onboarding, Add Food and Log Exposure all insert rows.
 3. **On Android, a CSV export above about 1 MB fails** with "Failed to open share dialog".
    The fix is to write a file with expo-file-system (not installed) and share its URI,
-   instead of passing a string to `Share.share` (`src/lib/export.ts:253`).
+   instead of passing a string to `Share.share` (`src/lib/export.ts:258`).
 4. **On web, expo-sqlite probably cannot open.** COOP/COEP reach Metro's bundle responses but
    not the HTML at `/`. To check:
    - Run `npm run web` and read `crossOriginIsolated` in the console.
@@ -90,8 +90,6 @@ on an item, because this file has lagged behind the code before.
    cosmetic. Switching to `.busy` would not stop the two dialogs either, because the latch
    is acquired inside the Alert callback (checked at v0.5.242). Treat this as a consistency
    edit for the C1 hook, not as a bug fix.
-3. **Regenerate `bun.lock`.** It still lists `uuid`. A session with Bun installed should
-   run a plain `bun install` (not `--frozen-lockfile`) and commit the result.
 4. **Some dashboard reads are tested only against the mock.** `index-real-sql.test.tsx`
    covers today's count and the foreign-selection repair. It does not cover the children or
    recent-activity reads. Those reads change nothing, so this is low value.
@@ -106,20 +104,19 @@ on an item, because this file has lagged behind the code before.
 8. **About 13 hand-written fail-once write overrides remain** in the `food/[id]`, `foods`,
    `log` and `settings` tests. Move one to `mockDb.failNextWrite()` only if it really means
    "fail the next write, then retry".
-9. **Write more dark-mode render tests as screens are touched.** `setMockTheme('dark')` and
-    `rgb()` from `src/test-utils/mock-theme.ts` switch the jest Unistyles mock and compare a
-    computed colour with a theme token. `DatabaseProvider`, `RouteErrorBoundary`, `Button`,
-    `FoodCard` and `ExposureCard` have dark render tests (v0.5.242). Not yet covered:
-    `ChildSelector`, `EmptyState`, `RatingPicker`, `StageIndicator`, `ProgressBar` and every
-    screen. Reset the theme in `afterEach`, and pair each dark assertion with a light one.
+9. **Write dark-mode render tests for screens as they are touched.** `setMockTheme('dark')`
+    and `rgb()` from `src/test-utils/mock-theme.ts` switch the jest Unistyles mock. Every
+    component in `src/components/` except `ChildForm` now has one (v0.5.245); the
+    `it.each(THEMES)` form in `ChildSelector.test.tsx` is the shortest pattern. No screen
+    has one yet. Reset the theme in `afterEach`.
 10. **The contrast suite does not check `CATEGORY_CONFIG` colours used as text.** No colour
     is used that way today. Add the check if one ever is.
 
 ### Caveats for future callers
 
-- `fetchExportRows` with a blank `familyId` returns `[]`, and the export still shares a CSV
-  with only the header. Settings blocks this case; a new caller should check the family
-  first.
+- `exportChildData` resolves `'empty'` without opening the share sheet when there are no
+  rows: a child with no exposures, a blank `familyId`, or a foreign child id (v0.5.244).
+  A new caller must handle `'empty'`, or the tap does nothing visible.
 - A second `initDb` call made while the first is running returns without doing anything.
   If a caller ever needs to wait for init, keep the in-flight promise instead.
 - The tab layout repairs the child selection on mount and when `familyId` changes, but not
