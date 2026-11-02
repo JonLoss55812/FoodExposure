@@ -5,6 +5,15 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.246 — Test: theme render tests for `ChildForm`, the last component without one
+  (NEXT_STEPS C9). A new `ChildForm.test.tsx` runs two `it.each` cases over light and
+  dark. The first compares the label, the selected and unselected avatar tiles and the
+  name input (background, text, border) with the theme's tokens. The second submits a
+  blank name and checks the "Name is required" error is painted in `colors.error`, with
+  no write. Behaviour stays covered through the host screens' tests. Mutation check:
+  swapping the selected-avatar border, the input background and the error colour for
+  other tokens fails all 4 tests. 1149 tests pass across 73 suites (+4); tsc is clean.
+
 - v0.5.245 — Test: theme render tests for `EmptyState`, `ProgressBar`, `ChildSelector`,
   `RatingPicker` and `StageIndicator` (NEXT_STEPS C9). Each file gets one `it.each` over
   light and dark that compares computed colours with the theme's tokens. A colour

@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.245. 1145 tests pass across 72 suites. `npx tsc --noEmit` and
+Reviewed at: v0.5.246. 1149 tests pass across 73 suites. `npx tsc --noEmit` and
 `npx tsc --noEmit --noUnusedLocals` are both clean.
 
 This file lists only **open** work. At v0.5.240 it was cut from a 72 KB session log, which
@@ -106,7 +106,7 @@ on an item, because this file has lagged behind the code before.
    "fail the next write, then retry".
 9. **Write dark-mode render tests for screens as they are touched.** `setMockTheme('dark')`
     and `rgb()` from `src/test-utils/mock-theme.ts` switch the jest Unistyles mock. Every
-    component in `src/components/` except `ChildForm` now has one (v0.5.245); the
+    component in `src/components/` now has one (`ChildForm` since v0.5.246); the
     `it.each(THEMES)` form in `ChildSelector.test.tsx` is the shortest pattern. No screen
     has one yet. Reset the theme in `afterEach`.
 10. **The contrast suite does not check `CATEGORY_CONFIG` colours used as text.** No colour
