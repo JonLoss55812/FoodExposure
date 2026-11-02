@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.246. 1149 tests pass across 73 suites. `npx tsc --noEmit` and
+Reviewed at: v0.5.247. 1152 tests pass across 73 suites. `npx tsc --noEmit` and
 `npx tsc --noEmit --noUnusedLocals` are both clean.
 
 This file lists only **open** work. At v0.5.240 it was cut from a 72 KB session log, which
@@ -90,9 +90,6 @@ on an item, because this file has lagged behind the code before.
    cosmetic. Switching to `.busy` would not stop the two dialogs either, because the latch
    is acquired inside the Alert callback (checked at v0.5.242). Treat this as a consistency
    edit for the C1 hook, not as a bug fix.
-4. **Some dashboard reads are tested only against the mock.** `index-real-sql.test.tsx`
-   covers today's count and the foreign-selection repair. It does not cover the children or
-   recent-activity reads. Those reads change nothing, so this is low value.
 5. **The food-detail Bump button stays visible when the selected child belongs to another
    family.** Tapping it shows "No child selected". Hiding it would add a read to `loadData`
    and reorder the queued reads in a 79-test suite. That was judged not worth it (v0.5.203).

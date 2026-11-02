@@ -5,6 +5,15 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.247 — Test: the dashboard's remaining reads now run against real SQL (NEXT_STEPS
+  C4). `index-real-sql.test.tsx` gains three tests. (1) The selector lists only the
+  signed-in family's children. (2) Stage distribution and "Foods Tracked" come from the
+  selected child's rows only: a sibling's apple at Eat must not lift the child's apple
+  from Touch. (3) Recent activity is capped at the ten newest rows. The mock-db tests
+  queue canned rows, so none of these predicates was ever evaluated. Mutation check:
+  dropping the family filter fails 2 tests, the child filter on the stage read fails 1,
+  and `.limit(10)` fails 1. 1152 tests pass across 73 suites (+3); tsc is clean.
+
 - v0.5.246 — Test: theme render tests for `ChildForm`, the last component without one
   (NEXT_STEPS C9). A new `ChildForm.test.tsx` runs two `it.each` cases over light and
   dark. The first compares the label, the selected and unselected avatar tiles and the

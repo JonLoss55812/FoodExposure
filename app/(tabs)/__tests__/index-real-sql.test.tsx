@@ -1,5 +1,6 @@
 /**
- * The dashboard's "Today's Exposures" count against **real SQL**.
+ * The dashboard's reads against **real SQL**: today's count, the children list,
+ * stage distribution and recent activity.
  *
  * `index.test.tsx` queues the rows the date-scoped query returns, so the
  * date predicate itself is never evaluated. It matters because it is the one
@@ -14,6 +15,7 @@ import { Alert } from 'react-native';
 import { createSqliteDb, seedTwoFamilies } from '@/src/test-utils/sqlite-db';
 import { SafeArea } from '@/src/test-utils/screen-helpers';
 import * as schema from '@/src/db/schema';
+import { eq } from 'drizzle-orm';
 import { getStartOfDay } from '@/src/lib/utils';
 
 const mockRouter = { replace: jest.fn(), back: jest.fn(), push: jest.fn() };
@@ -143,5 +145,41 @@ describe('DashboardScreen today count (real SQL)', () => {
     expect(
       screen.getAllByLabelText(/^Open (Apple|Pear) details$/).map((el) => el.getAttribute('aria-label')),
     ).toEqual(['Open Pear details', 'Open Apple details', 'Open Pear details', 'Open Apple details']);
+  });
+
+  // The children read is the one dashboard read keyed by family rather than
+  // child; it feeds both the selector and the `ensureSelection` repair above.
+  it("lists only this family's children in the selector", async () => {
+    await renderDashboard();
+
+    await waitFor(() => expect(screen.getByLabelText('Select Emma')).toBeTruthy());
+    expect(screen.getByLabelText('Select Leo')).toBeTruthy();
+    expect(screen.queryByLabelText('Select Other')).toBeNull();
+  });
+
+  // Seed: c1 has apple at touch and pear at eat. A sibling's apple at eat and
+  // the other family's kiwi must not lift apple to Eat or count as tracked.
+  it("counts stage distribution and foods tracked from the selected child's rows only", async () => {
+    await logAt('s2', 'c2', new Date(), 'apple');
+    await mockSqlite.db.update(schema.exposures).set({ stage: 'eat' })
+      .where(eq(schema.exposures.id, 's2'));
+
+    await renderDashboard();
+
+    await waitFor(() => expect(screen.getByLabelText('Foods Tracked: 2')).toBeTruthy());
+    expect(screen.getByLabelText('Touch stage: 1 food')).toBeTruthy();
+    expect(screen.getByLabelText('Eat stage: 1 food')).toBeTruthy();
+    expect(screen.getByLabelText('Smell stage: 0 foods')).toBeTruthy();
+    expect(alertSpy).not.toHaveBeenCalled();
+  });
+
+  it('caps recent activity at the ten newest exposures', async () => {
+    for (let i = 0; i < 12; i++) await logAt(`r${i}`, 'c1', new Date(Date.now() - i * HOUR));
+
+    await renderDashboard();
+
+    await waitFor(() => expect(screen.getAllByLabelText(/^Open (Apple|Pear) details$/).length).toBe(10));
+    // All ten are the fresh rows; the seed's 1970 pear (the only Pear) is cut.
+    expect(screen.queryByLabelText('Open Pear details')).toBeNull();
   });
 });
