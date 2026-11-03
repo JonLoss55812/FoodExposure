@@ -1,0 +1,112 @@
+import { and, asc, eq, gte } from 'drizzle-orm';
+import * as schema from '@/src/db/schema';
+import { createSqliteDb } from '@/src/test-utils/sqlite-db';
+import { EXPOSURES_NEWEST_FIRST } from '@/src/lib/exposure-order';
+import { buildFoodsWithStats, computeStageCounts } from '@/src/lib/food-partition';
+import { calcProgressStats } from '@/src/lib/progress-stats';
+
+const STAGES = ['tolerate', 'interact', 'smell', 'touch', 'taste', 'eat'];
+const CHILDREN = 3, FOODS = 200, PER = 40; // 24k exposures
+
+jest.setTimeout(120000);
+
+test('bench', async () => {
+  const { raw, db } = createSqliteDb();
+  raw.exec(`INSERT INTO families (id,name,invite_code,created_at) VALUES ('f1','F','ABCDEF',1);
+            INSERT INTO users (id,family_id,email,display_name,created_at) VALUES ('u1','f1','a@x','A',1);`);
+  for (let c = 0; c < CHILDREN; c++) raw.prepare(`INSERT INTO children (id,family_id,name,created_at) VALUES (?, 'f1', ?, 1)`).run(`c${c}`, `Kid${c}`);
+  for (let f = 0; f < FOODS; f++) raw.prepare(`INSERT INTO foods (id,family_id,name,category,created_at) VALUES (?, 'f1', ?, 'fruit', 1)`).run(`food${f}`, `Food ${f}`);
+  const ins = raw.prepare(`INSERT INTO exposures (id,child_id,food_id,stage,rating,notes,logged_by,occurred_at,created_at) VALUES (?,?,?,?,?,?,'u1',?,?)`);
+  const now = Math.floor(Date.now() / 1000);
+  raw.exec('BEGIN');
+  let n = 0;
+  for (let c = 0; c < CHILDREN; c++) for (let f = 0; f < FOODS; f++) for (let k = 0; k < PER; k++) {
+    const t = now - Math.floor(Math.random() * 3 * 365 * 86400);
+    ins.run(`e${n++}`, `c${c}`, `food${f}`, STAGES[k % 6], (k % 5) + 1, 'some note text here', t, t);
+  }
+  raw.exec('COMMIT');
+  raw.exec('ANALYZE');
+
+  const childId = 'c0', familyId = 'f1', foodId = 'food7';
+  const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+
+  const foodsPre = await db.select().from(schema.foods).where(eq(schema.foods.familyId, familyId));
+  const expPre = await db.select({ foodId: schema.exposures.foodId, stage: schema.exposures.stage, rating: schema.exposures.rating, occurredAt: schema.exposures.occurredAt }).from(schema.exposures).where(eq(schema.exposures.childId, childId));
+  const cases: Record<string, () => Promise<unknown>> = {
+    dashboard: async () => {
+      await db.select().from(schema.children).where(eq(schema.children.familyId, familyId));
+      await db.select().from(schema.exposures).where(and(eq(schema.exposures.childId, childId), gte(schema.exposures.occurredAt, startOfDay)));
+      await db.select({ id: schema.exposures.id, foodName: schema.foods.name, childName: schema.children.name, occurredAt: schema.exposures.occurredAt })
+        .from(schema.exposures).innerJoin(schema.foods, eq(schema.exposures.foodId, schema.foods.id))
+        .innerJoin(schema.children, eq(schema.exposures.childId, schema.children.id))
+        .where(eq(schema.exposures.childId, childId)).orderBy(...EXPOSURES_NEWEST_FIRST).limit(10);
+      const all = await db.select({ foodId: schema.exposures.foodId, stage: schema.exposures.stage }).from(schema.exposures).where(eq(schema.exposures.childId, childId));
+      computeStageCounts(all);
+    },
+    dashRecent10: async () => {
+      await db.select({ id: schema.exposures.id, foodName: schema.foods.name, childName: schema.children.name, occurredAt: schema.exposures.occurredAt })
+        .from(schema.exposures).innerJoin(schema.foods, eq(schema.exposures.foodId, schema.foods.id))
+        .innerJoin(schema.children, eq(schema.exposures.childId, schema.children.id))
+        .where(eq(schema.exposures.childId, childId)).orderBy(...EXPOSURES_NEWEST_FIRST).limit(10);
+    },
+    dashStageReadOnly: async () => {
+      await db.select({ foodId: schema.exposures.foodId, stage: schema.exposures.stage }).from(schema.exposures).where(eq(schema.exposures.childId, childId));
+    },
+    foodsTab: async () => {
+      const foods = await db.select().from(schema.foods).where(eq(schema.foods.familyId, familyId)).orderBy(asc(schema.foods.name));
+      const all = await db.select({ foodId: schema.exposures.foodId, stage: schema.exposures.stage }).from(schema.exposures).where(eq(schema.exposures.childId, childId));
+      buildFoodsWithStats(foods, all);
+    },
+    progressTab: async () => {
+      const foods = await db.select().from(schema.foods).where(eq(schema.foods.familyId, familyId));
+      const all = await db.select({ foodId: schema.exposures.foodId, stage: schema.exposures.stage, rating: schema.exposures.rating, occurredAt: schema.exposures.occurredAt })
+        .from(schema.exposures).innerJoin(schema.children, eq(schema.exposures.childId, schema.children.id))
+        .where(and(eq(schema.exposures.childId, childId), eq(schema.children.familyId, familyId)));
+      calcProgressStats(foods, all, 'typical' as any);
+    },
+    progQueryOnly: async () => {
+      await db.select({ foodId: schema.exposures.foodId, stage: schema.exposures.stage, rating: schema.exposures.rating, occurredAt: schema.exposures.occurredAt })
+        .from(schema.exposures).innerJoin(schema.children, eq(schema.exposures.childId, schema.children.id))
+        .where(and(eq(schema.exposures.childId, childId), eq(schema.children.familyId, familyId)));
+    },
+    progQueryNoJoin: async () => {
+      await db.select({ foodId: schema.exposures.foodId, stage: schema.exposures.stage, rating: schema.exposures.rating, occurredAt: schema.exposures.occurredAt })
+        .from(schema.exposures).where(eq(schema.exposures.childId, childId));
+    },
+    progRawSql: async () => {
+      raw.prepare('SELECT e.food_id, e.stage, e.rating, e.occurred_at FROM exposures e JOIN children c ON e.child_id=c.id WHERE e.child_id=? AND c.family_id=?').all(childId, familyId);
+    },
+    progCalcOnly: async () => { calcProgressStats(foodsPre, expPre, 'typical' as any); },
+    foodDetail: async () => {
+      await db.select().from(schema.foods).where(and(eq(schema.foods.id, foodId), eq(schema.foods.familyId, familyId)));
+      await db.select({ id: schema.exposures.id, stage: schema.exposures.stage, occurredAt: schema.exposures.occurredAt, createdAt: schema.exposures.createdAt, notes: schema.exposures.notes })
+        .from(schema.exposures).where(and(eq(schema.exposures.foodId, foodId), eq(schema.exposures.childId, childId))).orderBy(...EXPOSURES_NEWEST_FIRST);
+    },
+    logTab: async () => {
+      await db.select().from(schema.children).where(eq(schema.children.familyId, familyId));
+      await db.select().from(schema.foods).where(eq(schema.foods.familyId, familyId)).orderBy(asc(schema.foods.name));
+    },
+    csvExport: async () => {
+      await db.select({ occurredAt: schema.exposures.occurredAt, foodName: schema.foods.name, notes: schema.exposures.notes })
+        .from(schema.exposures).innerJoin(schema.foods, eq(schema.exposures.foodId, schema.foods.id))
+        .innerJoin(schema.children, eq(schema.exposures.childId, schema.children.id))
+        .where(and(eq(schema.exposures.childId, childId), eq(schema.children.familyId, familyId))).orderBy(...EXPOSURES_NEWEST_FIRST);
+    },
+  };
+  const out: string[] = [`exposures=${n}`];
+  for (const [name, fn] of Object.entries(cases)) {
+    for (let i = 0; i < 3; i++) await fn();
+    const times: number[] = [];
+    for (let i = 0; i < 15; i++) { const t = performance.now(); await fn(); times.push(performance.now() - t); }
+    times.sort((a, b) => a - b);
+    out.push(`${name.padEnd(18)} median ${times[7].toFixed(3)}ms  min ${times[0].toFixed(3)}ms`);
+  }
+  const plans: Record<string, string> = {
+    recent10: `SELECT e.id FROM exposures e JOIN foods f ON e.food_id=f.id JOIN children c ON e.child_id=c.id WHERE e.child_id='c0' ORDER BY e.occurred_at DESC, e.created_at DESC LIMIT 10`,
+    today: `SELECT * FROM exposures WHERE child_id='c0' AND occurred_at >= 1`,
+    detail: `SELECT id FROM exposures WHERE food_id='food7' AND child_id='c0' ORDER BY occurred_at DESC, created_at DESC`,
+    foodsByName: `SELECT * FROM foods WHERE family_id='f1' ORDER BY name`,
+  };
+  for (const [k, q] of Object.entries(plans)) out.push(`PLAN ${k}: ` + (raw.prepare('EXPLAIN QUERY PLAN ' + q).all() as any[]).map((r) => r.detail).join(' | '));
+  require('fs').writeFileSync('/tmp/bench/out.txt', out.join('\n') + '\n');
+});
