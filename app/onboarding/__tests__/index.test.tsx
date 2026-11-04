@@ -32,6 +32,13 @@ import { click } from '@/src/test-utils/screen-helpers';
 import { isValidInviteCode } from '@/src/lib/utils';
 import { eq } from 'drizzle-orm';
 import * as schema from '@/src/db/schema';
+import { darkTheme, lightTheme } from '@/src/styles/theme';
+import { rgb, setMockTheme } from '@/src/test-utils/mock-theme';
+
+const THEMES = [
+  ['light', lightTheme],
+  ['dark', darkTheme],
+] as const;
 
 const mockRouter = { replace: jest.fn(), back: jest.fn(), push: jest.fn() };
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter }));
@@ -269,6 +276,35 @@ describe('OnboardingScreen', () => {
 
       await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith('/onboarding/add-child'));
       expect(mockRouter.replace).not.toHaveBeenCalled();
+    });
+  });
+
+  // The welcome screen is the first thing a parent sees, so a light token left
+  // on it would show dark text on the dark background before anything else.
+  describe('theme', () => {
+    afterEach(() => setMockTheme('light'));
+
+    it.each(THEMES)('paints the welcome copy with the %s tokens', (name, theme) => {
+      setMockTheme(name);
+      render(<OnboardingScreen />);
+      const title = screen.getByText('TongueTutor');
+      const container = title.parentElement!.parentElement!;
+      const color = (text: string | RegExp) => getComputedStyle(screen.getByText(text)).color;
+      expect({
+        background: getComputedStyle(container).backgroundColor,
+        title: color('TongueTutor'),
+        tagline: color('So Your Tongue Can Learn'),
+        info: color(/^Research shows children need/),
+        bold: color('8-15 exposures'),
+        join: color('Have an invite code? Join a family on this device'),
+      }).toEqual({
+        background: rgb(theme.colors.background),
+        title: rgb(theme.colors.text),
+        tagline: rgb(theme.colors.primaryStrong),
+        info: rgb(theme.colors.textSecondary),
+        bold: rgb(theme.colors.text),
+        join: rgb(theme.colors.primaryStrong),
+      });
     });
   });
 });

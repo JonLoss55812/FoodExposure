@@ -5,6 +5,15 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.249 — Test: the first screen-level dark-mode render test (NEXT_STEPS C9). The
+  onboarding welcome screen is the first thing a parent sees, so `index.test.tsx` gains
+  an `it.each(THEMES)` test pinning the container background and the title, tagline,
+  info, bold and join-link text colours to the light and dark tokens, on the
+  `ChildSelector` pattern. Mutation check: container background to `surface` fails 2
+  tests, bold text to `textSecondary` fails 2, the join link hardcoded to the light hex
+  `#C2410C` fails 1 (dark), the tagline to `primary` fails 1 (light; in dark `primary`
+  and `primaryStrong` are the same hex). 1156 tests pass across 74 suites.
+
 - v0.5.248 — Fix: a fresh `npm install` failed on ERESOLVE. `package-lock.json` is
   gitignored, so `react-native-unistyles@^3.1.1` re-resolves on every install, and
   3.8.0 (published 2026-11-02) raised its peer to `react-native >=0.85.0`; the project

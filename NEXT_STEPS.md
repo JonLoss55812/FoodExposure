@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.247. 1152 tests pass across 73 suites. `npx tsc --noEmit` and
+Reviewed at: v0.5.249. 1156 tests pass across 74 suites. `npx tsc --noEmit` and
 `npx tsc --noEmit --noUnusedLocals` are both clean.
 
 This file lists only **open** work. At v0.5.240 it was cut from a 72 KB session log, which
@@ -104,10 +104,17 @@ on an item, because this file has lagged behind the code before.
 9. **Write dark-mode render tests for screens as they are touched.** `setMockTheme('dark')`
     and `rgb()` from `src/test-utils/mock-theme.ts` switch the jest Unistyles mock. Every
     component in `src/components/` now has one (`ChildForm` since v0.5.246); the
-    `it.each(THEMES)` form in `ChildSelector.test.tsx` is the shortest pattern. No screen
-    has one yet. Reset the theme in `afterEach`.
+    `it.each(THEMES)` form in `ChildSelector.test.tsx` is the shortest pattern. Of the
+    screens, only the onboarding welcome screen has one (v0.5.249). Reset the theme in
+    `afterEach`.
 10. **The contrast suite does not check `CATEGORY_CONFIG` colours used as text.** No colour
     is used that way today. Add the check if one ever is.
+11. **`package-lock.json` is gitignored, so every install re-resolves caret ranges.**
+    v0.5.248 capped `react-native-unistyles` at `<3.8.0` after 3.8.0 started requiring
+    react-native 0.85. `peer-dependencies.test.ts` now fails on any direct-peer
+    mismatch, but only after an install succeeds. Committing a lockfile would stop the
+    drift; that is a repo-policy decision, so it was not done. Lift the unistyles cap
+    together with the Expo SDK / react-native upgrade.
 
 ### Caveats for future callers
 
