@@ -5,6 +5,19 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.248 — Fix: a fresh `npm install` failed on ERESOLVE. `package-lock.json` is
+  gitignored, so `react-native-unistyles@^3.1.1` re-resolves on every install, and
+  3.8.0 (published 2026-11-02) raised its peer to `react-native >=0.85.0`; the project
+  pins 0.83.10. The range is now `>=3.1.1 <3.8.0`, which resolves to 3.7.0 (peer
+  `>=0.81.0`) and still admits the 3.1.1 that `bun.lock` records, so the lockfile stays
+  valid. Not upgrading react-native: that is an Expo SDK change. New
+  `src/db/__tests__/peer-dependencies.test.ts` checks the installed tree, because Bun
+  and `--legacy-peer-deps` install a mismatched tree without complaint: every direct
+  dependency's required peer that is itself a direct dependency must be satisfied, and
+  the unistyles range must exclude 3.8.0 while react-native is below 0.85. Mutation
+  check: editing the installed unistyles peer to `>=0.85.0` fails the first test;
+  restoring `^3.1.1` fails the second. 1154 tests pass across 74 suites.
+
 - v0.5.247 — Test: the dashboard's remaining reads now run against real SQL (NEXT_STEPS
   C4). `index-real-sql.test.tsx` gains three tests. (1) The selector lists only the
   signed-in family's children. (2) Stage distribution and "Foods Tracked" come from the
