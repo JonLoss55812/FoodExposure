@@ -64,7 +64,8 @@ src/
 ├── providers/             Convex, React Query, Database (runs runMigrations, then FKs on)
 ├── stores/                zustand + MMKV: auth-store, child-store, settings-store
 ├── styles/                Unistyles theme + contrast tests
-└── test-utils/            mock-db.ts, sqlite-db.ts, screen-helpers.tsx (excluded from coverage)
+├── test-utils/            mock-db.ts, sqlite-db.ts, mock-theme.ts, screen-helpers.tsx (excluded from coverage)
+└── __mocks__/             jest mock of react-native-unistyles (serves the theme mock-theme.ts selects)
 
 convex/                    Scaffolded backend — not called by the app
 ```
@@ -168,6 +169,10 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 - The established seams a new screen test needs: mock `expo-router` to a `mock`-prefixed
   router spy, mock `@/src/db/client` **with a getter** so each test's fresh db is picked up,
   spy on `Alert.alert` so copy is assertable, and reset the zustand stores via `logout()`.
+- **Theme tests** switch the unistyles mock with `setMockTheme('dark')` from
+  `src/test-utils/mock-theme.ts`, and switch back in `afterEach`. Import it from there, not
+  from `src/__mocks__/react-native-unistyles.ts`: a direct import of the mock is a second module
+  instance whose switch the mocked package never sees.
 - **Mutation-check new tests.** The changelog records, repeatedly, that a test which passes
   with the code it claims to cover deleted is worse than no test. Several were removed rather
   than shipped green-but-vacuous.
@@ -210,7 +215,7 @@ configured.
   (`deriveLocalEmailPart`) and `users.email` has no UNIQUE constraint.
 - **Charts are simple** — bars and tiles, no time-series plots.
 - **Date entry is free text** (`YYYY-MM-DD`), not a picker; no date-picker package is installed.
-- **`npm audit` reports 48 advisories from 6 roots, none fixable without an SDK change**
+- **`npm audit` reports advisories from 6 roots (39 on 2026-11-05), none fixable without an SDK change**
   (v0.5.243; see `.planning/pusher/dependencies-2026-10-31.md`). `decode-uri-component`
   (fix is ESM-only, v0.5.165), `esbuild` (fix is a drizzle-kit downgrade), and `deepmerge`,
   `glob`, `minimatch`, plus `@expo/cli`'s private zod 3 (fixes need Expo SDK 58). The app's

@@ -21,7 +21,8 @@ Local-only. All data is stored in on-device SQLite; **nothing syncs to a server.
 account system — "signing in" creates a local family record with an invite code. The
 code is never displayed, and Join Family only finds families on the same device.
 
-In-app version: `v0.5.213` (`src/lib/constants.ts`). 1005 tests across 63 suites.
+The in-app version is `APP_VERSION` in `src/lib/constants.ts`. The current version and test
+count are in `CLAUDE.md` ("Current state"), which is updated with every versioned commit.
 
 ## Requirements
 
@@ -39,10 +40,10 @@ npm install
 
 No flags needed. `node_modules/` and `package-lock.json` are gitignored.
 
-`npm audit` reports 59 advisories (13 moderate, 46 high) from 5 root packages. None is
-fixable, and all five are in build/test tooling rather than the app bundle — see "Known
-Limitations" and the v0.5.204 changelog entry in `CLAUDE.md`. Do not run `npm audit fix
---force`; its "fix" for `esbuild` is a drizzle-kit downgrade.
+`npm audit` reports advisories from 6 root packages (39 advisories on 2026-11-05). None is
+fixable without an Expo SDK change, and all six are in build/test tooling rather than the app
+bundle — see "Known Limitations" in `CLAUDE.md`. Do not run `npm audit fix --force`; its
+"fix" for `esbuild` is a drizzle-kit downgrade.
 
 ## Configure
 
@@ -80,7 +81,7 @@ five tabs are Dashboard, Log, Foods, Progress and Settings.
 ## Test
 
 ```bash
-npm run test           # 1005 tests, 63 suites
+npm run test           # expect 0 failures; current count is in CLAUDE.md
 npm run test:watch
 npm run test:coverage
 npx tsc --noEmit       # type check — run this too; it catches things the tests do not
@@ -115,12 +116,12 @@ convex/     Scaffolded backend — not called by the app
 
 ## Contributing
 
-- `CLAUDE.md` is the working guide: conventions, test harness seams, and a detailed changelog
-  recording *why* each decision was made.
+- `CLAUDE.md` is the working guide: conventions and test harness seams. `CHANGELOG.md`
+  (newest first) records *why* each decision was made.
 - `NEXT_STEPS.md` holds the current gap list. Check `git log` against any claim there before
   acting on it.
 - The project uses semantic versioning via the `APP_VERSION` constant in
-  `src/lib/constants.ts`, which is rendered in the UI. Bump it with each change and add a
-  changelog entry to `CLAUDE.md`.
+  `src/lib/constants.ts`, which is rendered in the UI. Bump it with each change and add an
+  entry at the top of `CHANGELOG.md`.
 - New tests should be mutation-checked: delete the code the test claims to cover and confirm
   the test actually fails. A green-but-vacuous test is worse than no test.
