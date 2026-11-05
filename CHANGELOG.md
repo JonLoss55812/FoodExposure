@@ -5,6 +5,21 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.251 — Test: dark-mode render test for the Log Exposure tab (NEXT_STEPS C9), the
+  screen a parent uses at every meal. `log.test.tsx` gains an `it.each(THEMES)` test
+  that selects a food, opens the details and picks a meal, then pins the screen
+  background, header and section-label colours, the add link and details toggle, the
+  selected and unselected food chip, the selected and unselected meal chip (background,
+  border, text), and the Notes input's background, text, border and placeholder. The
+  selected state is assertable only through these colours (react-native-web drops
+  `accessibilityState.selected`), so this is also the first test that a selected chip
+  on this screen looks selected. Mutation check: each of container background, selected
+  chip background, selected food border, selected and unselected chip text, both
+  placeholders, and unselected food chip background fails 2; the details toggle
+  hardcoded to the light hex fails 1 (dark). Not pinned: the Date input (same
+  `textInput` style as Notes), the error text and the empty-foods call to action, which
+  need a different load. 1160 tests pass across 74 suites.
+
 - v0.5.250 — Test: dark-mode render test for the Join screen (NEXT_STEPS C9).
   `join.test.tsx` gains an `it.each(THEMES)` test pinning the container background,
   title, subtitle and label colours, and for both inputs the background, text, border and

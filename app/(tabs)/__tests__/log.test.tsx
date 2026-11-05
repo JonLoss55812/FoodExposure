@@ -40,6 +40,13 @@ jest.mock('@/src/db/client', () => ({
 import LogExposureScreen from '../log';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { useChildStore } from '@/src/stores/child-store';
+import { darkTheme, lightTheme } from '@/src/styles/theme';
+import { rgb, setMockTheme } from '@/src/test-utils/mock-theme';
+
+const THEMES = [
+  ['light', lightTheme],
+  ['dark', darkTheme],
+] as const;
 
 const EMMA = { id: 'child-1', name: 'Emma', avatarEmoji: '👧' };
 const APPLE = { id: 'food-1', name: 'Apple' };
@@ -323,5 +330,79 @@ describe('LogExposureScreen', () => {
     tapSave();
     await waitFor(() => expect(alertSpy).toHaveBeenCalledTimes(2));
     expect(screen.queryByText('Select a food')).toBeNull();
+  });
+
+  // This is the screen a parent uses at every meal, so a light token left on
+  // it is the one most likely to be seen. Selected and unselected chips are
+  // both pinned: the selected state is told apart only by its colours.
+  describe('theme', () => {
+    afterEach(() => setMockTheme('light'));
+
+    it.each(THEMES)('paints the form and its chips with the %s tokens', async (name, theme) => {
+      setMockTheme(name);
+      queueLoad([EMMA], [APPLE, PEAR]);
+      renderScreen();
+      await waitFor(() => expect(screen.getByLabelText('Select Apple')).toBeTruthy());
+      fireEvent.click(screen.getByLabelText('Select Apple'));
+      fireEvent.click(screen.getByLabelText('Show additional details'));
+      fireEvent.click(screen.getByLabelText('Meal: Breakfast'));
+
+      // The first ancestor of the title that paints a background is the screen.
+      let container = screen.getByText('Log Exposure').parentElement!;
+      const unpainted = ['', 'rgba(0, 0, 0, 0)'];
+      while (unpainted.includes(getComputedStyle(container).backgroundColor)) {
+        container = container.parentElement!;
+      }
+      const color = (text: string) => getComputedStyle(screen.getByText(text)).color;
+      const box = (label: string) => {
+        const style = getComputedStyle(screen.getByLabelText(label));
+        return { background: style.backgroundColor, border: style.borderTopColor };
+      };
+      const notes = screen.getByLabelText('Notes (optional)');
+      const notesStyle = getComputedStyle(notes);
+      const c = theme.colors;
+      expect({
+        background: getComputedStyle(container).backgroundColor,
+        title: color('Log Exposure'),
+        subtitle: color('Record a food interaction'),
+        sectionLabel: color('Food'),
+        addLink: color('+ Add New'),
+        selectedFood: box('Select Apple'),
+        unselectedFood: getComputedStyle(screen.getByLabelText('Select Pear')).backgroundColor,
+        foodText: color('Pear'),
+        detailsToggle: color('Hide Details'),
+        selectedMeal: box('Meal: Breakfast'),
+        selectedMealText: color('Breakfast'),
+        unselectedMeal: box('Meal: Lunch'),
+        unselectedMealText: color('Lunch'),
+        notes: {
+          background: notesStyle.backgroundColor,
+          color: notesStyle.color,
+          border: notesStyle.borderTopColor,
+          placeholder: notes.style.getPropertyValue('--placeholderTextColor'),
+        },
+      }).toEqual({
+        background: rgb(c.background),
+        title: rgb(c.text),
+        subtitle: rgb(c.textSecondary),
+        sectionLabel: rgb(c.text),
+        addLink: rgb(c.primaryStrong),
+        selectedFood: { background: rgb(c.primaryLight), border: rgb(c.primary) },
+        unselectedFood: rgb(c.surface),
+        foodText: rgb(c.text),
+        detailsToggle: rgb(c.primaryStrong),
+        selectedMeal: { background: rgb(c.primaryLight), border: rgb(c.primary) },
+        selectedMealText: rgb(c.primaryStrong),
+        unselectedMeal: { background: rgb(c.surface), border: rgb(c.border) },
+        unselectedMealText: rgb(c.textSecondary),
+        notes: {
+          background: rgb(c.inputBackground),
+          color: rgb(c.text),
+          border: rgb(c.border),
+          // react-native-web passes placeholderTextColor through unconverted.
+          placeholder: c.textTertiary,
+        },
+      });
+    });
   });
 });
