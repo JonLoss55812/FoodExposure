@@ -5,6 +5,18 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.250 — Test: dark-mode render test for the Join screen (NEXT_STEPS C9).
+  `join.test.tsx` gains an `it.each(THEMES)` test pinning the container background,
+  title, subtitle and label colours, and for both inputs the background, text, border and
+  placeholder colours. The placeholder comes from `useUnistyles().theme`, not the
+  stylesheet, so it is a separate path; react-native-web passes it through as the inline
+  custom property `--placeholderTextColor`, unconverted, so the test compares it with the
+  raw hex. Mutation check: placeholder to `textSecondary` fails 2, input background to
+  `background` fails 2, input border to `textTertiary` fails 2, container background to
+  `surface` fails 2, subtitle hardcoded to the light hex fails 1 (dark). Input background
+  to `surface` is not catchable: `inputBackground` and `surface` are the same hex in both
+  themes. 1158 tests pass across 74 suites.
+
 - v0.5.249 — Test: the first screen-level dark-mode render test (NEXT_STEPS C9). The
   onboarding welcome screen is the first thing a parent sees, so `index.test.tsx` gains
   an `it.each(THEMES)` test pinning the container background and the title, tagline,

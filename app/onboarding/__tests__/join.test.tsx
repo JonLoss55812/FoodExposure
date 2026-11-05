@@ -33,6 +33,13 @@ jest.mock('@/src/db/client', () => ({
 
 import JoinFamilyScreen from '../join';
 import { useAuthStore } from '@/src/stores/auth-store';
+import { darkTheme, lightTheme } from '@/src/styles/theme';
+import { rgb, setMockTheme } from '@/src/test-utils/mock-theme';
+
+const THEMES = [
+  ['light', lightTheme],
+  ['dark', darkTheme],
+] as const;
 
 const FAMILY = { id: 'fam-1', name: 'Loss', inviteCode: 'ABC234' };
 
@@ -235,6 +242,55 @@ describe('JoinFamilyScreen', () => {
         expect(mockRouter.replace).toHaveBeenCalledWith('/onboarding/add-child')
       );
       expect(screen.queryByLabelText('Join Family')).toBeNull();
+    });
+  });
+
+  // A light token left on this form would put dark text in a dark input, so
+  // the code a parent types would be unreadable.
+  describe('theme', () => {
+    afterEach(() => setMockTheme('light'));
+
+    it.each(THEMES)('paints the join form with the %s tokens', (name, theme) => {
+      setMockTheme(name);
+      render(<JoinFamilyScreen />);
+      const title = screen.getByText('Join Your Family');
+      const container = title.parentElement!.parentElement!;
+      const color = (text: string | RegExp) => getComputedStyle(screen.getByText(text)).color;
+      const input = (label: string) => {
+        const el = screen.getByLabelText(label);
+        const style = getComputedStyle(el);
+        return {
+          background: style.backgroundColor,
+          color: style.color,
+          border: style.borderTopColor,
+          // react-native-web passes placeholderTextColor through as an inline
+          // custom property, unconverted, so it compares against the raw hex.
+          placeholder: el.style.getPropertyValue('--placeholderTextColor'),
+        };
+      };
+      const inputTokens = {
+        background: rgb(theme.colors.inputBackground),
+        color: rgb(theme.colors.text),
+        border: rgb(theme.colors.border),
+        placeholder: theme.colors.textTertiary,
+      };
+      expect({
+        background: getComputedStyle(container).backgroundColor,
+        title: color('Join Your Family'),
+        subtitle: color(/^Join a family already set up/),
+        nameLabel: color('Your Name'),
+        codeLabel: color('Invite Code'),
+        nameInput: input('Your name'),
+        codeInput: input('Invite code'),
+      }).toEqual({
+        background: rgb(theme.colors.background),
+        title: rgb(theme.colors.text),
+        subtitle: rgb(theme.colors.textSecondary),
+        nameLabel: rgb(theme.colors.text),
+        codeLabel: rgb(theme.colors.text),
+        nameInput: inputTokens,
+        codeInput: inputTokens,
+      });
     });
   });
 });
