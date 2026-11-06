@@ -47,6 +47,13 @@ import ProgressScreen from '../progress';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { useChildStore } from '@/src/stores/child-store';
 import { useSettingsStore } from '@/src/stores/settings-store';
+import { darkTheme, lightTheme } from '@/src/styles/theme';
+import { rgb, setMockTheme } from '@/src/test-utils/mock-theme';
+
+const THEMES = [
+  ['light', lightTheme],
+  ['dark', darkTheme],
+] as const;
 
 const CHILD_ID = 'child-1';
 
@@ -281,5 +288,90 @@ describe('ProgressScreen', () => {
     // Stats stay at their empty default, so the screen falls through to the
     // zero-exposure empty state rather than showing stale or partial numbers.
     expect(screen.queryByText('Total Exposures')).toBeNull();
+  });
+
+  // The view a parent may hand to a therapist, and the tab with the most
+  // card surfaces. One rated food is enough to render every section: the
+  // stat cards, the rating card, a per-food row, the stage and category lists
+  // and the encouragement box.
+  describe('theme', () => {
+    afterEach(() => setMockTheme('light'));
+
+    it.each(THEMES)('paints the charts and cards with the %s tokens', async (name, theme) => {
+      setMockTheme(name);
+      queueLoad(
+        [food({ id: 'food-1', name: 'Apple', category: 'fruit' })],
+        exposuresFor('food-1', 3, { rating: 4 }),
+      );
+      renderScreen();
+      await waitFor(() => expect(screen.getByText('Total Exposures')).toBeTruthy());
+
+      // The first ancestor of the title that paints a background is the screen.
+      let container = screen.getByText('Progress').parentElement!;
+      const unpainted = ['', 'rgba(0, 0, 0, 0)'];
+      while (unpainted.includes(getComputedStyle(container).backgroundColor)) {
+        container = container.parentElement!;
+      }
+      const el = (text: string | RegExp) => screen.getByText(text);
+      const color = (text: string | RegExp) => getComputedStyle(el(text)).color;
+      const fill = (node: Element) => getComputedStyle(node).backgroundColor;
+      const statCard = el('Total Exposures').parentElement!;
+      const ratingCard = el('/5').parentElement!;
+      const categoryCard = el('Fruit').parentElement!;
+      const tag = el(/· 15$/);
+      // Three exposures is below EARLY_EXPOSURES, so the "Great start" message shows.
+      const message = /^Great start!/;
+      const encouragement = getComputedStyle(el(message).parentElement!);
+      const c = theme.colors;
+      expect({
+        background: fill(container),
+        title: color('Progress'),
+        subtitle: color('Track your journey'),
+        statCard: fill(statCard),
+        statNumber: getComputedStyle(statCard.firstElementChild!).color,
+        statLabel: color('Total Exposures'),
+        sectionTitle: color('Average Acceptance'),
+        ratingCard: fill(ratingCard),
+        ratingNumber: color('4.0'),
+        ratingLabel: color('/5'),
+        tag: { background: fill(tag), color: getComputedStyle(tag).color },
+        foodRow: fill(el('Apple').parentElement!.parentElement!),
+        foodName: color('Apple'),
+        foodCount: color('3/15'),
+        stageLabel: color('Tolerate'),
+        categoryCard: fill(categoryCard),
+        categoryCount: getComputedStyle(categoryCard.children[1]).color,
+        categoryLabel: color('Fruit'),
+        encouragement: {
+          background: encouragement.backgroundColor,
+          border: encouragement.borderLeftColor,
+          text: color(message),
+        },
+      }).toEqual({
+        background: rgb(c.background),
+        title: rgb(c.text),
+        subtitle: rgb(c.textSecondary),
+        statCard: rgb(c.cardBackground),
+        statNumber: rgb(c.primaryStrong),
+        statLabel: rgb(c.textSecondary),
+        sectionTitle: rgb(c.text),
+        ratingCard: rgb(c.cardBackground),
+        ratingNumber: rgb(c.primaryStrong),
+        ratingLabel: rgb(c.textSecondary),
+        tag: { background: rgb(c.borderLight), color: rgb(c.textSecondary) },
+        foodRow: rgb(c.cardBackground),
+        foodName: rgb(c.text),
+        foodCount: rgb(c.textSecondary),
+        stageLabel: rgb(c.text),
+        categoryCard: rgb(c.cardBackground),
+        categoryCount: rgb(c.text),
+        categoryLabel: rgb(c.textSecondary),
+        encouragement: {
+          background: rgb(c.primaryLight),
+          border: rgb(c.primary),
+          text: rgb(c.text),
+        },
+      });
+    });
   });
 });

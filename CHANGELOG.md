@@ -5,6 +5,18 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.253 — Test: dark-mode render test for the Progress tab (NEXT_STEPS C9). One rated
+  food with three exposures renders every section, so `progress.test.tsx`'s new
+  `it.each(THEMES)` test pins the screen background, title and subtitle, a stat card
+  (surface, number, label), the section title, the rating card (surface, number, "/5"),
+  the profile tag (background and text), a per-food row (surface, name, count), a stage
+  label, a category tile (surface, count, label) and the encouragement box (background,
+  left border, text). Mutation check: container background, stat number, food count,
+  rating label, stage label, encouragement border and encouragement text each fail 2;
+  stat card, category tile and profile tag swapped to `surface` fail 1 (light only —
+  `surface`, `cardBackground` and `borderLight` are all `#1E293B` in dark). Not pinned:
+  ProgressBar fills (ProgressBar has its own theme test) and the two empty states.
+
 - v0.5.252 — Test: dark-mode render test for the Foods tab (NEXT_STEPS C9). `foods.test.tsx`
   gains an `it.each(THEMES)` test whose fixture holds a case-only twin ("Apple"/"apple") and
   a safe food, so the duplicate banner and the safe-foods row render without a tap. It pins
