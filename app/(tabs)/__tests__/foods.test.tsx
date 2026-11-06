@@ -48,6 +48,13 @@ import FoodsScreen from '../foods';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { useChildStore } from '@/src/stores/child-store';
 import { useSettingsStore } from '@/src/stores/settings-store';
+import { darkTheme, lightTheme } from '@/src/styles/theme';
+import { rgb, setMockTheme } from '@/src/test-utils/mock-theme';
+
+const THEMES = [
+  ['light', lightTheme],
+  ['dark', darkTheme],
+] as const;
 
 const CHILD_ID = 'child-1';
 
@@ -409,6 +416,81 @@ describe('FoodsScreen', () => {
       await waitFor(() =>
         expect(screen.queryByLabelText('Merge duplicates of Apple')).toBeNull(),
       );
+    });
+  });
+
+  // The library is the second most-visited tab, so a light token left on it
+  // would be seen. The 'All' chip starts selected and the others do not, so
+  // both chip states are pinned without a tap; the duplicate banner and the
+  // safe-foods row are on screen because the fixture has a twin and a safe food.
+  describe('theme', () => {
+    afterEach(() => setMockTheme('light'));
+
+    it.each(THEMES)('paints the library with the %s tokens', async (name, theme) => {
+      setMockTheme(name);
+      const appleTwin = food({ id: 'food-4', name: 'apple', category: 'fruit' });
+      queueLoad([APPLE, appleTwin, CHICKEN]);
+      renderScreen();
+      await waitFor(() => expect(screen.getByTestId('duplicate-banner')).toBeTruthy());
+
+      // The first ancestor of the title that paints a background is the screen.
+      let container = screen.getByText('Foods').parentElement!;
+      const unpainted = ['', 'rgba(0, 0, 0, 0)'];
+      while (unpainted.includes(getComputedStyle(container).backgroundColor)) {
+        container = container.parentElement!;
+      }
+      const color = (text: string | RegExp) => getComputedStyle(screen.getByText(text)).color;
+      const box = (label: string) => {
+        const style = getComputedStyle(screen.getByLabelText(label));
+        return { background: style.backgroundColor, border: style.borderTopColor };
+      };
+      const searchInput = screen.getByLabelText('Search foods');
+      const searchStyle = getComputedStyle(searchInput);
+      const c = theme.colors;
+      expect({
+        background: getComputedStyle(container).backgroundColor,
+        title: color('Foods'),
+        addButton: getComputedStyle(screen.getByLabelText('Add new food')).backgroundColor,
+        addButtonText: color('+ Add'),
+        banner: getComputedStyle(screen.getByTestId('duplicate-banner')).backgroundColor,
+        bannerText: color(/is in your library 2 times/),
+        mergeText: color('Merge'),
+        search: {
+          background: searchStyle.backgroundColor,
+          color: searchStyle.color,
+          border: searchStyle.borderTopColor,
+          placeholder: searchInput.style.getPropertyValue('--placeholderTextColor'),
+        },
+        selectedChip: box('Filter by all categories'),
+        selectedChipText: color('All'),
+        unselectedChip: box('Filter by Fruit'),
+        unselectedChipText: color('Fruit'),
+        safeTitle: color('⭐ Safe Foods'),
+        safeCount: color('1'),
+        safeChip: getComputedStyle(screen.getByLabelText('Open Chicken details')).backgroundColor,
+      }).toEqual({
+        background: rgb(c.background),
+        title: rgb(c.text),
+        addButton: rgb(c.primaryStrong),
+        addButtonText: rgb(c.onPrimaryStrong),
+        banner: rgb(c.primaryLight),
+        bannerText: rgb(c.textSecondary),
+        mergeText: rgb(c.primaryStrong),
+        search: {
+          background: rgb(c.inputBackground),
+          color: rgb(c.text),
+          border: rgb(c.border),
+          // react-native-web passes placeholderTextColor through unconverted.
+          placeholder: c.textTertiary,
+        },
+        selectedChip: { background: rgb(c.primaryLight), border: rgb(c.primary) },
+        selectedChipText: rgb(c.primaryStrong),
+        unselectedChip: { background: rgb(c.surface), border: rgb(c.border) },
+        unselectedChipText: rgb(c.textSecondary),
+        safeTitle: rgb(c.text),
+        safeCount: rgb(c.textSecondary),
+        safeChip: rgb(c.cardBackground),
+      });
     });
   });
 });

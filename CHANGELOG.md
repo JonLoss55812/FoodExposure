@@ -5,6 +5,18 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.252 — Test: dark-mode render test for the Foods tab (NEXT_STEPS C9). `foods.test.tsx`
+  gains an `it.each(THEMES)` test whose fixture holds a case-only twin ("Apple"/"apple") and
+  a safe food, so the duplicate banner and the safe-foods row render without a tap. It pins
+  the screen background, title, the "+ Add" button and its text, the banner background,
+  text and Merge action, the search input's background, text, border and placeholder, the
+  selected "All" chip and an unselected category chip (background, border, text), and the
+  safe-foods title, count and chip. Mutation check: container background, title, add-button
+  text, banner background, banner text, placeholder, selected-chip border, selected-chip
+  text and safe-foods title each fail 2; the safe chip's `cardBackground` → `surface` fails
+  1 (light only — the two share a hex in dark). Not pinned: the `success + '10'` / `+ '40'`
+  alpha tints on the safe-foods section, and the empty states (EmptyState has its own test).
+
 - v0.5.251 — Test: dark-mode render test for the Log Exposure tab (NEXT_STEPS C9), the
   screen a parent uses at every meal. `log.test.tsx` gains an `it.each(THEMES)` test
   that selects a food, opens the details and picks a meal, then pins the screen
