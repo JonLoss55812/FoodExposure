@@ -5,6 +5,19 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.255 — Test: dark-mode render test for the Settings tab (NEXT_STEPS C9). Settings
+  is where a parent switches theme, so it is on screen the moment the theme changes. One
+  child with notes renders every row style; `settings.test.tsx`'s new `it.each(THEMES)`
+  test pins the screen background, title, section title, card, divider, label and value,
+  the child's notes line, Rename and Delete, the Add Child arrow, an unselected and a
+  selected chip (background and text), the feeding-profile description, Sign Out and
+  the tagline, then opens Rename and pins the name input (border, text) and Save/Cancel.
+  The settings store's `theme` is set to `'light'` so the selected chip is fixed; it
+  does not drive the mock theme. Mutation check, 22 token swaps, all caught: card and
+  unselected chip swapped between `surface`/`cardBackground` and Rename swapped to
+  `primary` fail 1 (shared hex in one theme); the other 19 fail 2. Not pinned: the Sign
+  Out button's `error + '15'` alpha tint (jsdom's rgba formatting was not checked).
+
 - v0.5.254 — Test: dark-mode render test for the dashboard tab (NEXT_STEPS C9). The
   first screen on every launch. One tracked food and no recent rows render the summary
   cards, the stage grid and the empty-activity card, so `index.test.tsx`'s new

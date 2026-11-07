@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.253. 1164 tests pass across 74 suites. `npx tsc --noEmit` and
+Reviewed at: v0.5.255. 1168 tests pass across 74 suites. `npx tsc --noEmit` and
 `npx tsc --noEmit --noUnusedLocals` are both clean.
 
 This file lists only **open** work. At v0.5.240 it was cut from a 72 KB session log, which
@@ -106,16 +106,20 @@ on an item, because this file has lagged behind the code before.
     component in `src/components/` now has one (`ChildForm` since v0.5.246); the
     `it.each(THEMES)` form in `ChildSelector.test.tsx` is the shortest pattern. Of the
     screens, the onboarding welcome screen (v0.5.249), Join (v0.5.250), the Log tab
-    (v0.5.251), the Foods tab (v0.5.252) and the Progress tab (v0.5.253) have one. Reset the theme in `afterEach`. Two things learned on the way:
+    (v0.5.251), the Foods tab (v0.5.252), the Progress tab (v0.5.253), the dashboard tab (v0.5.254)
+    and Settings (v0.5.255) have one. Reset the theme in `afterEach`. Two things learned on the way:
     `placeholderTextColor` reaches the DOM only as the inline custom property
     `--placeholderTextColor` and stays a raw hex (read it with
     `el.style.getPropertyValue`), and an unpainted view's background computes to
     `rgba(0, 0, 0, 0)`. `inputBackground` and `surface` are the same hex in both themes,
     so swapping one for the other cannot be caught. In dark, `surface`, `cardBackground`
     and `borderLight` are all `#1E293B`, so a swap among them fails only the light case.
-    Next candidates: the dashboard tab, Settings, food detail, and the Log tab's
-    empty-foods call to action. Not pinned on Foods: the `success + '10'`/`'40'` alpha
-    tints on the safe-foods row (jsdom's rgba formatting was not checked).
+    Next candidates: food detail (the largest screen; budget for its 79-test read
+    queue), the Add Food / Add Child modals, and the Log tab's empty-foods call to
+    action. Not pinned anywhere yet: the hex-plus-alpha tints (`success + '10'`/`'40'`
+    on the Foods safe-foods row, `error + '15'` behind Settings' Sign Out), because
+    jsdom's rgba formatting of 8-digit hex was not checked — one small test of that
+    would unlock all of them.
 10. **The contrast suite does not check `CATEGORY_CONFIG` colours used as text.** No colour
     is used that way today. Add the check if one ever is.
 11. **`package-lock.json` is gitignored, so every install re-resolves caret ranges.**

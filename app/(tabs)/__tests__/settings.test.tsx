@@ -46,6 +46,13 @@ import SettingsScreen from '../settings';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { useChildStore } from '@/src/stores/child-store';
 import { useSettingsStore } from '@/src/stores/settings-store';
+import { darkTheme, lightTheme } from '@/src/styles/theme';
+import { rgb, setMockTheme } from '@/src/test-utils/mock-theme';
+
+const THEMES = [
+  ['light', lightTheme],
+  ['dark', darkTheme],
+] as const;
 
 const EMMA = { id: 'child-1', name: 'Emma', avatarEmoji: '👧' };
 const NOAH = { id: 'child-2', name: 'Noah', avatarEmoji: '👦' };
@@ -745,5 +752,97 @@ describe('SettingsScreen — child date of birth and notes (v0.5.178)', () => {
       fireEvent.click(screen.getByLabelText("Edit Noah's details"));
     });
     expect(mockRouter.push).toHaveBeenCalledWith('/child/child-2');
+  });
+});
+
+// Settings is where a parent switches to dark mode, so it is the screen they
+// look at the moment the theme changes. One child with notes renders every row
+// style; opening Rename adds the edit row.
+describe('SettingsScreen — theme', () => {
+  beforeEach(() => {
+    mockDb = createMockDb();
+    useAuthStore.getState().login({
+      userId: 'user-1',
+      familyId: 'fam-1',
+      email: 'anne@tonguetutor.app',
+      displayName: 'Anne',
+    });
+    useSettingsStore.setState({ theme: 'light', feedingProfile: 'typical' });
+  });
+
+  afterEach(() => {
+    setMockTheme('light');
+    useSettingsStore.setState({ theme: 'system', feedingProfile: 'typical' });
+    useAuthStore.getState().logout();
+    useChildStore.getState().clear();
+  });
+
+  it.each(THEMES)('paints the cards, rows and chips with the %s tokens', async (name, theme) => {
+    setMockTheme(name);
+    await renderWithChildren([{ ...EMMA, notes: 'Prefers crunchy' }]);
+
+    // The first ancestor of the title that paints a background is the screen.
+    let container = screen.getByText('Settings').parentElement!;
+    const unpainted = ['', 'rgba(0, 0, 0, 0)'];
+    while (unpainted.includes(getComputedStyle(container).backgroundColor)) {
+      container = container.parentElement!;
+    }
+    const el = (text: string | RegExp) => screen.getByText(text);
+    const color = (text: string | RegExp) => getComputedStyle(el(text)).color;
+    const fill = (node: Element) => getComputedStyle(node).backgroundColor;
+    const nameRow = el('Name').parentElement!;
+    // Light is selected (settings store), Dark is not.
+    const selectedChip = screen.getByLabelText('Theme: Light');
+    const chip = screen.getByLabelText('Theme: Dark');
+    const c = theme.colors;
+    expect({
+      background: fill(container),
+      title: color('Settings'),
+      sectionTitle: color('Profile'),
+      card: fill(nameRow.parentElement!),
+      divider: fill(nameRow.nextElementSibling!),
+      label: color('Name'),
+      value: color('Anne'),
+      childMeta: color('Prefers crunchy'),
+      rename: color('Rename'),
+      delete: color('Delete'),
+      arrow: color('>'),
+      chip: { background: fill(chip), text: color('Dark') },
+      selectedChip: { background: fill(selectedChip), text: color('Light') },
+      profileDescription: color('8–15 exposures to acceptance'),
+      signOut: color('Sign Out'),
+      tagline: color('So Your Tongue Can Learn'),
+    }).toEqual({
+      background: rgb(c.background),
+      title: rgb(c.text),
+      sectionTitle: rgb(c.textSecondary),
+      card: rgb(c.cardBackground),
+      divider: rgb(c.borderLight),
+      label: rgb(c.text),
+      value: rgb(c.textSecondary),
+      childMeta: rgb(c.textTertiary),
+      rename: rgb(c.primaryStrong),
+      delete: rgb(c.error),
+      arrow: rgb(c.textTertiary),
+      chip: { background: rgb(c.surface), text: rgb(c.textSecondary) },
+      selectedChip: { background: rgb(c.primaryLight), text: rgb(c.primaryStrong) },
+      profileDescription: rgb(c.textSecondary),
+      signOut: rgb(c.error),
+      tagline: rgb(c.textTertiary),
+    });
+
+    await click('Rename Emma');
+    const input = getComputedStyle(screen.getByLabelText("Child's name"));
+    expect({
+      inputBorder: input.borderTopColor,
+      inputText: input.color,
+      save: color('Save'),
+      cancel: color('Cancel'),
+    }).toEqual({
+      inputBorder: rgb(c.border),
+      inputText: rgb(c.text),
+      save: rgb(c.primaryStrong),
+      cancel: rgb(c.textSecondary),
+    });
   });
 });
