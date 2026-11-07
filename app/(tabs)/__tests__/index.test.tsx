@@ -47,6 +47,13 @@ jest.mock('@/src/db/client', () => ({
 import DashboardScreen from '../index';
 import { useAuthStore } from '@/src/stores/auth-store';
 import { useChildStore } from '@/src/stores/child-store';
+import { darkTheme, lightTheme } from '@/src/styles/theme';
+import { rgb, setMockTheme } from '@/src/test-utils/mock-theme';
+
+const THEMES = [
+  ['light', lightTheme],
+  ['dark', darkTheme],
+] as const;
 
 const CHILD_ID = 'child-1';
 const EMMA = { id: CHILD_ID, familyId: 'fam-1', name: 'Emma', avatarEmoji: '👧' };
@@ -258,5 +265,62 @@ describe('DashboardScreen', () => {
     // The focus effect must early-return too — a query behind the redirect
     // would race the unmount.
     expect(mockDb.selectCount()).toBe(0);
+  });
+
+  // The first screen on every launch, so a light card left in dark mode is the
+  // first thing a parent would see. One tracked food with no recent rows
+  // renders the summary cards, the stage grid and the empty-activity card.
+  describe('theme', () => {
+    afterEach(() => setMockTheme('light'));
+
+    it.each(THEMES)('paints the summary, stages and empty card with the %s tokens', async (name, theme) => {
+      setMockTheme(name);
+      queueLoad({ all: [exposure({ id: 'e1', foodId: 'food-1', stage: 'tolerate' })] });
+      renderScreen();
+      await waitFor(() => expect(screen.getByLabelText('Foods Tracked: 1')).toBeTruthy());
+
+      // The first ancestor of the title that paints a background is the screen.
+      let container = screen.getByText('TongueTutor').parentElement!;
+      const unpainted = ['', 'rgba(0, 0, 0, 0)'];
+      while (unpainted.includes(getComputedStyle(container).backgroundColor)) {
+        container = container.parentElement!;
+      }
+      const color = (node: Element) => getComputedStyle(node).color;
+      const fill = (node: Element) => getComputedStyle(node).backgroundColor;
+      const summary = screen.getByLabelText('Foods Tracked: 1');
+      const logCard = screen.getByLabelText('Log new food exposure');
+      const stage = screen.getByLabelText('Tolerate stage: 1 food');
+      const emptyText = screen.getByText(/^No exposures logged yet/);
+      const c = theme.colors;
+      expect({
+        background: fill(container),
+        tagline: color(screen.getByText('So Your Tongue Can Learn')),
+        title: color(screen.getByText('TongueTutor')),
+        summaryCard: fill(summary),
+        summaryNumber: color(summary.children[0]),
+        summaryLabel: color(summary.children[1]),
+        logCard: fill(logCard),
+        addIcon: color(screen.getByText('+')),
+        sectionTitle: color(screen.getByText('Stage Distribution')),
+        stageCount: color(stage.children[1]),
+        stageLabel: color(stage.children[2]),
+        emptyCard: fill(emptyText.parentElement!),
+        emptyText: color(emptyText),
+      }).toEqual({
+        background: rgb(c.background),
+        tagline: rgb(c.primaryStrong),
+        title: rgb(c.text),
+        summaryCard: rgb(c.cardBackground),
+        summaryNumber: rgb(c.primaryStrong),
+        summaryLabel: rgb(c.textSecondary),
+        logCard: rgb(c.cardBackground),
+        addIcon: rgb(c.primaryStrong),
+        sectionTitle: rgb(c.text),
+        stageCount: rgb(c.text),
+        stageLabel: rgb(c.textSecondary),
+        emptyCard: rgb(c.surface),
+        emptyText: rgb(c.textSecondary),
+      });
+    });
   });
 });

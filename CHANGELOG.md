@@ -5,6 +5,18 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.254 — Test: dark-mode render test for the dashboard tab (NEXT_STEPS C9). The
+  first screen on every launch. One tracked food and no recent rows render the summary
+  cards, the stage grid and the empty-activity card, so `index.test.tsx`'s new
+  `it.each(THEMES)` test pins the screen background, tagline, title, a summary card
+  (surface, number, label), the Log Exposure card and its "+", the section title, a stage
+  item (count, label) and the empty-activity card (surface, text). Mutation check, 12
+  token swaps, all caught: background, title, summary number and label, section title,
+  stage count and label, and empty text each fail 2; tagline and "+" swapped to
+  `primary`, summary card to `surface` and empty card to `cardBackground` fail 1 (those
+  pairs share a hex in one theme). Not pinned: the stage dots (`STAGE_CONFIG` colours,
+  not theme tokens), ExposureCard (own theme test) and the loading spinner.
+
 - v0.5.253 — Test: dark-mode render test for the Progress tab (NEXT_STEPS C9). One rated
   food with three exposures renders every section, so `progress.test.tsx`'s new
   `it.each(THEMES)` test pins the screen background, title and subtitle, a stat card
