@@ -47,7 +47,7 @@ import { useAuthStore } from '@/src/stores/auth-store';
 import { useChildStore } from '@/src/stores/child-store';
 import { useSettingsStore } from '@/src/stores/settings-store';
 import { darkTheme, lightTheme } from '@/src/styles/theme';
-import { rgb, setMockTheme } from '@/src/test-utils/mock-theme';
+import { rgb, rgba, setMockTheme } from '@/src/test-utils/mock-theme';
 
 const THEMES = [
   ['light', lightTheme],
@@ -811,6 +811,7 @@ describe('SettingsScreen — theme', () => {
       selectedChip: { background: fill(selectedChip), text: color('Light') },
       profileDescription: color('8–15 exposures to acceptance'),
       signOut: color('Sign Out'),
+      signOutButton: fill(el('Sign Out').parentElement!),
       tagline: color('So Your Tongue Can Learn'),
     }).toEqual({
       background: rgb(c.background),
@@ -828,6 +829,7 @@ describe('SettingsScreen — theme', () => {
       selectedChip: { background: rgb(c.primaryLight), text: rgb(c.primaryStrong) },
       profileDescription: rgb(c.textSecondary),
       signOut: rgb(c.error),
+      signOutButton: rgba(c.error, '15'),
       tagline: rgb(c.textTertiary),
     });
 

@@ -5,6 +5,20 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.256 — Test: pin the hex-plus-alpha tints in both themes (NEXT_STEPS C9). Three
+  styles append a two-digit alpha to a token, and no test could see them: the Foods
+  safe-foods row (`success + '10'` background, `success + '40'` chip border) and
+  Settings' Sign Out button (`error + '15'`). A probe showed why the formatting was
+  unclear. jsdom on its own serializes `#DC262615` as `rgba(220, 38, 38, 0.082)`, but
+  react-native-web converts 8-digit hex first and rounds the alpha with `toFixed(2)`,
+  so the DOM gets `0.08`. The new `rgba(hex, alpha)` helper in
+  `src/test-utils/mock-theme.ts` reproduces that rounding. The Foods and Settings theme
+  tests now pin all three. Mutation check, 5 edits, each fails both themes: the
+  suffix `'10'`→`'20'`, `'40'`→`'30'` and `'15'`→`'20'`, plus the token
+  `success`→`primary` on the chip border and `error`→`warning` on Sign Out. Still not
+  pinned: the same tints on Add Food and food detail, and the `+ '20'` badges built
+  from `CATEGORY_CONFIG`/`STAGE_CONFIG` colours.
+
 - v0.5.255 — Test: dark-mode render test for the Settings tab (NEXT_STEPS C9). Settings
   is where a parent switches theme, so it is on screen the moment the theme changes. One
   child with notes renders every row style; `settings.test.tsx`'s new `it.each(THEMES)`

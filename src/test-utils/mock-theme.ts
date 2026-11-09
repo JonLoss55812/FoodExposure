@@ -27,3 +27,14 @@ export function rgb(hex: string): string {
   const n = parseInt(hex.slice(1), 16);
   return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
 }
+
+/**
+ * A theme token with a two-digit hex alpha suffix appended (`colors.error +
+ * '15'`), as it reaches jsdom. react-native-web converts 8-digit hex itself
+ * and rounds the alpha with `toFixed(2)`, so `'15'` arrives as `0.08` (jsdom
+ * alone would report `0.082`).
+ */
+export function rgba(hex: string, alpha: string): string {
+  const a = Number((parseInt(alpha, 16) / 255).toFixed(2));
+  return rgb(hex).replace('rgb(', 'rgba(').replace(')', `, ${a})`);
+}

@@ -49,7 +49,7 @@ import { useAuthStore } from '@/src/stores/auth-store';
 import { useChildStore } from '@/src/stores/child-store';
 import { useSettingsStore } from '@/src/stores/settings-store';
 import { darkTheme, lightTheme } from '@/src/styles/theme';
-import { rgb, setMockTheme } from '@/src/test-utils/mock-theme';
+import { rgb, rgba, setMockTheme } from '@/src/test-utils/mock-theme';
 
 const THEMES = [
   ['light', lightTheme],
@@ -467,7 +467,8 @@ describe('FoodsScreen', () => {
         unselectedChipText: color('Fruit'),
         safeTitle: color('⭐ Safe Foods'),
         safeCount: color('1'),
-        safeChip: getComputedStyle(screen.getByLabelText('Open Chicken details')).backgroundColor,
+        safeSection: getComputedStyle(screen.getByTestId('safe-foods-section')).backgroundColor,
+        safeChip: box('Open Chicken details'),
       }).toEqual({
         background: rgb(c.background),
         title: rgb(c.text),
@@ -489,7 +490,8 @@ describe('FoodsScreen', () => {
         unselectedChipText: rgb(c.textSecondary),
         safeTitle: rgb(c.text),
         safeCount: rgb(c.textSecondary),
-        safeChip: rgb(c.cardBackground),
+        safeSection: rgba(c.success, '10'),
+        safeChip: { background: rgb(c.cardBackground), border: rgba(c.success, '40') },
       });
     });
   });
