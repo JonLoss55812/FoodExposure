@@ -5,6 +5,21 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.257 — Test: dark-mode render test for the Add Food modal (NEXT_STEPS C9). The
+  modal opens from the Foods tab and from the Log tab's empty state. The new
+  `it.each(THEMES)` test in `app/food/__tests__/add.test.tsx` pins the screen background,
+  Cancel, title, field label, name input (background, text, border, placeholder),
+  a selected category ('Other' is the default) and an unselected one, the preparation
+  chip and the safe-food toggle, along with their text. It then taps Raw and the toggle
+  and submits a blank name, and pins the selected chip, the on toggle (`success + '10'`
+  via the v0.5.256 `rgba()` helper, `success` border) and the validation error. Title
+  and submit button are both "Add Food", so the test takes the first match, which is
+  the title. Mutation check, 15 token swaps, all caught: Cancel and selected chip
+  text→`primary`, selected chip border→`primaryStrong`, input→`cardBackground` and
+  category→`cardBackground` fail 1 (those pairs share a hex in one theme). The other
+  10 fail 2. Not pinned: the shared `Button` (it has its own theme test) and the
+  `CATEGORY_CONFIG` emoji.
+
 - v0.5.256 — Test: pin the hex-plus-alpha tints in both themes (NEXT_STEPS C9). Three
   styles append a two-digit alpha to a token, and no test could see them: the Foods
   safe-foods row (`success + '10'` background, `success + '40'` chip border) and
