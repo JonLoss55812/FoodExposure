@@ -2,7 +2,8 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { FoodCard } from '../FoodCard';
 import { darkTheme, lightTheme } from '../../styles/theme';
-import { rgb, setMockTheme } from '../../test-utils/mock-theme';
+import { CATEGORY_CONFIG, STAGE_CONFIG } from '../../lib/constants';
+import { rgb, rgba, setMockTheme } from '../../test-utils/mock-theme';
 
 describe('FoodCard', () => {
   const defaultProps = {
@@ -101,6 +102,39 @@ describe('FoodCard', () => {
         background: rgb(darkTheme.colors.cardBackground),
         name: rgb(darkTheme.colors.text),
       });
+    });
+
+    // The category and stage badges are tinted with their own config hue at
+    // alpha '20'; that hue is the same in both themes. The Safe Food pill uses
+    // theme.colors.success, which is also one hex in both themes, so a
+    // hardcoded copy of it would pass; swapping it for another token would not.
+    function badges() {
+      render(<FoodCard {...defaultProps} currentStage="smell" isSafeFood={true} />);
+      const bg = (el: HTMLElement | null) => getComputedStyle(el!).backgroundColor;
+      return {
+        category: bg(screen.getByText(CATEGORY_CONFIG.vegetable.icon).parentElement),
+        stage: bg(screen.getByText('Smell').parentElement),
+        safe: bg(screen.getByText('Safe Food').parentElement),
+      };
+    }
+
+    it.each([
+      ['light', lightTheme],
+      ['dark', darkTheme],
+    ] as const)('tints the badges with their own hues in %s mode', (name, theme) => {
+      setMockTheme(name);
+      expect(badges()).toEqual({
+        category: rgba(CATEGORY_CONFIG.vegetable.color, '20'),
+        stage: rgba(STAGE_CONFIG.smell.color, '20'),
+        safe: rgba(theme.colors.success, '20'),
+      });
+    });
+
+    it('tints an unknown category with the Other hue', () => {
+      render(<FoodCard {...defaultProps} category="legacy-snack" />);
+      expect(
+        getComputedStyle(screen.getByText(CATEGORY_CONFIG.other.icon).parentElement!).backgroundColor,
+      ).toBe(rgba(CATEGORY_CONFIG.other.color, '20'));
     });
   });
 });

@@ -2,7 +2,8 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ExposureCard } from '../ExposureCard';
 import { darkTheme, lightTheme } from '../../styles/theme';
-import { rgb, setMockTheme } from '../../test-utils/mock-theme';
+import { STAGE_CONFIG } from '../../lib/constants';
+import { rgb, rgba, setMockTheme } from '../../test-utils/mock-theme';
 
 describe('ExposureCard', () => {
   const defaultProps = {
@@ -181,6 +182,23 @@ describe('ExposureCard', () => {
         background: rgb(darkTheme.colors.cardBackground),
         name: rgb(darkTheme.colors.text),
       });
+    });
+
+    // The stage icon tile is tinted with the stage's own hue at alpha '20',
+    // which is the same in both themes.
+    it.each(['light', 'dark'] as const)('tints the stage tile with the stage hue in %s mode', (name) => {
+      setMockTheme(name);
+      render(<ExposureCard {...defaultProps} />);
+      expect(
+        getComputedStyle(screen.getByText(STAGE_CONFIG.touch.icon).parentElement!).backgroundColor,
+      ).toBe(rgba(STAGE_CONFIG.touch.color, '20'));
+    });
+
+    it('tints an unrecognised stage with the Tolerate hue', () => {
+      render(<ExposureCard {...defaultProps} stage="legacy" />);
+      expect(
+        getComputedStyle(screen.getByText(STAGE_CONFIG.tolerate.icon).parentElement!).backgroundColor,
+      ).toBe(rgba(STAGE_CONFIG.tolerate.color, '20'));
     });
   });
 });

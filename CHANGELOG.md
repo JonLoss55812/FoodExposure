@@ -5,6 +5,18 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.258 — Test: pin the `+ '20'` badge tints on `FoodCard` and `ExposureCard`
+  (NEXT_STEPS C9). The category badge, stage pill and Safe Food pill on `FoodCard`, and
+  the stage tile on `ExposureCard`, are now asserted in light and dark mode with the
+  v0.5.256 `rgba()` helper. Two more tests pin the fallbacks: an unknown category is
+  tinted with Other's hue, and an unknown stage with Tolerate's. Mutation check, 7
+  mutations, all caught: the category, stage and ExposureCard suffixes changed or
+  dropped (2–3 fail each), Safe Food `success`→`primary` (2 fail), and both fallbacks in
+  `getCategoryConfig`/`getStageConfig` redirected (2 fail). Not catchable: a hard-coded
+  `'#22C55E20'` for the Safe Food pill passes, because `success` has one hex in both
+  themes. The config hues do not vary by theme either, so these tests guard which hue
+  and alpha a badge uses, not dark-mode behaviour.
+
 - v0.5.257 — Test: dark-mode render test for the Add Food modal (NEXT_STEPS C9). The
   modal opens from the Foods tab and from the Log tab's empty state. The new
   `it.each(THEMES)` test in `app/food/__tests__/add.test.tsx` pins the screen background,
