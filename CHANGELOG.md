@@ -5,6 +5,14 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.259 — Test: light and dark render test for the Add Child modal's chrome
+  (NEXT_STEPS C9). `ChildForm` already has its own theme test (v0.5.246), so the new
+  `it.each` test in `app/child/__tests__/add.test.tsx` pins only what `app/child/add.tsx`
+  paints itself: the screen background, the Cancel link and the title. It finds the
+  screen the same way as the v0.5.257 Add Food test, as the title's first ancestor with a
+  painted background. Mutation check, 3 token swaps, all caught: background→`surface` and
+  title→`textSecondary` fail 2, Cancel→`primary` fails 1 (the two share a hex in dark).
+
 - v0.5.258 — Test: pin the `+ '20'` badge tints on `FoodCard` and `ExposureCard`
   (NEXT_STEPS C9). The category badge, stage pill and Safe Food pill on `FoodCard`, and
   the stage tile on `ExposureCard`, are now asserted in light and dark mode with the
