@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.261. 1182 tests pass across 74 suites. `npx tsc --noEmit` and
+Reviewed at: v0.5.263. 1188 tests pass across 74 suites. `npx tsc --noEmit` and
 `npx tsc --noEmit --noUnusedLocals` are both clean.
 
 This file lists only **open** work. At v0.5.240 it was cut from a 72 KB session log, which
@@ -108,7 +108,7 @@ on an item, because this file has lagged behind the code before.
     screens, the onboarding welcome screen (v0.5.249), Join (v0.5.250), the Log tab
     (v0.5.251), the Foods tab (v0.5.252), the Progress tab (v0.5.253), the dashboard tab (v0.5.254),
     Settings (v0.5.255), the Add Food modal (v0.5.257), the Add Child modal (v0.5.259)
-    and food detail (v0.5.261) have one; the Log tab's empty-foods state is pinned too (v0.5.260). Reset the theme in `afterEach`.
+    food detail (v0.5.261), onboarding Add Child (v0.5.262) and edit-child (v0.5.263) have one; the Log tab's empty-foods state is pinned too (v0.5.260). Reset the theme in `afterEach`.
     Things learned on the way:
     `placeholderTextColor` reaches the DOM only as the inline custom property
     `--placeholderTextColor` and stays a raw hex (read it with
@@ -119,9 +119,11 @@ on an item, because this file has lagged behind the code before.
     Hex-plus-alpha tints (`colors.x + '15'`) are assertable with `rgba(hex, alpha)` from
     `mock-theme.ts`. react-native-web rounds the alpha with `toFixed(2)` before jsdom
     sees it (v0.5.256); the Foods safe-foods row and Settings' Sign Out are pinned.
-    Remaining candidates: the onboarding Add Child screen, the edit-child screen
-    (`app/child/[id].tsx`), and food detail's open editors (category/stage chips use
-    `config.color + '20'`, which does not vary by theme). The `FoodCard`/`ExposureCard` badge tints are
+    Every screen now has one. Remaining candidates: food detail's open editors
+    (category/stage chips use `config.color + '20'`, which does not vary by theme), and
+    the edit-child loading spinner state. That state needs a read that never resolves,
+    and `createMockDb()` has no hook for one. Add a `queuePendingSelect()` only if a
+    second test needs it. The `FoodCard`/`ExposureCard` badge tints are
     pinned (v0.5.258). `success` (like `CATEGORY_CONFIG`/`STAGE_CONFIG`) has one hex in
     both themes, so a hard-coded copy of it cannot be caught by any theme test.
 10. **The contrast suite does not check `CATEGORY_CONFIG` colours used as text.** No colour
