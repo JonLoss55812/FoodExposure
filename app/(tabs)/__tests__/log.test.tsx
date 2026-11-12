@@ -404,5 +404,31 @@ describe('LogExposureScreen', () => {
         },
       });
     });
+
+    // A new family's first visit lands here with no foods, so the call to
+    // action and the inline error a premature Save raises are the whole form.
+    it.each(THEMES)('paints the empty-foods call to action with the %s tokens', async (name, theme) => {
+      setMockTheme(name);
+      queueLoad([EMMA], []);
+      renderScreen();
+      const cta = await screen.findByLabelText('Add foods to start logging exposures');
+      tapSave();
+      await waitFor(() => expect(screen.getByText('Select a food')).toBeTruthy());
+
+      const ctaStyle = getComputedStyle(cta);
+      const color = (text: string) => getComputedStyle(screen.getByText(text)).color;
+      const c = theme.colors;
+      expect({
+        background: ctaStyle.backgroundColor,
+        border: ctaStyle.borderTopColor,
+        text: color('No foods yet — tap to add your first one →'),
+        error: color('Select a food'),
+      }).toEqual({
+        background: rgb(c.primaryLight),
+        border: rgb(c.primary),
+        text: rgb(c.primaryStrong),
+        error: rgb(c.error),
+      });
+    });
   });
 });

@@ -5,6 +5,14 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.260 — Test: light and dark render test for the Log tab's empty-foods call to
+  action (NEXT_STEPS C9). A new family's first visit to Log has no foods, so the CTA and
+  the inline "Select a food" error that a premature Save raises are all the form shows.
+  The new `it.each(THEMES)` test in `app/(tabs)/__tests__/log.test.tsx` pins the CTA's
+  background, border and text, and the error text. Mutation check, 4 token swaps, all
+  caught (2 fail each): CTA background→`surface`, border→`border`, text→`text`, and the
+  `error` style→`text`.
+
 - v0.5.259 — Test: light and dark render test for the Add Child modal's chrome
   (NEXT_STEPS C9). `ChildForm` already has its own theme test (v0.5.246), so the new
   `it.each` test in `app/child/__tests__/add.test.tsx` pins only what `app/child/add.tsx`
