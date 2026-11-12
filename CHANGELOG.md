@@ -5,6 +5,17 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.263 — Test: light and dark render tests for the edit-child screen
+  (`app/child/[id].tsx`, NEXT_STEPS C9). Two `it.each` tests in
+  `app/child/__tests__/id.test.tsx`. One pins the loaded state's background, Cancel link,
+  title and age subtitle. The other pins the not-found state's background. Both use the
+  suite's existing single-read `renderWith`. Mutation check: `container`
+  background→`surface` fails all 4; title→`textSecondary` and age→`text` fail 2 each;
+  Cancel→`primary` fails 1 (the two share a hex in dark); repainting only the not-found
+  wrapper fails its 2. Swapping that wrapper to `styles.centered` survives, correctly,
+  because both styles paint `background`. Not covered: the loading spinner state, which
+  needs a read that never resolves and `createMockDb()` has no such hook.
+
 - v0.5.262 — Test: light and dark render test for the onboarding Add Child screen's
   chrome (NEXT_STEPS C9). `ChildForm` has had its own theme test since v0.5.246, but the
   screen around it (the background and the "Step 1 of 1", title and subtitle lines) was

@@ -17,6 +17,9 @@ import { Alert } from 'react-native';
 import { eq } from 'drizzle-orm';
 import * as schema from '@/src/db/schema';
 import { createMockDb, type MockDb } from '@/src/test-utils/mock-db';
+import { rgb, setMockTheme } from '@/src/test-utils/mock-theme';
+import { darkTheme, lightTheme } from '@/src/styles/theme';
+import { formatChildAge } from '@/src/lib/utils';
 
 const mockRouter = { replace: jest.fn(), back: jest.fn(), push: jest.fn() };
 let mockParams: { id?: string } = {};
@@ -194,5 +197,52 @@ describe('ChildDetailScreen', () => {
     await tapSave();
     await waitFor(() => expect(updates()).toHaveLength(1));
     expect(updates()[0].values).toMatchObject({ notes: 'Licked a carrot' });
+  });
+
+  // ChildForm has its own theme test (v0.5.246); this pins only the screen
+  // chrome around it, in the loaded state and in the not-found state.
+  describe('theme', () => {
+    afterEach(() => setMockTheme('light'));
+
+    const THEMES = [
+      ['light', lightTheme],
+      ['dark', darkTheme],
+    ] as const;
+
+    /** The first ancestor of `el` that paints a background is the screen. */
+    function screenBackground(el: HTMLElement) {
+      let container = el.parentElement!;
+      const unpainted = ['', 'rgba(0, 0, 0, 0)'];
+      while (unpainted.includes(getComputedStyle(container).backgroundColor)) {
+        container = container.parentElement!;
+      }
+      return getComputedStyle(container).backgroundColor;
+    }
+
+    it.each(THEMES)('paints the loaded screen chrome with the %s tokens', async (name, theme) => {
+      setMockTheme(name);
+      await renderWith([NOAH]);
+
+      const title = screen.getByText(`${NOAH.avatarEmoji} ${NOAH.name}`);
+      const c = theme.colors;
+      expect({
+        background: screenBackground(title),
+        cancel: getComputedStyle(screen.getByText('Cancel')).color,
+        title: getComputedStyle(title).color,
+        age: getComputedStyle(screen.getByText(formatChildAge(NOAH.dateOfBirth)!)).color,
+      }).toEqual({
+        background: rgb(c.background),
+        cancel: rgb(c.primaryStrong),
+        title: rgb(c.text),
+        age: rgb(c.textSecondary),
+      });
+    });
+
+    it.each(THEMES)('paints the not-found screen with the %s background', async (name, theme) => {
+      setMockTheme(name);
+      await renderWith([]);
+
+      expect(screenBackground(screen.getByText('Child Not Found'))).toBe(rgb(theme.colors.background));
+    });
   });
 });
