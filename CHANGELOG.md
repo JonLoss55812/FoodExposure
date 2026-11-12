@@ -5,6 +5,14 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.262 — Test: light and dark render test for the onboarding Add Child screen's
+  chrome (NEXT_STEPS C9). `ChildForm` has had its own theme test since v0.5.246, but the
+  screen around it (the background and the "Step 1 of 1", title and subtitle lines) was
+  untested in either theme. The new `it.each` test in
+  `app/onboarding/__tests__/add-child.test.tsx` pins all four. Mutation check, 4
+  mutations, all caught: background→`surface`, title→`textSecondary` and
+  subtitle→`text` fail 2 each; step→`primary` fails 1 (the two share a hex in dark).
+
 - v0.5.261 — Test: light and dark render test for the food detail screen's own colours
   (NEXT_STEPS C9). The new `it.each(THEMES)` test in `app/food/__tests__/id.test.tsx`
   renders a safe food with one exposure and pins the screen background, the three alpha

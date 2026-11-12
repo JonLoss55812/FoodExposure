@@ -24,6 +24,8 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { Alert } from 'react-native';
 import { createMockDb, type MockDb } from '@/src/test-utils/mock-db';
 import { click } from '@/src/test-utils/screen-helpers';
+import { rgb, setMockTheme } from '@/src/test-utils/mock-theme';
+import { darkTheme, lightTheme } from '@/src/styles/theme';
 
 const mockRouter = { replace: jest.fn(), back: jest.fn(), push: jest.fn() };
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter }));
@@ -184,5 +186,39 @@ describe('AddChildOnboardingScreen', () => {
     await waitFor(() => expect(mockDb.writes).toHaveLength(1));
     expect(useAuthStore.getState().isOnboarded).toBe(true);
     errorSpy.mockRestore();
+  });
+
+  // ChildForm has its own theme test (v0.5.246); this pins only the screen
+  // chrome around it: the background and the three header lines.
+  describe('theme', () => {
+    afterEach(() => setMockTheme('light'));
+
+    it.each([
+      ['light', lightTheme],
+      ['dark', darkTheme],
+    ] as const)('paints the screen chrome with the %s tokens', (name, theme) => {
+      setMockTheme(name);
+      render(<AddChildOnboardingScreen />);
+
+      const title = screen.getByText('Add Your Child');
+      // The first ancestor of the title that paints a background is the screen.
+      let container = title.parentElement!;
+      const unpainted = ['', 'rgba(0, 0, 0, 0)'];
+      while (unpainted.includes(getComputedStyle(container).backgroundColor)) {
+        container = container.parentElement!;
+      }
+      const c = theme.colors;
+      expect({
+        background: getComputedStyle(container).backgroundColor,
+        step: getComputedStyle(screen.getByText('Step 1 of 1')).color,
+        title: getComputedStyle(title).color,
+        subtitle: getComputedStyle(screen.getByText(/Who are we helping/)).color,
+      }).toEqual({
+        background: rgb(c.background),
+        step: rgb(c.primaryStrong),
+        title: rgb(c.text),
+        subtitle: rgb(c.textSecondary),
+      });
+    });
   });
 });
