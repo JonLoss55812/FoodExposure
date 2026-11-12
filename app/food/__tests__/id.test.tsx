@@ -39,6 +39,13 @@ jest.mock('@/src/db/client', () => ({
 import FoodDetailScreen from '../[id]';
 import { useChildStore } from '@/src/stores/child-store';
 import { useAuthStore } from '@/src/stores/auth-store';
+import { darkTheme, lightTheme } from '@/src/styles/theme';
+import { rgb, rgba, setMockTheme } from '@/src/test-utils/mock-theme';
+
+const THEMES = [
+  ['light', lightTheme],
+  ['dark', darkTheme],
+] as const;
 
 const FOOD = {
   id: 'food-1',
@@ -132,6 +139,69 @@ describe('FoodDetailScreen', () => {
     await renderSettled();
     await waitFor(() => expect(alertSpy).toHaveBeenCalled());
     expect(alertSpy.mock.calls[0][0]).toBe('Error');
+  });
+
+  // The screen's own alpha tints: the Safe Food tag (`success + '20'`), the
+  // active safe-food switch (`success + '10'`) and the Delete Food button
+  // (`error + '15'`). `success` is one hex in both themes, so only the
+  // `error` tint and the plain tokens actually vary between the two cases.
+  describe('theme', () => {
+    afterEach(() => setMockTheme('light'));
+
+    it.each(THEMES)('paints the safe-food, row-action and delete colours with the %s tokens', async (name, theme) => {
+      setMockTheme(name);
+      const row = {
+        id: 'exp-1',
+        stage: 'smell',
+        rating: null,
+        notes: null,
+        occurredAt: new Date(2026, 0, 15),
+        mealType: null,
+        temperature: null,
+        texture: null,
+        setting: null,
+      };
+      queueLoad({ ...FOOD, isSafeFood: true }, [row]);
+      await renderLoaded();
+
+      let container = screen.getByLabelText('Delete Apple').parentElement!;
+      const unpainted = ['', 'rgba(0, 0, 0, 0)'];
+      while (unpainted.includes(getComputedStyle(container).backgroundColor)) {
+        container = container.parentElement!;
+      }
+      const box = (el: Element) => {
+        const style = getComputedStyle(el);
+        return { background: style.backgroundColor, border: style.borderTopColor };
+      };
+      const color = (el: Element) => getComputedStyle(el).color;
+      // Tag first, switch title second: the tag row renders above the switch.
+      const [tagText, switchTitle] = screen.getAllByText('Safe Food');
+      const label = (re: RegExp) => screen.getByLabelText(re).firstElementChild!;
+      const c = theme.colors;
+      expect({
+        background: getComputedStyle(container).backgroundColor,
+        safeTag: getComputedStyle(tagText.parentElement!).backgroundColor,
+        safeTagText: color(tagText),
+        safeSwitch: box(screen.getByLabelText('Mark as safe food')),
+        safeSwitchTitle: color(switchTitle),
+        safeSwitchDesc: color(screen.getByText('Pinned to the top of the Foods tab')),
+        rowAction: color(label(/^Change stage of Smell exposure from /)),
+        rowDelete: color(label(/^Delete Smell exposure from /)),
+        deleteFood: getComputedStyle(screen.getByLabelText('Delete Apple')).backgroundColor,
+        deleteFoodText: color(screen.getByText('Delete Food')),
+      }).toEqual({
+        background: rgb(c.background),
+        safeTag: rgba(c.success, '20'),
+        safeTagText: rgb(c.text),
+        safeSwitch: { background: rgba(c.success, '10'), border: rgb(c.success) },
+        safeSwitchTitle: rgb(c.text),
+        safeSwitchDesc: rgb(c.textSecondary),
+        rowAction: rgb(c.primaryStrong),
+        rowDelete: rgb(c.error),
+        deleteFood: rgba(c.error, '15'),
+        deleteFoodText: rgb(c.error),
+      });
+    });
   });
 
   describe('rename (v0.5.145)', () => {

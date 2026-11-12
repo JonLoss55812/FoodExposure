@@ -5,6 +5,19 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.261 — Test: light and dark render test for the food detail screen's own colours
+  (NEXT_STEPS C9). The new `it.each(THEMES)` test in `app/food/__tests__/id.test.tsx`
+  renders a safe food with one exposure and pins the screen background, the three alpha
+  tints (`success + '20'` Safe Food tag, `success + '10'` active safe-food switch,
+  `error + '15'` Delete Food button), the switch border and copy, the per-row action and
+  row-delete text, and the Delete Food text. It queues the same two reads as every other
+  test in the suite, so the 79-test read queue was not disturbed. Mutation check, 11
+  mutations, all caught: both `success` alphas swapped, Safe Food tag→`primary`, switch
+  border→`border`, Delete Food alpha changed and its hue→`warning`, Delete Food text,
+  row-delete text and switch description retokened, and background→`surface` fail 2
+  each; row action→`primary` fails 1 (the two share a hex in dark). Not covered: the
+  category/stage edit-chip tints (`config.color + '20'`), whose hues do not vary by theme.
+
 - v0.5.260 — Test: light and dark render test for the Log tab's empty-foods call to
   action (NEXT_STEPS C9). A new family's first visit to Log has no foods, so the CTA and
   the inline "Select a food" error that a premature Save raises are all the form shows.
