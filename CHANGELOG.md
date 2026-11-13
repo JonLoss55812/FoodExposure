@@ -5,6 +5,15 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.264 — Test: `src/styles/__tests__/no-colour-literals.test.ts` scans every `.tsx`
+  under `app/` and `src/` (tests excluded) for a quoted hex (`'#RRGGBB'`) or `'rgb(`/
+  `'rgba('` literal. v0.5.153–v0.5.156 removed the last ones, but nothing stopped a new
+  one: the per-screen theme tests (C9) see only the elements they pin. Same shape as
+  `placeholder-color.test.ts`. Mutation check: `'#FF0000'` added to `Button.tsx` fails
+  that file's case; `'rgba(0,0,0,1)'` added to `app/food/[id].tsx` fails that file's.
+  This was the one fix from `critique-2026-11-13.md`, which argues the guard is a cheaper
+  way to catch hard-coded colours than adding more per-screen theme tests.
+
 - v0.5.263 — Test: light and dark render tests for the edit-child screen
   (`app/child/[id].tsx`, NEXT_STEPS C9). Two `it.each` tests in
   `app/child/__tests__/id.test.tsx`. One pins the loaded state's background, Cancel link,

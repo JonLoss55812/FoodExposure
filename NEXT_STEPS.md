@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.263. 1188 tests pass across 74 suites. `npx tsc --noEmit` and
+Reviewed at: v0.5.264. 1220 tests pass across 75 suites. `npx tsc --noEmit` and
 `npx tsc --noEmit --noUnusedLocals` are both clean.
 
 This file lists only **open** work. At v0.5.240 it was cut from a 72 KB session log, which
