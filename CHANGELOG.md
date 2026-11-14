@@ -5,6 +5,17 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.265 — Test: `src/lib/__tests__/parent-deletes.test.ts` scans every `.ts`/`.tsx`
+  under `app/` and `src/` (tests and `test-utils/` excluded) for a `.delete(...)` on a
+  parent table (`families`, `users`, `children`, `foods`) and requires the exact set
+  `cascade-delete.ts` ×2, `merge-foods.ts` ×1, `app/onboarding/index.tsx` ×1 (the
+  rollback of a family whose user insert failed). Foreign keys are enforced since
+  v0.5.193, so an inline parent delete in a screen throws at runtime whenever the row
+  has dependents. `createMockDb` never runs SQL, so a screen test would not catch it.
+  Mutation check: an inline `db.delete(schema.foods)` in `app/food/[id].tsx` fails it.
+  So does a multi-line `.delete(\n schema.children\n)` in `settings.tsx`, and so does
+  removing the children delete from `cascade-delete.ts`.
+
 - v0.5.264 — Test: `src/styles/__tests__/no-colour-literals.test.ts` scans every `.tsx`
   under `app/` and `src/` (tests excluded) for a quoted hex (`'#RRGGBB'`) or `'rgb(`/
   `'rgba('` literal. v0.5.153–v0.5.156 removed the last ones, but nothing stopped a new
