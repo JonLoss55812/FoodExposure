@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.264. 1220 tests pass across 75 suites. `npx tsc --noEmit` and
+Reviewed at: v0.5.266. 1223 tests pass across 77 suites. `npx tsc --noEmit` and
 `npx tsc --noEmit --noUnusedLocals` are both clean.
 
 This file lists only **open** work. At v0.5.240 it was cut from a 72 KB session log, which
@@ -49,8 +49,12 @@ on an item, because this file has lagged behind the code before.
 
 ## B. Needs a device or a running app
 
-1. **The app has never been run.** This is the largest risk (critique #1). The flow tests
-   mock navigation, so they do not replace a real run.
+1. **The app has never been run on a device.** This is the largest risk (critique #1). The
+   flow tests mock navigation, so they do not replace a real run. The pusher machine has no
+   Android SDK, `adb` or Xcode (checked 2026-11-14), so no pusher session can do this. It
+   needs a human, or a machine with `npx expo run:android`. `npx expo export --platform
+   android` does bundle (checked at v0.5.266). The web run on 2026-11-14 found a
+   blank-page crash in seconds (v0.5.266), which is the case for a real run.
 2. **Native globals are untested.** The suite runs on `jest-expo/web`, so it cannot see
    crypto, TextEncoder or structuredClone on native. The v0.5.180 move from `uuid` to
    expo-crypto was inferred from source. The first native build should check that
@@ -58,14 +62,15 @@ on an item, because this file has lagged behind the code before.
 3. **On Android, a CSV export above about 1 MB fails** with "Failed to open share dialog".
    The fix is to write a file with expo-file-system (not installed) and share its URI,
    instead of passing a string to `Share.share` (`src/lib/export.ts:258`).
-4. **On web, expo-sqlite probably cannot open.** COOP/COEP reach Metro's bundle responses but
-   not the HTML at `/`. To check:
-   - Run `npm run web` and read `crossOriginIsolated` in the console.
-   - If it is false, the headers must reach the document. Expo CLI serves that page outside
-     `enhanceMiddleware`.
-   - A static host must send both headers itself.
+4. **On web, the app mounts but expo-sqlite cannot open.** This was seen in headless Chromium
+   on 2026-11-14 (v0.5.266): `crossOriginIsolated` is false, the document at `/` has no
+   COOP/COEP, and the worker throws `SharedArrayBuffer is not defined`. Expo CLI serves the
+   HTML outside `metro.config.js`'s `enhanceMiddleware`. Options are a static host that sends
+   both headers, or a service-worker shim (coi-serviceworker). Each needs a human decision on
+   whether web is a target at all. To re-check: drive the cached Chromium in
+   `~/.cache/ms-playwright/chromium-*/` with `playwright-core`. The Playwright MCP looks for
+   `/opt/google/chrome`, which is not installed.
 
-   Details are in `.planning/pusher/documentation-2026-10-15.md`.
 5. **Enforced foreign keys have not been seen on a device.** If `FOREIGN KEY constraint
    failed` appears, suspect an MMKV auth-store id with no matching SQLite row. Migration
    step 2 repairs rows, not the store.
@@ -101,31 +106,10 @@ on an item, because this file has lagged behind the code before.
 8. **About 13 hand-written fail-once write overrides remain** in the `food/[id]`, `foods`,
    `log` and `settings` tests. Move one to `mockDb.failNextWrite()` only if it really means
    "fail the next write, then retry".
-9. **Write dark-mode render tests for screens as they are touched.** `setMockTheme('dark')`
-    and `rgb()` from `src/test-utils/mock-theme.ts` switch the jest Unistyles mock. Every
-    component in `src/components/` now has one (`ChildForm` since v0.5.246); the
-    `it.each(THEMES)` form in `ChildSelector.test.tsx` is the shortest pattern. Of the
-    screens, the onboarding welcome screen (v0.5.249), Join (v0.5.250), the Log tab
-    (v0.5.251), the Foods tab (v0.5.252), the Progress tab (v0.5.253), the dashboard tab (v0.5.254),
-    Settings (v0.5.255), the Add Food modal (v0.5.257), the Add Child modal (v0.5.259)
-    food detail (v0.5.261), onboarding Add Child (v0.5.262) and edit-child (v0.5.263) have one; the Log tab's empty-foods state is pinned too (v0.5.260). Reset the theme in `afterEach`.
-    Things learned on the way:
-    `placeholderTextColor` reaches the DOM only as the inline custom property
-    `--placeholderTextColor` and stays a raw hex (read it with
-    `el.style.getPropertyValue`), and an unpainted view's background computes to
-    `rgba(0, 0, 0, 0)`. `inputBackground` and `surface` are the same hex in both themes,
-    so swapping one for the other cannot be caught. In dark, `surface`, `cardBackground`
-    and `borderLight` are all `#1E293B`, so a swap among them fails only the light case.
-    Hex-plus-alpha tints (`colors.x + '15'`) are assertable with `rgba(hex, alpha)` from
-    `mock-theme.ts`. react-native-web rounds the alpha with `toFixed(2)` before jsdom
-    sees it (v0.5.256); the Foods safe-foods row and Settings' Sign Out are pinned.
-    Every screen now has one. Remaining candidates: food detail's open editors
-    (category/stage chips use `config.color + '20'`, which does not vary by theme), and
-    the edit-child loading spinner state. That state needs a read that never resolves,
-    and `createMockDb()` has no hook for one. Add a `queuePendingSelect()` only if a
-    second test needs it. The `FoodCard`/`ExposureCard` badge tints are
-    pinned (v0.5.258). `success` (like `CATEGORY_CONFIG`/`STAGE_CONFIG`) has one hex in
-    both themes, so a hard-coded copy of it cannot be caught by any theme test.
+9. **The per-screen dark-mode tests are done. Do not add more** (critique-2026-11-13 #1).
+   Every screen and component has one, and `no-colour-literals.test.ts` catches a
+   hard-coded colour anywhere. The jsdom colour quirks they relied on are in the
+   v0.5.249–v0.5.263 `CHANGELOG.md` entries.
 10. **The contrast suite does not check `CATEGORY_CONFIG` colours used as text.** No colour
     is used that way today. Add the check if one ever is.
 11. **`package-lock.json` is gitignored, so every install re-resolves caret ranges.**
@@ -140,6 +124,10 @@ on an item, because this file has lagged behind the code before.
 - `exportChildData` resolves `'empty'` without opening the share sheet when there are no
   rows: a child with no exposures, a blank `familyId`, or a foreign child id (v0.5.244).
   A new caller must handle `'empty'`, or the tap does nothing visible.
+- A new delete on `families`, `users`, `children` or `foods` fails
+  `src/lib/__tests__/parent-deletes.test.ts` (v0.5.265). Route it through
+  `cascade-delete.ts`. Add it to that test's `ALLOWED` map only if the row cannot have
+  dependents yet.
 - A second `initDb` call made while the first is running returns without doing anything.
   If a caller ever needs to wait for init, keep the in-flight promise instead.
 - The tab layout repairs the child selection on mount and when `familyId` changes, but not
