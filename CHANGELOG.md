@@ -5,6 +5,22 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.266 — Fix: the web app rendered a blank page. Loading `npm run web` in headless
+  Chromium (the first time anyone has looked at the running app, NEXT_STEPS B1/B4) threw
+  `Cannot use 'import.meta' outside a module` before React mounted. On web, Metro
+  resolves zustand's ESM build (`zustand/esm/middleware.mjs`), whose devtools middleware
+  reads `import.meta.env`, and Metro emits a classic script. `babel.config.js` now passes
+  `unstable_transformImportMeta: true` to `babel-preset-expo`. That is the preset's own
+  fix: it rewrites `import.meta` to `globalThis.__ExpoImportMetaRegistry`. Native was
+  not affected: `expo export --platform android` bundled before the change and still
+  does, because Metro resolves zustand's CommonJS build there. `expo export --platform
+  web` also still builds. With the fix, the app mounts and fails at the next step NEXT_STEPS
+  B4 predicted: the document is not cross-origin isolated, so expo-sqlite throws
+  `SharedArrayBuffer is not defined`. That part is not fixed here. The new
+  `src/db/__tests__/babel-config.test.ts` transforms an `import.meta.env` read through
+  the project config with a web caller. Mutation check: the old config (no option)
+  fails it.
+
 - v0.5.265 — Test: `src/lib/__tests__/parent-deletes.test.ts` scans every `.ts`/`.tsx`
   under `app/` and `src/` (tests and `test-utils/` excluded) for a `.delete(...)` on a
   parent table (`families`, `users`, `children`, `foods`) and requires the exact set

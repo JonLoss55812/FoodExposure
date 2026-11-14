@@ -12,8 +12,8 @@ exposure counts against an acceptance threshold that varies by feeding profile (
 All data lives in on-device SQLite. There is **no cloud sync today**: `convex/` holds a
 scaffolded backend that nothing in `app/` calls yet.
 
-**Current state:** `APP_VERSION` is `v0.5.265` (`src/lib/constants.ts`). 1222 tests pass across
-76 suites; `npx tsc --noEmit` is clean. See `CHANGELOG.md` for the
+**Current state:** `APP_VERSION` is `v0.5.266` (`src/lib/constants.ts`). 1223 tests pass across
+77 suites; `npx tsc --noEmit` is clean. See `CHANGELOG.md` for the
 per-version history and the rationale behind non-obvious decisions.
 
 ## Tech Stack
@@ -25,7 +25,7 @@ per-version history and the rationale behind non-obvious decisions.
 | **Local storage** | expo-sqlite via Drizzle ORM; react-native-mmkv | 6 tables; MMKV backs the three zustand stores |
 | **State** | zustand (+ persist/MMKV), react-hook-form + zod | `src/stores/`, `src/lib/validation.ts` |
 | **Backend** | Convex (scaffolded, **not wired**) | `convex/` — no `app/` code calls it |
-| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 1222 tests, 76 suites |
+| **Testing** | Jest 30 on the `jest-expo/web` preset, @testing-library/react | 1223 tests, 77 suites |
 | **Telemetry** | Sentry, PostHog | Both no-op when their env var is absent |
 
 ## Key Features
@@ -80,7 +80,7 @@ is what recent sessions have used** — `node_modules/` and `package-lock.json` 
 
 ```bash
 npm install          # or: bun install
-npm run test         # 1222 tests, 76 suites
+npm run test         # 1223 tests, 77 suites
 npx tsc --noEmit     # type check — run this, it catches things tests do not
 ```
 
@@ -161,7 +161,7 @@ food_chains  (id, child_id, source_food_id, target_food_id, similarity_note, …
 
 ## Testing
 
-- **1222 tests across 76 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
+- **1223 tests across 77 suites.** Unit tests for `src/lib/**` + `src/stores/**`, component
   tests for `src/components/**`, and screen tests for every `app/` screen with real logic.
 - Screen tests are built on `src/test-utils/`: `createMockDb()` (a structural fake of the
   drizzle builder with a FIFO queue of canned reads and recorded writes) and
@@ -223,21 +223,22 @@ configured.
 - **Bun ignores the nested `xcode → uuid` override** in `package.json`. npm applies it, but
   `bun install` still resolves xcode's uuid to 7.0.3. That is build-time only, and xcode
   calls only `uuid.v4()`, so it is not reachable (v0.5.204).
-- **Web is probably not cross-origin isolated, so expo-sqlite may not open in a browser.**
-  Since v0.5.205 `expo export --platform web` builds, and `metro.config.js`'s
-  `enhanceMiddleware` sets COOP/COEP. But under `npm run web` those headers reach only
-  Metro's bundle responses. The HTML document at `/` is served without them (checked with
-  `curl` on 2026-10-15), and a browser decides isolation from the document's headers.
-  `metro-config.test.ts` pins that the middleware sets them, not that the page gets them.
-  A static host must send `Cross-Origin-Opener-Policy: same-origin` and
-  `Cross-Origin-Embedder-Policy: credentialless` itself. Never browser-verified.
+- **On web, the app boots but the database does not open.** Browser-verified on
+  2026-11-14 (headless Chromium against `npm run web`). The document at `/` is served
+  without COOP/COEP, so `crossOriginIsolated` is false and expo-sqlite's worker throws
+  `SharedArrayBuffer is not defined`. `metro.config.js`'s `enhanceMiddleware` headers reach
+  only Metro's bundle responses. `metro-config.test.ts` pins that the middleware sets
+  them, not that the page gets them. A static host must send
+  `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy:
+  credentialless` itself. Before v0.5.266 the page crashed even earlier, on zustand's
+  `import.meta` (see `babel.config.js`).
 
 ## Next Priority
 
 See `NEXT_STEPS.md`, which is kept current and lists the concrete gap list. The standing
 larger item is wiring the Convex backend to replace local-only SQLite storage:
 
-1. Verify the baseline first: `npm run test` — expect 1222 tests, 76 suites, no failures.
+1. Verify the baseline first: `npm run test` — expect 1223 tests, 77 suites, no failures.
 2. Inspect `convex/schema.ts` and the per-entity files (`children.ts`, `foods.ts`, …).
 3. Pick the first endpoint to wire: `fetchChildren` (simplest) → `addFood` → `logFood`.
 4. Keep SQLite as fallback during the transition — do not remove local storage.
@@ -291,7 +292,7 @@ app/ — Expo Router pages
     session, and the changelog grew it to ~470 KB before v0.5.231)
 
 ## Current Version
-v0.5.265
+v0.5.266
 
 ## Changelog
 See `CHANGELOG.md` (newest first).
