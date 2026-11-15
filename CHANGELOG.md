@@ -5,6 +5,16 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.268 — Fix: the welcome screen promised what the app cannot do. Its third bullet
+  read "Share with your partner so both parents can track together", but every row lives
+  in this phone's SQLite and there is no sync, so a second parent on their own phone sees
+  nothing. `app/onboarding/join.tsx` already carries a comment telling sessions not to
+  promise more than "on this device" until sync exists (NEXT_STEPS A2). The bullet now
+  names a feature that does work: "Export a CSV to share progress with your feeding
+  therapist" (Settings → Export Data). A new test in `app/onboarding/__tests__/index.test.tsx`
+  asserts the new copy and that no "partner" / "both parents" / "track together" text
+  renders. Mutation check: restoring the old bullet fails it.
+
 - v0.5.267 — Fix: the Progress tab's encouragement line read "1 food(s) are getting
   close to the 15-exposure target!". It was the only count-interpolated copy in the app
   that did not pluralize (the dashboard's stage labels already pick `food`/`foods`).

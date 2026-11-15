@@ -104,9 +104,11 @@ export default function OnboardingScreen() {
             </Text>
           </View>
           <View style={styles.infoItem}>
-            <Text style={styles.infoIcon}>👨‍👩‍👧</Text>
+            <Text style={styles.infoIcon}>📤</Text>
+            {/* Data stays in this phone's SQLite and there is no sync, so this must
+                not promise that a second parent can track from another phone. */}
             <Text style={styles.infoText}>
-              <Text style={styles.bold}>Share with your partner</Text> so both parents can track together
+              <Text style={styles.bold}>Export a CSV</Text> to share progress with your feeding therapist
             </Text>
           </View>
           <View style={styles.infoItem}>

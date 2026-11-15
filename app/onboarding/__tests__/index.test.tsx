@@ -80,6 +80,15 @@ describe('OnboardingScreen', () => {
     expect(screen.getByLabelText('Have an invite code? Join a family on this device')).toBeTruthy();
   });
 
+  // There is no sync: a family lives in this phone's SQLite, so the welcome
+  // screen must not promise that a second parent can track from their own phone.
+  it('does not promise cross-device sharing, and names the CSV export instead', () => {
+    render(<OnboardingScreen />);
+    expect(screen.queryByText(/partner|both parents|track together/i)).toBeNull();
+    expect(screen.getByText('Export a CSV')).toBeTruthy();
+    expect(screen.getByText(/to share progress with your feeding therapist$/)).toBeTruthy();
+  });
+
   it('routes to the join flow without creating a family', async () => {
     render(<OnboardingScreen />);
     await click('Have an invite code? Join a family on this device');
