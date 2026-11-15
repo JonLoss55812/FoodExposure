@@ -162,7 +162,8 @@ export function getEncouragementMessage(
   }
   if (stats.foodsNearTarget > 0) {
     const threshold = getThresholdForProfile(profile);
-    return `${stats.foodsNearTarget} food(s) are getting close to the ${threshold}-exposure target!`;
+    const foods = stats.foodsNearTarget === 1 ? 'food is' : 'foods are';
+    return `${stats.foodsNearTarget} ${foods} getting close to the ${threshold}-exposure target!`;
   }
   return 'Amazing progress! Your consistency is making a real difference.';
 }

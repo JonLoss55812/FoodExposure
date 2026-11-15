@@ -329,7 +329,14 @@ describe('getEncouragementMessage', () => {
       ],
     });
     expect(getEncouragementMessage(stats, 'picky')).toBe(
-      '2 food(s) are getting close to the 20-exposure target!',
+      '2 foods are getting close to the 20-exposure target!',
+    );
+  });
+
+  it('uses the singular for exactly one near-target food', () => {
+    const stats = baseStats({ totalExposures: 30, foodsNearTarget: 1 });
+    expect(getEncouragementMessage(stats, 'typical')).toBe(
+      '1 food is getting close to the 15-exposure target!',
     );
   });
 

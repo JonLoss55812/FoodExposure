@@ -5,6 +5,13 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.267 — Fix: the Progress tab's encouragement line read "1 food(s) are getting
+  close to the 15-exposure target!". It was the only count-interpolated copy in the app
+  that did not pluralize (the dashboard's stage labels already pick `food`/`foods`).
+  `getEncouragementMessage` now says "1 food is" / "N foods are". The existing picky-profile
+  test now expects "2 foods are", and a new test pins "1 food is". Mutation check: both
+  fail against the old template.
+
 - v0.5.266 — Fix: the web app rendered a blank page. Loading `npm run web` in headless
   Chromium (the first time anyone has looked at the running app, NEXT_STEPS B1/B4) threw
   `Cannot use 'import.meta' outside a module` before React mounted. On web, Metro
