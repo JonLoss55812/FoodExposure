@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.266. 1223 tests pass across 77 suites. `npx tsc --noEmit` and
+Reviewed at: v0.5.268. 1225 tests pass across 77 suites. `npx tsc --noEmit` and
 `npx tsc --noEmit --noUnusedLocals` are both clean.
 
 This file lists only **open** work. At v0.5.240 it was cut from a 72 KB session log, which
@@ -119,7 +119,23 @@ on an item, because this file has lagged behind the code before.
     drift; that is a repo-policy decision, so it was not done. Lift the unistyles cap
     together with the Expo SDK / react-native upgrade.
 
+12. **The backdate lower bound is checked in UTC; the upper bound and the parse are local.**
+    `exposureSchema.occurredOn`'s "more than 2 years ago" refine parses `T00:00:00Z` and
+    compares against now minus 2 UTC years, including the time of day. On exactly the
+    boundary day, a date that is 2 years old can be rejected depending on the time and the
+    zone. It only matters on that one day, so it was left alone (seen at v0.5.268).
+13. **Dashboard child switching is not guarded against stale loads.** `loadData` has no
+    request-id guard, unlike `app/child/[id].tsx`'s `cancelled` flag. It reads
+    `selectedChildId` from the store after the children query, and expo-sqlite runs
+    queries in order, so the later load's setters land last. It is benign on that
+    reasoning, but nothing tests it. Add a guard only if a device run shows the wrong
+    child's data (v0.5.268).
+
 ### Caveats for future callers
+
+- The welcome screen's bullets are product claims. Since v0.5.268 its test fails on
+  "partner", "both parents" or "track together". Do not bring cross-device copy back
+  until sync exists (A2).
 
 - `exportChildData` resolves `'empty'` without opening the share sheet when there are no
   rows: a child with no exposures, a blank `familyId`, or a foreign child id (v0.5.244).
