@@ -163,6 +163,7 @@ export default function LogExposureScreen() {
           <Text style={styles.sectionLabel}>Food</Text>
           <Pressable
             onPress={() => router.push('/food/add')}
+            style={styles.addLinkHit}
             accessibilityRole="button"
             accessibilityLabel="Add new food"
           >
@@ -463,6 +464,14 @@ const styles = StyleSheet.create((theme) => ({
     fontWeight: '600',
     color: theme.colors.text,
   },
+  // A 44pt target for a one-line text link. The negative margin keeps it from
+  // pushing the food chips down by the full extra height.
+  addLinkHit: {
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: 'center',
+    marginVertical: -theme.spacing.sm,
+  },
   addLink: {
     fontSize: theme.fontSize.sm,
     fontWeight: '600',
@@ -473,6 +482,8 @@ const styles = StyleSheet.create((theme) => ({
     paddingHorizontal: theme.spacing.md,
   },
   foodChip: {
+    minHeight: 44,
+    justifyContent: 'center',
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.borderRadius.full,
@@ -496,6 +507,8 @@ const styles = StyleSheet.create((theme) => ({
     textAlign: 'center',
   },
   detailsToggle: {
+    minHeight: 44,
+    justifyContent: 'center',
     alignItems: 'center',
     marginTop: theme.spacing.lg,
     paddingVertical: theme.spacing.sm,
@@ -541,6 +554,8 @@ const styles = StyleSheet.create((theme) => ({
     fontStyle: 'italic',
   },
   emptyFoodsCta: {
+    minHeight: 44,
+    justifyContent: 'center',
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
     borderRadius: theme.borderRadius.lg,

@@ -5,6 +5,18 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.270 — Fix: four tap targets on the Log Exposure form were under 44pt. The food
+  chips (14px text, 8px padding, 2px border: 39px) are tapped on every exposure log. The
+  "Add More Details" toggle was 35px, the empty-foods call to action was 35px, and the
+  "+ Add New" link next to the Food label was a bare line of text, about 20px. Each now
+  has `minHeight: 44` and `justifyContent: 'center'`, the same fix v0.5.233 made to the
+  header links. The Add New link also gets `minWidth: 44` and `marginVertical: -8` so the
+  taller target does not push the food chips down by the whole extra height. The visible
+  change is a few pixels of extra height on the chips and the toggle. Two new tests in
+  `app/(tabs)/__tests__/log.test.tsx` assert the computed min-height of all four.
+  Mutation check: removing any one of the four `minHeight`s fails a test. Not seen on a
+  device (NEXT_STEPS B1).
+
 - v0.5.269 — Fix: the Log Exposure stage picker was wider than a 360px phone. At `lg`
   size `StageIndicator` draws six fixed 56px dots with 4px gaps: 356px. The Log form's
   sections pad 16px each side, which leaves 328px on a 360dp Android phone (the most common

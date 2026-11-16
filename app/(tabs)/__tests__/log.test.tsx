@@ -119,6 +119,25 @@ describe('LogExposureScreen', () => {
     );
   });
 
+  it('gives the food chips, Add New link and details toggle 44pt tap targets (v0.5.270)', async () => {
+    // Each was a line of 14px text plus padding: 35-39px, and a ~20px Add New
+    // link. The food chip is the control every exposure log taps.
+    queueLoad([EMMA], [APPLE]);
+    renderScreen();
+    await waitFor(() => expect(screen.getByLabelText('Select Apple')).toBeTruthy());
+
+    for (const label of ['Select Apple', 'Add new food', 'Show additional details']) {
+      expect([label, getComputedStyle(screen.getByLabelText(label)).minHeight]).toEqual([label, '44px']);
+    }
+  });
+
+  it('gives the empty-foods call to action a 44pt tap target (v0.5.270)', async () => {
+    queueLoad([EMMA], []);
+    renderScreen();
+    const cta = await screen.findByLabelText('Add foods to start logging exposures');
+    expect(getComputedStyle(cta).minHeight).toBe('44px');
+  });
+
   it('blocks Save with no food selected and writes nothing', async () => {
     queueLoad([EMMA], [APPLE]);
     renderScreen();
