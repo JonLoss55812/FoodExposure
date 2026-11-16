@@ -5,6 +5,18 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.269 — Fix: the Log Exposure stage picker was wider than a 360px phone. At `lg`
+  size `StageIndicator` draws six fixed 56px dots with 4px gaps: 356px. The Log form's
+  sections pad 16px each side, which leaves 328px on a 360dp Android phone (the most common
+  Android width), so the row overflowed by 28px and the Eat dot was cut off at the screen
+  edge. At 375px it fit only by running into the right padding. The md/lg dots now keep
+  their width but may shrink (`flexShrink: 1`, `maxWidth: '100%'`), and the interactive
+  `Pressable` wrapping each dot shrinks too, so the dots narrow to about 51px at 360px
+  instead of overflowing. Nothing changes where the row already fit. A new test asserts the
+  declared flex styles, because jsdom has no layout. Mutation check: reverting the
+  component fails it, and so does removing only the Pressable's style. Not seen on a
+  device (NEXT_STEPS B1).
+
 - v0.5.268 — Fix: the welcome screen promised what the app cannot do. Its third bullet
   read "Share with your partner so both parents can track together", but every row lives
   in this phone's SQLite and there is no sync, so a second parent on their own phone sees

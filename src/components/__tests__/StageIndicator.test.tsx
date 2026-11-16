@@ -47,6 +47,17 @@ describe('StageIndicator', () => {
     expect(onSelect).toHaveBeenNthCalledWith(2, 'eat');
   });
 
+  it('lets the lg picker shrink to fit a 360px phone instead of overflowing (v0.5.269)', () => {
+    // Six 56px dots plus gaps are 356px; the Log form has 328px at 360px wide.
+    // jsdom has no layout, so assert the declared flex styles that allow it.
+    render(<StageIndicator interactive onStageSelect={() => {}} size="lg" />);
+    const cell = screen.getByLabelText('Stage: Tolerate');
+    const dot = cell.firstElementChild as HTMLElement;
+    expect(getComputedStyle(cell).flexShrink).toBe('1');
+    expect(getComputedStyle(dot).flexShrink).toBe('1');
+    expect(getComputedStyle(dot).maxWidth).toBe('100%');
+  });
+
   it('hides text labels at sm size (icon-only mode)', () => {
     // sm size renders the icon dots but suppresses the label <Text>. This
     // is the compact variant used in places like food cards / list rows

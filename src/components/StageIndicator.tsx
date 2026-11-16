@@ -9,6 +9,10 @@ interface StageIndicatorProps {
   interactive?: boolean;
 }
 
+// md and lg are fixed widths that may shrink. Six lg dots plus gaps are 356px,
+// which overflows the Log form's 328px content width on a 360px Android phone.
+const shrinkable = { flexShrink: 1, maxWidth: '100%' as const };
+
 const dotSizeStyles = {
   sm: {
     width: 32,
@@ -19,6 +23,7 @@ const dotSizeStyles = {
   },
   md: {
     width: 48,
+    ...shrinkable,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     paddingVertical: 8,
@@ -26,6 +31,7 @@ const dotSizeStyles = {
   },
   lg: {
     width: 56,
+    ...shrinkable,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     paddingVertical: 16,
@@ -85,6 +91,7 @@ export function StageIndicator({
           return (
             <Pressable
               key={stage}
+              style={styles.cell}
               onPress={() => onStageSelect(stage)}
               accessibilityRole="button"
               accessibilityLabel={`Stage: ${config.label}`}
@@ -107,6 +114,10 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: theme.spacing.xs,
+  },
+  // Lets the Pressable shrink; the dot inside follows through its maxWidth.
+  cell: {
+    flexShrink: 1,
   },
   dot: {},
   currentDot: {
