@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.270. 1228 tests pass across 77 suites. `npx tsc --noEmit` and
+Reviewed at: v0.5.272. 1240 tests pass across 77 suites. `npx tsc --noEmit` and
 `npx tsc --noEmit --noUnusedLocals` are both clean.
 
 This file lists only **open** work. At v0.5.240 it was cut from a 72 KB session log, which
@@ -119,17 +119,22 @@ on an item, because this file has lagged behind the code before.
     drift; that is a repo-policy decision, so it was not done. Lift the unistyles cap
     together with the Expo SDK / react-native upgrade.
 
-12. **The backdate lower bound is checked in UTC; the upper bound and the parse are local.**
-    `exposureSchema.occurredOn`'s "more than 2 years ago" refine parses `T00:00:00Z` and
-    compares against now minus 2 UTC years, including the time of day. On exactly the
-    boundary day, a date that is 2 years old can be rejected depending on the time and the
-    zone. It only matters on that one day, so it was left alone (seen at v0.5.268).
+12. **`buildExportFilename` keeps curly apostrophes as hyphens.** `src/lib/export.ts:186`
+    reads `.replace(/['']/g, '')`, which is two ASCII quotes (checked with `od`). The second
+    was meant to be `’` (U+2019), which iOS keyboards type by default. So "Miles O’Brien"
+    exports as `miles-o-brien`, and "Miles O'Brien" as `miles-obrien`. The fix is
+    `/['\u2019]/g` plus one test. It is low impact, so it was left for a later session
+    (seen at v0.5.272).
+
 13. **Dashboard child switching is not guarded against stale loads.** `loadData` has no
     request-id guard, unlike `app/child/[id].tsx`'s `cancelled` flag. It reads
     `selectedChildId` from the store after the children query, and expo-sqlite runs
     queries in order, so the later load's setters land last. It is benign on that
     reasoning, but nothing tests it. Add a guard only if a device run shows the wrong
     child's data (v0.5.268).
+
+14. **`formatRelativeDate` labels any future date "Today"** (`days <= 0`). Validation blocks
+    future dates, so only a corrupt or future-synced row would show this. Revisit when sync lands.
 
 ### Caveats for future callers
 
@@ -187,7 +192,6 @@ on an item, because this file has lagged behind the code before.
 - **These are accepted as they are:**
   - exposures logged in the same second tie on `createdAt`, because timestamps are stored
     in whole seconds
-  - the lower date bounds compare UTC instants
   - Bump stays enabled while a row write is in progress
 
 ## E. How to work here
