@@ -5,6 +5,21 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.272 — Fix: on the food detail page, moving an exposure's date to today stored
+  today at 00:00 instead of the current time. The date editor passes the row's own timestamp
+  to `resolveOccurredAt` as `now`, which keeps re-saving an untouched date a no-op (the
+  v0.5.164 design). But the same argument made "today" mean the row's old day, so a row
+  moved from three days ago onto today landed at midnight. It then sorted below every
+  exposure logged earlier today, while the Log form stores the current time for the same
+  date. New pure `resolveCorrectedOccurredAt(value, stored, now)` in `src/lib/utils.ts`
+  checks the draft against `stored` first and returns `stored` exactly for a blank draft or
+  the same day. Otherwise it resolves against the real `now`. Other past days still land at
+  local midnight. +4 unit tests in `utils.test.ts` and +1 screen test in
+  `app/food/__tests__/id.test.tsx`. Mutation check: resolving the second step against
+  `stored` again fails 2 of the new tests (the unit test and the screen test). Dropping
+  the same-day early return fails the no-op unit tests. Found by a code read; not reported
+  by a user.
+
 - v0.5.271 — Fix: the backdate and date-of-birth lower bounds rejected the boundary day.
   Both compared the named day's UTC midnight against "now minus N UTC years", time of
   day included, so a backdate of exactly 2 years ago was turned away at almost any hour

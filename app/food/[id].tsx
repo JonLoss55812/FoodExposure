@@ -13,7 +13,7 @@ import { STAGE_CONFIG, STAGE_ORDER, CATEGORY_CONFIG, FOOD_CATEGORIES, PREPARATIO
 import type { ExposureStage, FoodCategory } from '@/src/lib/constants';
 import { getNextStage, canBumpStage, getHighestStage } from '@/src/lib/stage';
 import { getThresholdForProfile } from '@/src/lib/thresholds';
-import { generateId, formatDate, resolveOccurredAt, toLocalDateInput } from '@/src/lib/utils';
+import { generateId, formatDate, resolveCorrectedOccurredAt, toLocalDateInput } from '@/src/lib/utils';
 import { deleteFoodCascade } from '@/src/lib/cascade-delete';
 import { describeMergeOutcome, mergeFoods } from '@/src/lib/merge-foods';
 import { findDuplicateFood } from '@/src/lib/food-partition';
@@ -420,12 +420,14 @@ export default function FoodDetailScreen() {
    *
    * The draft is validated by `exposureSchema.shape.occurredOn` (the same
    * format / not-future / not-older-than-MAX_BACKDATE_YEARS chain the Log
-   * form's backdate field uses) and resolved by the same pure
-   * `resolveOccurredAt`, passed **the row's own timestamp** as `now`. That is
-   * the load-bearing argument: a draft naming the day the row already carries
+   * form's backdate field uses) and resolved by the pure
+   * `resolveCorrectedOccurredAt`, which checks the draft against **the row's
+   * own timestamp** first: a draft naming the day the row already carries
    * resolves back to the stored instant exactly, so re-saving an untouched
    * date keeps the row's time of day instead of snapping it to local midnight
-   * (or to right now) and re-ordering the history under the parent.
+   * (or to right now) and re-ordering the history under the parent. A draft
+   * naming a different day resolves as the Log form would, so today means the
+   * current time (v0.5.272).
    *
    * The list is ordered newest first (`occurredAt`, then `createdAt`), so unlike the other three
    * editors this one has to re-sort after the patch — otherwise the corrected
@@ -446,12 +448,12 @@ export default function FoodDetailScreen() {
       return;
     }
     const stored = new Date(exp.occurredAt);
-    const next = resolveOccurredAt(parsed.data, stored);
+    const next = resolveCorrectedOccurredAt(parsed.data, stored);
     // Covers both no-ops in one check, deliberately: a draft naming the day
-    // already stored, and a blank draft — `resolveOccurredAt` falls back to
-    // the `now` it was handed, which here is the row's own timestamp. There
-    // is no clear-to-null branch because `occurredAt` is NOT NULL; "not
-    // recorded" is not a legal state for this column.
+    // already stored, and a blank draft — `resolveCorrectedOccurredAt` returns
+    // the row's own timestamp for both. There is no clear-to-null branch
+    // because `occurredAt` is NOT NULL; "not recorded" is not a legal state
+    // for this column.
     if (next.getTime() === stored.getTime()) {
       rowEditLatch.release();
       setEditing(null);

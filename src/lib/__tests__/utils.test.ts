@@ -6,6 +6,7 @@ import {
   formatRelativeDate,
   getStartOfDay,
   deriveLocalEmailPart,
+  resolveCorrectedOccurredAt,
   resolveOccurredAt,
   MAX_BACKDATE_YEARS,
   toLocalDateInput,
@@ -365,6 +366,32 @@ describe('deriveLocalEmailPart', () => {
 
   it('falls back to "user" when displayName is an object', () => {
     expect(deriveLocalEmailPart({} as unknown as string)).toBe('user');
+  });
+});
+
+describe('resolveCorrectedOccurredAt', () => {
+  const NOW = new Date(2026, 8, 8, 14, 30, 0); // Sep 8 2026, 14:30 local
+  const STORED = new Date(2026, 8, 5, 9, 15, 0); // Sep 5, 09:15
+
+  it('keeps the stored instant for a blank draft or the day already stored', () => {
+    for (const value of ['', undefined, null, '2026-09-05', 'garbage']) {
+      expect(resolveCorrectedOccurredAt(value, STORED, NOW).getTime()).toBe(STORED.getTime());
+    }
+  });
+
+  it('stores the real now, not midnight, when the draft names today', () => {
+    expect(resolveCorrectedOccurredAt('2026-09-08', STORED, NOW).getTime()).toBe(NOW.getTime());
+  });
+
+  it('keeps a stored row from today unchanged when the draft is today', () => {
+    const storedToday = new Date(2026, 8, 8, 7, 0, 0);
+    expect(resolveCorrectedOccurredAt('2026-09-08', storedToday, NOW).getTime())
+      .toBe(storedToday.getTime());
+  });
+
+  it('stores local midnight for any other past day', () => {
+    expect(resolveCorrectedOccurredAt('2026-09-01', STORED, NOW).getTime())
+      .toBe(new Date(2026, 8, 1).getTime());
   });
 });
 

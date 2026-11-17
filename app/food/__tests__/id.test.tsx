@@ -21,6 +21,7 @@ import { eq } from 'drizzle-orm';
 import * as schema from '@/src/db/schema';
 import { createMockDb, type MockDb } from '@/src/test-utils/mock-db';
 import { click, confirmAlert, pressAlertButton } from '@/src/test-utils/screen-helpers';
+import { toLocalDateInput } from '@/src/lib/utils';
 
 const mockRouter = { replace: jest.fn(), back: jest.fn(), push: jest.fn() };
 const mockParams = { id: 'food-1' };
@@ -1785,6 +1786,28 @@ describe('FoodDetailScreen', () => {
 
       await waitFor(() => expect(screen.queryByLabelText('Exposure date')).toBeNull());
       expect(alertSpy).not.toHaveBeenCalled();
+    });
+
+    it('moving an older row onto today stores the current time, as the Log form does', async () => {
+      // The editor resolves the draft against the row's own timestamp so an
+      // untouched date is a no-op. Before v0.5.272 that same argument made
+      // "today" mean the row's old day, so the row landed at today 00:00 and
+      // sorted below every exposure logged earlier today.
+      const now = new Date();
+      const threeDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 3, 9, 0);
+      queueLoad(FOOD, [exp('exp-1', 'smell', threeDaysAgo)]);
+      await renderLoaded();
+
+      await openEditor('Smell');
+      typeDate(toLocalDateInput(now));
+      const before = Date.now();
+      await click('Save exposure date');
+
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      const write = mockDb.writes[0] as { kind: string; values: { occurredAt: Date } };
+      expect(write.kind).toBe('update');
+      expect(write.values.occurredAt.getTime()).toBeGreaterThanOrEqual(before);
+      expect(write.values.occurredAt.getTime()).toBeLessThanOrEqual(Date.now());
     });
 
     it('re-sorts the history after a correction, because it is ordered by date', async () => {

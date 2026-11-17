@@ -120,6 +120,26 @@ export function resolveOccurredAt(value?: string | null, now: Date = new Date())
 }
 
 /**
+ * The instant a per-row date correction should store. Two different "nows"
+ * matter, and `resolveOccurredAt` takes only one:
+ *
+ * - against the row's `stored` instant, so a blank draft or one naming the
+ *   day already stored returns `stored` exactly (a no-op, time of day kept);
+ * - against the real `now` otherwise, so a draft naming today stores the
+ *   current time, as the Log form does, rather than today's local midnight.
+ *   Midnight would sort the row below everything logged earlier today.
+ */
+export function resolveCorrectedOccurredAt(
+  value: string | null | undefined,
+  stored: Date,
+  now: Date = new Date(),
+): Date {
+  const unchanged = resolveOccurredAt(value, stored);
+  if (unchanged.getTime() === stored.getTime()) return stored;
+  return resolveOccurredAt(value, now);
+}
+
+/**
  * Render a stored timestamp as the local `YYYY-MM-DD` string the backdate
  * fields accept. Reads the *local* getters, matching `resolveOccurredAt`,
  * which parses a named day at local midnight — a UTC formatting here would
