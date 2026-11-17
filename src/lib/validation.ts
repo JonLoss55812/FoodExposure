@@ -16,6 +16,26 @@ function isNotAfterLocalToday(val: string): boolean {
   return named.getTime() <= getStartOfDay().getTime();
 }
 
+/**
+ * True when a `YYYY-MM-DD` string names a local calendar day no earlier than
+ * the same day `years` years ago. Inclusive, and compared on local days for
+ * the reason `isNotAfterLocalToday` gives: a UTC instant with today's time of
+ * day attached rejected the boundary day at almost every hour. Feb 29 minus a
+ * non-leap span rolls to Mar 1 (JS `setFullYear`), so Feb 28 is out. Malformed
+ * input returns true so the format refine owns that message.
+ */
+function isNotBeforeLocalYearsAgo(val: string, years: number): boolean {
+  const [year, month, day] = val.split('-').map(Number);
+  // Not `new Date(year, …)`: that maps years 0–99 to 1900–1999, which would
+  // turn the year typo '0001-01-01' into an accepted 1901.
+  const named = new Date(2000, month - 1, day);
+  named.setFullYear(year);
+  if (Number.isNaN(named.getTime())) return true;
+  const earliest = getStartOfDay();
+  earliest.setFullYear(earliest.getFullYear() - years);
+  return named.getTime() >= earliest.getTime();
+}
+
 const optionalTrimmedText = (max: number, label: string) =>
   z.string()
     .optional()
@@ -53,11 +73,7 @@ export const childSchema = z.object({
       (val) => {
         if (!val) return true;
         if (!/^\d{4}-\d{2}-\d{2}$/.test(val)) return true;
-        const d = new Date(`${val}T00:00:00Z`);
-        if (Number.isNaN(d.getTime())) return true;
-        const earliest = new Date();
-        earliest.setUTCFullYear(earliest.getUTCFullYear() - 130);
-        return d.getTime() >= earliest.getTime();
+        return isNotBeforeLocalYearsAgo(val, 130);
       },
       { message: 'Date of birth is too far in the past' }
     )
@@ -124,11 +140,7 @@ export const exposureSchema = z.object({
     .refine(
       (val) => {
         if (!val || !/^\d{4}-\d{2}-\d{2}$/.test(val)) return true;
-        const d = new Date(`${val}T00:00:00Z`);
-        if (Number.isNaN(d.getTime())) return true;
-        const earliest = new Date();
-        earliest.setUTCFullYear(earliest.getUTCFullYear() - MAX_BACKDATE_YEARS);
-        return d.getTime() >= earliest.getTime();
+        return isNotBeforeLocalYearsAgo(val, MAX_BACKDATE_YEARS);
       },
       { message: `Date cannot be more than ${MAX_BACKDATE_YEARS} years ago` }
     )

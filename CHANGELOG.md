@@ -5,6 +5,19 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.271 — Fix: the backdate and date-of-birth lower bounds rejected the boundary day.
+  Both compared the named day's UTC midnight against "now minus N UTC years", time of
+  day included, so a backdate of exactly 2 years ago was turned away at almost any hour
+  (NEXT_STEPS C12). The new `isNotBeforeLocalYearsAgo` in `src/lib/validation.ts`
+  compares local calendar days, inclusive, matching the future bound (v0.5.212) and
+  `resolveOccurredAt`. It builds the named date with `setFullYear` because
+  `new Date(1, 0, 1)` is 1901, and the old test that rejects `0001-01-01` caught that
+  during the change. From a Feb 29, two years back is Mar 1, so Feb 28 is rejected.
+  Seven new tests in `validation.test.ts` pin the boundary day and the day before, at
+  three times of day, for both fields and for the leap day. They pass under UTC,
+  America/Los_Angeles, Pacific/Kiritimati and Pacific/Pago_Pago. Mutation check: the old
+  UTC comparison fails all seven.
+
 - v0.5.270 — Fix: four tap targets on the Log Exposure form were under 44pt. The food
   chips (14px text, 8px padding, 2px border: 39px) are tapped on every exposure log. The
   "Add More Details" toggle was 35px, the empty-foods call to action was 35px, and the

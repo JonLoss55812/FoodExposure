@@ -1192,6 +1192,50 @@ describe('exposureSchema.occurredOn (backdating, v0.5.164)', () => {
     });
   });
 
+  describe('the lower bounds are local calendar days (v0.5.271)', () => {
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    // The bounds used to compare the named day's UTC midnight against "now
+    // minus N UTC years", time of day included, so the day exactly N years
+    // back was rejected at almost any hour. Both ends are now inclusive local
+    // calendar days, matching the future bound and `resolveOccurredAt`.
+    it.each([
+      ['late evening', 23, 30],
+      ['early morning', 0, 30],
+      ['midday', 12, 0],
+    ])('accepts exactly 2 years back and rejects the day before in the %s', (_label, hour, minute) => {
+      jest.useFakeTimers({ now: new Date(2026, 9, 14, hour, minute) });
+      expect(exposureSchema.safeParse({ ...base, occurredOn: '2024-10-14' }).success).toBe(true);
+      const tooOld = exposureSchema.safeParse({ ...base, occurredOn: '2024-10-13' });
+      expect(tooOld.success).toBe(false);
+      if (!tooOld.success) {
+        expect(tooOld.error.issues[0]?.message).toBe('Date cannot be more than 2 years ago');
+      }
+    });
+
+    it.each([
+      ['late evening', 23, 30],
+      ['early morning', 0, 30],
+      ['midday', 12, 0],
+    ])('accepts a birth date exactly 130 years back and rejects the day before in the %s', (_label, hour, minute) => {
+      jest.useFakeTimers({ now: new Date(2026, 9, 14, hour, minute) });
+      expect(childSchema.safeParse({ name: 'Emma', dateOfBirth: '1896-10-14' }).success).toBe(true);
+      const tooOld = childSchema.safeParse({ name: 'Emma', dateOfBirth: '1896-10-13' });
+      expect(tooOld.success).toBe(false);
+      if (!tooOld.success) {
+        expect(tooOld.error.issues[0]?.message).toBe('Date of birth is too far in the past');
+      }
+    });
+
+    it('treats Feb 29 two years back from a leap day as Mar 1, not a rejection of Feb 28', () => {
+      jest.useFakeTimers({ now: new Date(2028, 1, 29, 12, 0) });
+      expect(exposureSchema.safeParse({ ...base, occurredOn: '2026-03-01' }).success).toBe(true);
+      expect(exposureSchema.safeParse({ ...base, occurredOn: '2026-02-28' }).success).toBe(false);
+    });
+  });
+
   it('rejects a date far enough in the past to be a year typo', () => {
     const result = exposureSchema.safeParse({ ...base, occurredOn: '1926-09-08' });
     expect(result.success).toBe(false);
