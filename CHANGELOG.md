@@ -5,6 +5,12 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.273 — Fix: `buildExportFilename` treated a typographic apostrophe as a word break.
+  The strip regex in `src/lib/export.ts` read `/['']/` (two ASCII quotes), so U+2019, which
+  iOS keyboards type by default, fell through to the hyphen pass and "Miles O’Brien"
+  exported as `miles-o-brien` while "Miles O'Brien" gave `miles-obrien`. The regex is now
+  `/['\u2019]/`. +1 test in `export.test.ts`; it fails on the old regex (NEXT_STEPS C12).
+
 - v0.5.272 — Fix: on the food detail page, moving an exposure's date to today stored
   today at 00:00 instead of the current time. The date editor passes the row's own timestamp
   to `resolveOccurredAt` as `now`, which keeps re-saving an untouched date a no-op (the

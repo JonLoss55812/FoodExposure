@@ -340,6 +340,12 @@ describe('buildExportFilename', () => {
     expect(name).toBe('tonguetutor-miles-obrien-jr-20260102.csv');
   });
 
+  it('drops a typographic apostrophe the same way as an ASCII one', () => {
+    // iOS keyboards type U+2019 by default; it must not split the word.
+    const name = buildExportFilename('Miles O\u2019Brien', iso('2026-01-02T00:00:00.000Z'), 0);
+    expect(name).toBe('tonguetutor-miles-obrien-20260102.csv');
+  });
+
   it('falls back to "child" for empty names', () => {
     const name = buildExportFilename('   ', iso('2026-07-04T00:00:00.000Z'), 0);
     expect(name).toBe('tonguetutor-child-20260704.csv');
