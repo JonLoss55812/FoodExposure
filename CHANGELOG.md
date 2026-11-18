@@ -5,6 +5,13 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.274 — Fix: `formatRelativeDate` labelled a row on any later local day "Today"
+  (`days <= 0`), so a corrupt or clock-skewed exposure dated next week claimed to be from
+  today on the dashboard and food detail cards. A negative day delta now falls through to
+  `formatDate`; same-day timestamps a few minutes ahead still read "Today" (the existing
+  defensive test keeps that). +1 test in `utils.test.ts`: a 00:30 tomorrow row at 23:00
+  today; it fails on the old guard (NEXT_STEPS C14).
+
 - v0.5.273 — Fix: `buildExportFilename` treated a typographic apostrophe as a word break.
   The strip regex in `src/lib/export.ts` read `/['']/` (two ASCII quotes), so U+2019, which
   iOS keyboards type by default, fell through to the hyphen pass and "Miles O’Brien"

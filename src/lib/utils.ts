@@ -40,7 +40,10 @@ export function formatRelativeDate(date: Date): string {
   const startOfDate = getStartOfDay(date).getTime();
   const days = Math.round((startOfToday - startOfDate) / (1000 * 60 * 60 * 24));
 
-  if (days <= 0) return 'Today';
+  // A row on a later local day (corrupt or clock-skewed) shows its date;
+  // only same-day timestamps, including a few minutes ahead, read "Today".
+  if (days < 0) return formatDate(date);
+  if (days === 0) return 'Today';
   if (days === 1) return 'Yesterday';
   if (days < 7) return `${days} days ago`;
   return formatDate(date);

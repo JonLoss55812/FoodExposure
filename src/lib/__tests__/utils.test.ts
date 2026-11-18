@@ -197,6 +197,15 @@ describe('formatRelativeDate', () => {
     jest.useRealTimers();
   });
 
+  it('shows the date, not "Today", for a row on a later local day', () => {
+    // Validation blocks future dates, but a corrupt or clock-skewed row
+    // dated tomorrow must not claim to be from today.
+    jest.useFakeTimers().setSystemTime(new Date(2026, 4, 3, 23, 0, 0));
+    const tomorrow = new Date(2026, 4, 4, 0, 30, 0);
+    expect(formatRelativeDate(tomorrow)).toBe(formatDate(tomorrow));
+    jest.useRealTimers();
+  });
+
   it('returns empty string for an invalid Date (defensive guard)', () => {
     // A row whose occurredAt was constructed from a corrupt timestamp
     // (e.g. `new Date(undefined)` or `new Date('not a date')`) would
