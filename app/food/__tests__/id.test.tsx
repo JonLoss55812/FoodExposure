@@ -577,6 +577,13 @@ describe('FoodDetailScreen', () => {
       // point, the row must not be reachable as a write with no change.
       expect(mockDb.writes).toHaveLength(0);
       expect(screen.queryByLabelText('Category: Protein')).toBeNull();
+
+      // The no-op must hand the latch back: a real change made afterwards
+      // still has to save, not be silently swallowed.
+      await click('Change category, currently Fruit');
+      await click('Category: Vegetable');
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      expect(mockDb.writes[0]).toMatchObject({ kind: 'update', values: { category: 'vegetable' } });
     });
 
     it('alerts on a failed write and leaves the row open to retry', async () => {
@@ -1286,6 +1293,13 @@ describe('FoodDetailScreen', () => {
       expect(mockDb.writes).toHaveLength(0);
       expect(screen.queryByLabelText('Set stage: Touch')).toBeNull();
       expect(alertSpy).not.toHaveBeenCalled();
+
+      // The row-edit latch is shared by every row's editors, so a no-op that
+      // kept it would silently swallow every later correction on the screen.
+      await openEditor('Smell');
+      await click('Set stage: Touch');
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      expect(mockDb.writes[0]).toMatchObject({ kind: 'update', values: { stage: 'touch' } });
     });
 
     it('alerts on a failed write, keeps the old stage, and stays retryable', async () => {
@@ -1650,6 +1664,13 @@ describe('FoodDetailScreen', () => {
       expect(mockDb.writes).toHaveLength(0);
       expect(screen.queryByLabelText('Exposure notes')).toBeNull();
       expect(alertSpy).not.toHaveBeenCalled();
+
+      // A real edit afterwards still saves — the no-op released the latch.
+      await openEditor('Smell');
+      typeNotes('ate two bites');
+      await click('Save exposure notes');
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      expect(mockDb.writes[0]).toMatchObject({ kind: 'update', values: { notes: 'ate two bites' } });
     });
 
     it('rejects an over-long note through the schema and writes nothing', async () => {
@@ -1666,6 +1687,12 @@ describe('FoodDetailScreen', () => {
       expect(mockDb.writes).toHaveLength(0);
       // Left open so the note can be shortened in place rather than retyped.
       expect(screen.getByLabelText('Exposure notes')).toBeTruthy();
+
+      // ...and the shortened note must then save, not hit a stranded latch.
+      typeNotes('a'.repeat(500));
+      await click('Save exposure notes');
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      expect(mockDb.writes[0]).toMatchObject({ kind: 'update', values: { notes: 'a'.repeat(500) } });
     });
 
     it('cancel abandons the draft without writing', async () => {
@@ -1874,6 +1901,13 @@ describe('FoodDetailScreen', () => {
       await waitFor(() => expect(screen.queryByLabelText('Exposure date')).toBeNull());
       expect(mockDb.writes).toHaveLength(0);
       expect(alertSpy).not.toHaveBeenCalled();
+
+      // A real correction afterwards still saves — the no-op released the latch.
+      await openEditor('Smell');
+      typeDate('2026-09-08');
+      await click('Save exposure date');
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      expect(mockDb.writes[0]).toMatchObject({ kind: 'update', values: { occurredAt: new Date(2026, 8, 8) } });
     });
 
     it('writes nothing when the draft is blanked, because occurredAt is NOT NULL', async () => {
@@ -1925,6 +1959,12 @@ describe('FoodDetailScreen', () => {
       expect(alertSpy.mock.calls[0][0]).toBe('Invalid Date');
       expect(mockDb.writes).toHaveLength(0);
       expect(input().value).toBe('2026-02-30');
+
+      // Fixing the typo in place must then save, not hit a stranded latch.
+      typeDate('2026-02-28');
+      await click('Save exposure date');
+      await waitFor(() => expect(mockDb.writes).toHaveLength(1));
+      expect(mockDb.writes[0]).toMatchObject({ kind: 'update', values: { occurredAt: new Date(2026, 1, 28) } });
     });
 
     it('abandons the draft on Cancel and reseeds from the stored value', async () => {
