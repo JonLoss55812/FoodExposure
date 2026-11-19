@@ -16,7 +16,7 @@
  * db mock, and the `SafeAreaProvider` wrapper that `SafeAreaView` requires.
  */
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Alert } from 'react-native';
 import { createMockDb, type MockDb } from '@/src/test-utils/mock-db';
 import { SafeArea } from '@/src/test-utils/screen-helpers';
@@ -163,6 +163,37 @@ describe('LogExposureScreen', () => {
 
     await waitFor(() => expect(screen.getByText('Select a child')).toBeTruthy());
     expect(mockDb.writes).toHaveLength(0);
+  });
+
+  it('clears the "Select a food" error as soon as a food is picked', async () => {
+    // The chip writes through setValue, which react-hook-form does not
+    // re-validate by default, so the error used to stay on screen beside a
+    // selected chip until the next Save.
+    queueLoad([EMMA], [APPLE]);
+    renderScreen();
+    await waitFor(() => expect(screen.getByLabelText('Select Apple')).toBeTruthy());
+
+    tapSave();
+    await waitFor(() => expect(screen.getByText('Select a food')).toBeTruthy());
+
+    fireEvent.click(screen.getByLabelText('Select Apple'));
+    await waitFor(() => expect(screen.queryByText('Select a food')).toBeNull());
+    expect(mockDb.writes).toHaveLength(0);
+  });
+
+  it('clears the "Select a child" error once a child becomes selected', async () => {
+    // A child added after a failed Save reaches the form through the store
+    // effect, not a tap; that path must clear the stale error too.
+    useChildStore.getState().clear();
+    queueLoad([], [APPLE]);
+    renderScreen();
+    await waitFor(() => expect(screen.getByLabelText('Select Apple')).toBeTruthy());
+
+    tapSave();
+    await waitFor(() => expect(screen.getByText('Select a child')).toBeTruthy());
+
+    act(() => useChildStore.getState().selectChild(EMMA.id));
+    await waitFor(() => expect(screen.queryByText('Select a child')).toBeNull());
   });
 
   it('inserts the exposure with the selected child, food and stage', async () => {

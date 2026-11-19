@@ -36,7 +36,7 @@ export default function LogExposureScreen() {
   // threshold that is the app's core clinical metric.
   const submitLatch = useRef(createInFlightLatch()).current;
 
-  const { control, handleSubmit, setValue, getValues, watch, reset, formState: { errors } } = useForm<
+  const { control, handleSubmit, setValue, getValues, watch, reset, clearErrors, formState: { errors } } = useForm<
     z.input<typeof exposureSchema>,
     unknown,
     ExposureFormData
@@ -60,9 +60,13 @@ export default function LogExposureScreen() {
   // capture selectedChildId at mount, so a child resolved later (via
   // ensureSelection) or a switch from another tab would otherwise leave
   // childId='' and silently fail validation when the user taps Save.
+  // A child resolved after a failed Save must also clear "Select a child";
+  // setValue does not re-validate. Clear rather than validate, so a blank id
+  // on mount does not show the error before the parent has tapped Save.
   useEffect(() => {
     setValue('childId', selectedChildId || '');
-  }, [selectedChildId, setValue]);
+    if (selectedChildId) clearErrors('childId');
+  }, [selectedChildId, setValue, clearErrors]);
 
   const loadData = useCallback(async () => {
     if (!familyId) return;
@@ -175,7 +179,7 @@ export default function LogExposureScreen() {
             <Pressable
               key={food.id}
               style={[styles.foodChip, selectedFoodId === food.id && styles.foodChipSelected]}
-              onPress={() => setValue('foodId', food.id)}
+              onPress={() => setValue('foodId', food.id, { shouldValidate: true })}
               accessibilityRole="button"
               accessibilityLabel={`Select ${food.name}`}
               accessibilityState={{ selected: selectedFoodId === food.id }}

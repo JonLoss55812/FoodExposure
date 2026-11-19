@@ -5,6 +5,15 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.275 — Fix: on the Log form, "Select a food" and "Select a child" stayed on screen
+  after the parent picked one, until the next Save. The food chips write through
+  `setValue`, which react-hook-form does not re-validate, and a child resolved after a
+  failed Save (Add Child, then back) reaches the form through the store effect. The food
+  chip now passes `{ shouldValidate: true }`; the child effect calls `clearErrors('childId')`
+  when a child is selected. It clears rather than validates, so the blank id on mount does
+  not show the error before Save. +2 tests in `log.test.tsx`; each fails without its half
+  of the fix.
+
 - v0.5.274 — Fix: `formatRelativeDate` labelled a row on any later local day "Today"
   (`days <= 0`), so a corrupt or clock-skewed exposure dated next week claimed to be from
   today on the dashboard and food detail cards. A negative day delta now falls through to
