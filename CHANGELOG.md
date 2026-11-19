@@ -5,6 +5,13 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.276 — Fix: on the Log form, a rejected backdate made Save do nothing and say
+  nothing when the details section was collapsed. The typed date survives "Hide Details",
+  but its error renders only inside that section. `handleSubmit` now has an invalid
+  callback that reopens the details when `occurredOn` failed, so the field and its error
+  are visible. Notes cannot hit this: its `maxLength={500}` matches the schema. +1 test in
+  `log.test.tsx` (type a malformed date, hide details, Save); it fails without the callback.
+
 - v0.5.275 — Fix: on the Log form, "Select a food" and "Select a child" stayed on screen
   after the parent picked one, until the next Save. The food chips write through
   `setValue`, which react-hook-form does not re-validate, and a child resolved after a

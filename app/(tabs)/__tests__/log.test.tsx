@@ -320,6 +320,24 @@ describe('LogExposureScreen', () => {
       expect(mockDb.writes).toHaveLength(0);
     });
 
+    it('reopens the hidden details so a rejected date is not a silent Save', async () => {
+      // The typed date survives "Hide Details", but its error renders only
+      // inside that section; Save used to do nothing and say nothing.
+      queueLoad([EMMA], [APPLE]);
+      renderScreen();
+      const input = await openDetails();
+
+      fireEvent.change(input, { target: { value: '09/08/2026' } });
+      fireEvent.click(screen.getByLabelText('Hide additional details'));
+      expect(screen.queryByLabelText('Date (optional)')).toBeNull();
+      fireEvent.click(screen.getByLabelText('Select Apple'));
+      tapSave();
+
+      await waitFor(() => expect(screen.getByLabelText('Date (optional)')).toBeTruthy());
+      expect(screen.getByText('Date must be a valid YYYY-MM-DD date')).toBeTruthy();
+      expect(mockDb.writes).toHaveLength(0);
+    });
+
     it('rejects a malformed date inline and writes nothing', async () => {
       queueLoad([EMMA], [APPLE]);
       renderScreen();

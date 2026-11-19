@@ -417,7 +417,12 @@ export default function LogExposureScreen() {
       <View style={styles.submitSection}>
         <Button
           label="Save Exposure"
-          onPress={handleSubmit(onSubmit)}
+          onPress={handleSubmit(onSubmit, (formErrors) => {
+            // The date field and its error live in the collapsible details,
+            // and a typed date survives Hide Details. Reopen it, or Save
+            // fails with nothing on screen saying why.
+            if (formErrors.occurredOn) setShowDetails(true);
+          })}
           loading={saving}
           disabled={saving}
           fullWidth
