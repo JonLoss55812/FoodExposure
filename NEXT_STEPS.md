@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.274. 1242 tests pass across 77 suites. `npx tsc --noEmit` and
+Reviewed at: v0.5.276. 1245 tests pass across 77 suites. `npx tsc --noEmit` and
 `npx tsc --noEmit --noUnusedLocals` are both clean.
 
 This file lists only **open** work. At v0.5.240 it was cut from a 72 KB session log, which
@@ -132,6 +132,14 @@ on an item, because this file has lagged behind the code before.
   "partner", "both parents" or "track together". Do not bring cross-device copy back
   until sync exists (A2).
 
+- react-hook-form's `setValue` does not re-validate. A chip or picker that writes a
+  **required** field through it must pass `{ shouldValidate: true }` (or clear the
+  error), or a failed Save's error stays beside the new selection (v0.5.275). The other
+  `setValue` sites (`food/add` category and safe toggle, `ChildForm` emoji) have defaults,
+  so they cannot show a stale error today.
+- A field inside the Log form's collapsible details must be handled in `handleSubmit`'s
+  invalid callback, which reopens the section (v0.5.276). Otherwise its error is hidden
+  and Save fails silently.
 - `exportChildData` resolves `'empty'` without opening the share sheet when there are no
   rows: a child with no exposures, a blank `familyId`, or a foreign child id (v0.5.244).
   A new caller must handle `'empty'`, or the tap does nothing visible.
