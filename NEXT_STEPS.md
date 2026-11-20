@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.276. 1245 tests pass across 77 suites. `npx tsc --noEmit` and
+Reviewed at: v0.5.278. 1255 tests pass across 77 suites. `npx tsc --noEmit` and
 `npx tsc --noEmit --noUnusedLocals` are both clean.
 
 This file lists only **open** work. At v0.5.240 it was cut from a 72 KB session log, which
@@ -128,6 +128,12 @@ on an item, because this file has lagged behind the code before.
 
 ### Caveats for future callers
 
+- Compare user-typed names with `normalizeNameKey` (`src/lib/utils.ts`), never a bare
+  `trim().toLowerCase()`, and never through `deriveLocalEmailPart`, which collapses every
+  non-Latin name to `user` (v0.5.277). Not yet applied: the Foods tab search
+  (`filterFoods`) still uses a raw `toLowerCase().includes`, so a decomposed query will
+  not find a precomposed name. Low impact; change it only with a test.
+
 - The welcome screen's bullets are product claims. Since v0.5.268 its test fails on
   "partner", "both parents" or "track together". Do not bring cross-device copy back
   until sync exists (A2).
@@ -174,7 +180,8 @@ on an item, because this file has lagged behind the code before.
 - **Do not add a uniqueness check to child rename.** Add Child has none, so the check
   would reject a name that Add Child accepts.
 - **Duplicate-food grouping is exact after normalising, on purpose.** "Brocolli" and
-  "Broccoli" stay separate.
+  "Broccoli" stay separate. Normalising means `normalizeNameKey` (NFC, trim, inner
+  whitespace collapsed, case folded, v0.5.278): only differences a parent cannot see.
 - **`mergeFoods`:** the merge-into-self guard and deleting the source row last are both
   needed; neither is extra caution.
 - **The per-screen family predicates are now a second layer of defence.** Do not add more
