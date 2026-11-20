@@ -85,6 +85,28 @@ describe('JoinFamilyScreen family scoping (real SQL)', () => {
     expect(mockRouter.replace).not.toHaveBeenCalled();
   });
 
+  it('blocks the same name typed with different casing and padding', async () => {
+    join('  aNNe ', 'ABCDEF');
+
+    await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+    expect(alertSpy.mock.calls[0][0]).toBe('Name Already Taken');
+    expect(usersIn('f1')).toEqual(['a@x.app', 'anne@tonguetutor.app']);
+  });
+
+  it('lets a second non-Latin name join although both derive the same email', async () => {
+    // deriveLocalEmailPart strips non-ASCII, so both names become user@…;
+    // a check on the derived email refused the second parent as a duplicate.
+    mockSqlite.raw.exec(`
+      INSERT INTO users (id, family_id, email, display_name, created_at) VALUES
+        ('u-mama', 'f1', 'user@tonguetutor.app', 'Мама', 1);
+    `);
+    join('Папа', 'ABCDEF');
+
+    await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/(tabs)'));
+    expect(alertSpy).not.toHaveBeenCalled();
+    expect(useAuthStore.getState().displayName).toBe('Папа');
+  });
+
   it('lets a differently named member join a family that already has members', async () => {
     join('Bea', 'ABCDEF');
 

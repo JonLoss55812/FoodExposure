@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, Alert } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '@/src/db/client';
 import * as schema from '@/src/db/schema';
 import { useAuthStore } from '@/src/stores/auth-store';
-import { generateId, deriveLocalEmailPart, isValidInviteCode } from '@/src/lib/utils';
+import { generateId, deriveLocalEmailPart, isDisplayNameTaken, isValidInviteCode } from '@/src/lib/utils';
 import { Button } from '@/src/components';
 import { createInFlightLatch } from '@/src/lib/in-flight';
 import { resolveOnboardingEntryRedirect } from '@/src/lib/onboarding-entry';
@@ -60,12 +60,13 @@ export default function JoinFamilyScreen() {
         return;
       }
 
-      const email = `${deriveLocalEmailPart(trimmedName)}@tonguetutor.app`;
-      const existingUser = await db.select().from(schema.users)
-        .where(and(eq(schema.users.familyId, family.id), eq(schema.users.email, email)))
-        .then(rows => rows[0]);
+      // Compared on display names, not the derived emails, which collapse
+      // every non-Latin name to the same `user@` address.
+      const members = await db.select({ displayName: schema.users.displayName })
+        .from(schema.users)
+        .where(eq(schema.users.familyId, family.id));
 
-      if (existingUser) {
+      if (isDisplayNameTaken(members.map((m) => m.displayName), trimmedName)) {
         Alert.alert(
           'Name Already Taken',
           'A family member is already using this name. Please choose a different display name.'
@@ -73,6 +74,7 @@ export default function JoinFamilyScreen() {
         return;
       }
 
+      const email = `${deriveLocalEmailPart(trimmedName)}@tonguetutor.app`;
       const userId = generateId();
       await db.insert(schema.users).values({
         id: userId,

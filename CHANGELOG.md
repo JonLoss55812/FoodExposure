@@ -5,6 +5,16 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.277 — Fix: Join Family told a parent with a non-Latin name that the name was
+  taken when it was not. The v0.5.91 duplicate check compared the synthesized emails, and
+  `deriveLocalEmailPart` strips everything outside `[a-z0-9.+-]`, so "Мама" and "Папа" (or
+  "李" and "王") both became `user@tonguetutor.app`. Nothing reads `users.email` as an
+  identity, so Join now reads the family's display names and compares them with the new
+  pure `isDisplayNameTaken` (NFC, trimmed, inner spaces collapsed, case folded). The same
+  name in any casing or padding is still refused; A4's policy is unchanged. +6 tests: 4 in
+  `utils.test.ts` (dropping NFC or the whitespace collapse fails 2), 2 real-SQL cases in
+  `join-family-scope.test.tsx` (restoring the email check fails the Мама/Папа case).
+
 - v0.5.276 — Fix: on the Log form, a rejected backdate made Save do nothing and say
   nothing when the details section was collapsed. The typed date survives "Hide Details",
   but its error renders only inside that section. `handleSubmit` now has an invalid

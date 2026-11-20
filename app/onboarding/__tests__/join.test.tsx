@@ -127,7 +127,7 @@ describe('JoinFamilyScreen', () => {
 
   it('blocks a display name already used inside the family (v0.5.91 pre-check)', async () => {
     mockDb.queueSelect([FAMILY]);
-    mockDb.queueSelect([{ id: 'user-existing', email: 'anne@tonguetutor.app' }]);
+    mockDb.queueSelect([{ displayName: 'Anne' }]);
     render(<JoinFamilyScreen />);
     fillForm();
     tapJoin();

@@ -75,6 +75,34 @@ export function deriveLocalEmailPart(displayName: string): string {
 }
 
 /**
+ * The form two display names are compared in: Unicode NFC, trimmed, inner
+ * whitespace collapsed, case folded.
+ */
+function normalizeDisplayName(name: string): string {
+  return name.normalize('NFC').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+/**
+ * True when `candidate` names someone already in `existingNames`.
+ *
+ * Join Family's duplicate-name check (v0.5.91) used to compare the emails
+ * `deriveLocalEmailPart` synthesizes. That function strips everything outside
+ * `[a-z0-9.+-]`, so "Мама" and "Папа" (or "李" and "王") both became
+ * `user@tonguetutor.app` and the second parent was told their name was taken.
+ * Nothing reads `users.email` as an identity, so the names themselves are
+ * compared instead.
+ */
+export function isDisplayNameTaken(
+  existingNames: readonly string[],
+  candidate: string,
+): boolean {
+  const wanted = normalizeDisplayName(candidate);
+  return existingNames.some(
+    (name) => typeof name === 'string' && normalizeDisplayName(name) === wanted,
+  );
+}
+
+/**
  * How far back an exposure may be backdated. Exposures are logged after the
  * fact (a parent is feeding a toddler, not holding a phone), but a date older
  * than this is a typo — an off-by-100 or off-by-1000 year slip — not a memory.

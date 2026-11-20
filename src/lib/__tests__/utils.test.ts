@@ -6,6 +6,7 @@ import {
   formatRelativeDate,
   getStartOfDay,
   deriveLocalEmailPart,
+  isDisplayNameTaken,
   resolveCorrectedOccurredAt,
   resolveOccurredAt,
   MAX_BACKDATE_YEARS,
@@ -281,6 +282,30 @@ describe('getStartOfDay', () => {
     expect(start.getDate()).toBe(today.getDate());
     expect(start.getMonth()).toBe(today.getMonth());
     expect(start.getFullYear()).toBe(today.getFullYear());
+  });
+});
+
+describe('isDisplayNameTaken', () => {
+  it('matches the same name regardless of case, padding and inner spacing', () => {
+    expect(isDisplayNameTaken(['Anne'], 'anne')).toBe(true);
+    expect(isDisplayNameTaken(['Anne Marie'], '  ANNE   marie ')).toBe(true);
+  });
+
+  it('matches a precomposed and a decomposed spelling of the same name', () => {
+    expect(isDisplayNameTaken(['Jos\u00e9'], 'Jose\u0301')).toBe(true);
+  });
+
+  it('tells apart names that derive the same local email part', () => {
+    // Both derive "user" (non-ASCII is stripped) or "jos" — distinct people.
+    expect(deriveLocalEmailPart('Мама')).toBe(deriveLocalEmailPart('Папа'));
+    expect(isDisplayNameTaken(['Мама'], 'Папа')).toBe(false);
+    expect(isDisplayNameTaken(['李'], '王')).toBe(false);
+    expect(isDisplayNameTaken(['José'], 'Jos')).toBe(false);
+  });
+
+  it('is false for an empty family and ignores non-string entries', () => {
+    expect(isDisplayNameTaken([], 'Anne')).toBe(false);
+    expect(isDisplayNameTaken([null, undefined] as unknown as string[], 'Anne')).toBe(false);
   });
 });
 
