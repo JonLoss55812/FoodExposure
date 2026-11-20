@@ -75,10 +75,13 @@ export function deriveLocalEmailPart(displayName: string): string {
 }
 
 /**
- * The form two display names are compared in: Unicode NFC, trimmed, inner
- * whitespace collapsed, case folded.
+ * The key two user-typed names are compared on: Unicode NFC, trimmed, inner
+ * whitespace collapsed, case folded. Every step removes a difference the
+ * parent cannot see — "è" typed vs pasted as "e" + a combining accent, a
+ * doubled space — so names that look identical compare equal, while any
+ * visible difference ("Brocolli" vs "Broccoli") still keeps them apart.
  */
-function normalizeDisplayName(name: string): string {
+export function normalizeNameKey(name: string): string {
   return name.normalize('NFC').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
@@ -96,9 +99,9 @@ export function isDisplayNameTaken(
   existingNames: readonly string[],
   candidate: string,
 ): boolean {
-  const wanted = normalizeDisplayName(candidate);
+  const wanted = normalizeNameKey(candidate);
   return existingNames.some(
-    (name) => typeof name === 'string' && normalizeDisplayName(name) === wanted,
+    (name) => typeof name === 'string' && normalizeNameKey(name) === wanted,
   );
 }
 

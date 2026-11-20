@@ -1,5 +1,6 @@
 import { type ExposureStage } from './constants';
 import { getHighestStage } from './stage';
+import { normalizeNameKey } from './utils';
 
 export type SafeFoodish = { isSafeFood: boolean };
 
@@ -60,8 +61,8 @@ export function filterFoods<T extends FoodFilterable>(
 type FoodNameable = { name: string; id?: string };
 
 /**
- * Case-insensitive, whitespace-trimmed duplicate lookup for the Add Food
- * flow. Adding "apple" when "Apple" already exists creates a second food
+ * Duplicate lookup on `normalizeNameKey` (case, padding, inner spacing and
+ * Unicode form ignored) for the Add Food flow. Adding "apple" when "Apple" already exists creates a second food
  * row, and every per-food stat (exposure count vs. threshold, highest
  * stage, safe-food pinning) silently splits across the duplicates — the
  * exposure-count-toward-acceptance metric undercounts on both rows.
@@ -81,19 +82,19 @@ export function findDuplicateFood<T extends FoodNameable>(
   excludeId?: string | null,
 ): T | undefined {
   if (typeof name !== 'string') return undefined;
-  const needle = name.trim().toLowerCase();
+  const needle = normalizeNameKey(name);
   if (!needle) return undefined;
   const skipId = typeof excludeId === 'string' && excludeId.trim() ? excludeId : null;
   return foods.find(
     (food) =>
       food.id !== skipId &&
       typeof food.name === 'string' &&
-      food.name.trim().toLowerCase() === needle,
+      normalizeNameKey(food.name) === needle,
   );
 }
 
 /**
- * Group a family's foods by their normalized (trimmed, lowercased) name and
+ * Group a family's foods by their `normalizeNameKey` and
  * return only the names that more than one row answers to.
  *
  * v0.5.136 blocks *new* duplicate names and v0.5.176 made merging them
@@ -122,7 +123,7 @@ export function findDuplicateFoodGroups<T extends FoodNameable>(
   const byName = new Map<string, T[]>();
   for (const food of foods) {
     if (typeof food.name !== 'string') continue;
-    const key = food.name.trim().toLowerCase();
+    const key = normalizeNameKey(food.name);
     if (!key) continue;
     const existing = byName.get(key);
     if (existing) existing.push(food);

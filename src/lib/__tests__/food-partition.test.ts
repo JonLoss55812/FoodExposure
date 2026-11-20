@@ -484,3 +484,32 @@ describe('findDuplicateFoodGroups', () => {
     ).toEqual([[a, b]]);
   });
 });
+
+describe('food duplicate checks — visually identical spellings', () => {
+  // "Crème" typed on a keyboard (precomposed è) vs pasted from a recipe site
+  // (e + combining grave): the same name on screen, different code points.
+  const NFC = 'Crème brûlée';
+  const NFD = 'Crème brûlée';
+
+  it('findDuplicateFood matches a decomposed spelling of an existing name', () => {
+    expect(findDuplicateFood([{ id: 'a', name: NFC }], NFD)?.id).toBe('a');
+  });
+
+  it('findDuplicateFood matches a name that differs only in inner spacing', () => {
+    expect(findDuplicateFood([{ id: 'a', name: 'Sweet potato' }], 'sweet   potato')?.id).toBe('a');
+  });
+
+  it('findDuplicateFood still tells near-miss spellings apart', () => {
+    expect(findDuplicateFood([{ id: 'a', name: 'Sweet potato' }], 'Sweetpotato')).toBeUndefined();
+  });
+
+  it('findDuplicateFoodGroups groups NFC/NFD and inner-spacing twins', () => {
+    const groups = findDuplicateFoodGroups([
+      { id: 'a', name: NFC },
+      { id: 'b', name: NFD },
+      { id: 'c', name: 'Sweet potato' },
+      { id: 'd', name: 'Sweet  Potato' },
+    ]);
+    expect(groups.map((g) => g.map((f) => f.id))).toEqual([['a', 'b'], ['c', 'd']]);
+  });
+});

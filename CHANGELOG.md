@@ -5,6 +5,17 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.278 — Fix: the food duplicate checks missed names that look identical. Add Food,
+  rename and the Foods tab's duplicate banner keyed on `trim().toLowerCase()`, so
+  "Crème brûlée" typed (precomposed è) and pasted from a recipe (e + combining accent), or
+  "Sweet potato" and "Sweet  potato", became two rows and split the exposure count the
+  threshold is measured on. `findDuplicateFood` and `findDuplicateFoodGroups` now key on
+  `normalizeNameKey` (v0.5.277's comparison, exported from `utils.ts`): NFC, trimmed,
+  inner whitespace collapsed, case folded. Every step removes a difference the parent
+  cannot see, so it is still exact-after-normalising — "Sweetpotato" and "Brocolli" stay
+  separate (section D). +4 tests in `food-partition.test.ts`; dropping NFC fails 2 and
+  dropping the whitespace collapse fails 2.
+
 - v0.5.277 — Fix: Join Family told a parent with a non-Latin name that the name was
   taken when it was not. The v0.5.91 duplicate check compared the synthesized emails, and
   `deriveLocalEmailPart` strips everything outside `[a-z0-9.+-]`, so "Мама" and "Папа" (or
