@@ -215,11 +215,12 @@ configured.
   (`deriveLocalEmailPart`) and `users.email` has no UNIQUE constraint.
 - **Charts are simple** — bars and tiles, no time-series plots.
 - **Date entry is free text** (`YYYY-MM-DD`), not a picker; no date-picker package is installed.
-- **`npm audit` reports advisories from 6 roots (39 on 2026-11-05), none fixable without an SDK change**
-  (v0.5.243; see `.planning/pusher/dependencies-2026-10-31.md`). `decode-uri-component`
-  (fix is ESM-only, v0.5.165), `esbuild` (fix is a drizzle-kit downgrade), and `deepmerge`,
-  `glob`, `minimatch`, plus `@expo/cli`'s private zod 3 (fixes need Expo SDK 58). The app's
-  own zod is 4.6.7, which is patched. All six roots are in build/test tooling, not the app bundle.
+- **`npm audit` reports advisories from 5 roots (36 on 2026-11-21), none fixable without an SDK change**
+  (see `.planning/pusher/dependencies-2026-11-21.md`). `decode-uri-component`
+  (fix is ESM-only, v0.5.165), `esbuild` (fix is a drizzle-kit downgrade), and `glob`,
+  `minimatch`, plus `@expo/cli`'s private zod 3 (fixes need Expo SDK 58). The app's
+  own zod is 4.6.7, which is patched. `decode-uri-component` is the only one in the app bundle
+  (expo-router → query-string; reachable only through a crafted deep link); the rest are build/test tooling.
 - **Bun ignores the nested `xcode → uuid` override** in `package.json`. npm applies it, but
   `bun install` still resolves xcode's uuid to 7.0.3. That is build-time only, and xcode
   calls only `uuid.v4()`, so it is not reachable (v0.5.204).
