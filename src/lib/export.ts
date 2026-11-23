@@ -170,6 +170,20 @@ export function formatExposuresCsv(
 const EXPORT_FILENAME_SLUG_MAX = 50;
 
 /**
+ * Characters that become a hyphen in the filename slug. Letters from any script
+ * are kept, so "李" and "王" no longer both export as `tonguetutor-child-…`.
+ * Removed: ASCII non-alphanumerics (which covers every filesystem-reserved
+ * character), C1 controls, Unicode whitespace, General Punctuation (dashes,
+ * quotes, zero-width and bidi controls such as U+202E, which could disguise the
+ * extension), CJK symbols and punctuation, fullwidth ASCII punctuation, and the
+ * BOM. A plain range list rather than `\p{L}`, because no code here relies on
+ * Hermes' Unicode property escapes yet and a regex syntax error would take the
+ * Settings screen down with this module.
+ */
+const EXPORT_FILENAME_SEPARATORS =
+  /[\x00-\x2f\x3a-\x40\x5b-\x60\x7b-\x9f\s\u2000-\u206f\u3000-\u303f\uff00-\uff0f\uff1a-\uff20\uff3b-\uff40\uff5b-\uff65\ufeff]+/g;
+
+/**
  * `offsetMinutes` is minutes ahead of UTC, as in `toLocalIsoString`, and
  * defaults to the device's own offset. The date is the **local** calendar day,
  * so the filename agrees with the CSV's `date` column (v0.5.166) instead of
@@ -181,12 +195,16 @@ export function buildExportFilename(
   offsetMinutes?: number | null
 ): string {
   const safeName = typeof childName === 'string' ? childName : '';
-  const slug = safeName
+  const sanitized = safeName
+    .normalize('NFC')
     .toLowerCase()
     .replace(/['\u2019]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
+    .replace(EXPORT_FILENAME_SEPARATORS, '-')
+    .replace(/^-+|-+$/g, '');
+  // Array.from counts code points, so the cap never splits a surrogate pair.
+  const slug = Array.from(sanitized)
     .slice(0, EXPORT_FILENAME_SLUG_MAX)
+    .join('')
     .replace(/-+$/, '');
   const safeSlug = slug.length > 0 ? slug : 'child';
   const safeAt = at instanceof Date && !Number.isNaN(at.getTime()) ? at : new Date();

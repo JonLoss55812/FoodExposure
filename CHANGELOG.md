@@ -5,6 +5,18 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.280 — Fix: a child with a non-Latin name exported as `tonguetutor-child-….csv`.
+  `buildExportFilename` replaced everything outside `[a-z0-9]` with a hyphen, so "李" and
+  "王" got the same share title, and "Zoë" became `zo`. The slug now keeps letters from any
+  script (NFC-composed). It turns ASCII punctuation, C1 controls, whitespace, General
+  Punctuation (which includes bidi and zero-width controls such as U+202E, which could
+  disguise the extension), CJK and fullwidth punctuation, and the BOM into hyphens. The
+  50-character cap now counts code points (`Array.from`), so it never splits a surrogate
+  pair. The separators are an explicit range list, not `\p{L}`. Nothing else here relies on
+  Hermes' Unicode property escapes, and a regex syntax error in this module would take
+  Settings down on an untested device. +6 tests in `export.test.ts`. Dropping NFC, `Array.from`,
+  the General Punctuation range or the CJK range each fails 1; the old `[^a-z0-9]` fails 5.
+
 - v0.5.279 — Fix: the Foods tab search missed names that look identical to the query.
   `filterFoods` compared `toLowerCase()` strings, so a query typed on a keyboard that emits
   a combining accent ("cafe" + U+0301) did not find a stored "Café" (precomposed), and

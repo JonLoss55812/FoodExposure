@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.278. 1255 tests pass across 77 suites. `npx tsc --noEmit` and
+Reviewed at: v0.5.280. 1264 tests pass across 77 suites. `npx tsc --noEmit` and
 `npx tsc --noEmit --noUnusedLocals` are both clean.
 
 This file lists only **open** work. At v0.5.240 it was cut from a 72 KB session log, which
@@ -151,6 +151,11 @@ on an item, because this file has lagged behind the code before.
   `src/lib/__tests__/parent-deletes.test.ts` (v0.5.265). Route it through
   `cascade-delete.ts`. Add it to that test's `ALLOWED` map only if the row cannot have
   dependents yet.
+- `buildExportFilename` is only a share-sheet title today: `Share.share` gets the CSV as a
+  string. It keeps non-Latin letters (v0.5.280). If B3 moves to writing a real file, check
+  that expo-file-system and the receiving apps accept a non-ASCII filename on a device.
+  Its separator regex is a range list because nothing here relies on `\p{…}` under
+  Hermes yet. Check Hermes support on a device before using `\p{…}` anywhere.
 - A second `initDb` call made while the first is running returns without doing anything.
   If a caller ever needs to wait for init, keep the in-flight promise instead.
 - The tab layout repairs the child selection on mount and when `familyId` changes, but not

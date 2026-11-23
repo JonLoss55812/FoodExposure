@@ -346,6 +346,36 @@ describe('buildExportFilename', () => {
     expect(name).toBe('tonguetutor-miles-obrien-20260102.csv');
   });
 
+  describe('non-Latin names', () => {
+    const at = iso('2026-01-02T00:00:00.000Z');
+
+    it('keeps CJK and Cyrillic letters instead of falling back to "child"', () => {
+      expect(buildExportFilename('李', at, 0)).toBe('tonguetutor-李-20260102.csv');
+      expect(buildExportFilename('Мама Ива', at, 0)).toBe('tonguetutor-мама-ива-20260102.csv');
+    });
+
+    it('gives two non-Latin siblings different filenames', () => {
+      expect(buildExportFilename('李', at, 0)).not.toBe(buildExportFilename('王', at, 0));
+    });
+
+    it('keeps accented Latin letters, composed to NFC', () => {
+      expect(buildExportFilename('Zoë', at, 0)).toBe('tonguetutor-zoë-20260102.csv');
+    });
+
+    it('treats ideographic space and punctuation as separators', () => {
+      expect(buildExportFilename('李　小龙。', at, 0)).toBe('tonguetutor-李-小龙-20260102.csv');
+    });
+
+    it('strips bidi and zero-width controls, which could disguise the extension', () => {
+      expect(buildExportFilename('Ada‮vsc.exe​', at, 0)).toBe('tonguetutor-ada-vsc-exe-20260102.csv');
+    });
+
+    it('caps at 50 code points without splitting a surrogate pair', () => {
+      const name = buildExportFilename('\u{20000}'.repeat(60), at, 0);
+      expect(name).toBe(`tonguetutor-${'\u{20000}'.repeat(50)}-20260102.csv`);
+    });
+  });
+
   it('falls back to "child" for empty names', () => {
     const name = buildExportFilename('   ', iso('2026-07-04T00:00:00.000Z'), 0);
     expect(name).toBe('tonguetutor-child-20260704.csv');
