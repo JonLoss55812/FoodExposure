@@ -5,6 +5,14 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.279 — Fix: the Foods tab search missed names that look identical to the query.
+  `filterFoods` compared `toLowerCase()` strings, so a query typed on a keyboard that emits
+  a combining accent ("cafe" + U+0301) did not find a stored "Café" (precomposed), and
+  "red apple" did not find "Red  Apple". Both sides now go through `normalizeNameKey`, the
+  comparison the duplicate checks have used since v0.5.278. This closes the NEXT_STEPS
+  caveat about it. +3 tests in `food-partition.test.ts`. Reverting either side (needle or
+  name) to `toLowerCase()` fails 2.
+
 - v0.5.278 — Fix: the food duplicate checks missed names that look identical. Add Food,
   rename and the Foods tab's duplicate banner keyed on `trim().toLowerCase()`, so
   "Crème brûlée" typed (precomposed è) and pasted from a recipe (e + combining accent), or

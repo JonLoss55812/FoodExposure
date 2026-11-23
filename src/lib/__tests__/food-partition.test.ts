@@ -232,6 +232,27 @@ describe('filterFoods', () => {
     expect(filterFoods([], 'apple', 'all')).toEqual([]);
   });
 
+  describe('matches on normalizeNameKey, like the duplicate check', () => {
+    // A parent cannot see these differences, so search must not depend on them.
+    const cafe = { id: '5', name: 'Café Latte', category: 'dairy' }; // precomposed é
+    const redApple = { id: '6', name: 'Red  Apple', category: 'fruit' }; // double space
+    const items: Item[] = [cafe, redApple];
+
+    it('finds a precomposed name from a decomposed query', () => {
+      expect(filterFoods(items, 'café', 'all').map((f) => f.id)).toEqual(['5']);
+    });
+
+    it('finds a decomposed name from a precomposed query', () => {
+      const decomposed = { id: '7', name: 'Café', category: 'dairy' };
+      expect(filterFoods([decomposed], 'café', 'all').map((f) => f.id)).toEqual(['7']);
+    });
+
+    it('ignores runs of inner whitespace in the name and the query', () => {
+      expect(filterFoods(items, 'red apple', 'all').map((f) => f.id)).toEqual(['6']);
+      expect(filterFoods(items, 'red   apple', 'all').map((f) => f.id)).toEqual(['6']);
+    });
+  });
+
   describe('non-string drift defense', () => {
     // Pin the defensive coercion at the helper boundary. Form-state
     // callers always pass strings today, but the helper is exported and

@@ -48,11 +48,14 @@ export function filterFoods<T extends FoodFilterable>(
   // provably safe regardless of upstream gating.
   const safeSearch = typeof search === 'string' ? search : '';
   const safeCategory = typeof category === 'string' ? category : 'all';
-  const needle = safeSearch.trim().toLowerCase();
+  // normalizeNameKey, not a bare toLowerCase: a query typed on a keyboard that
+  // emits decomposed accents ("cafe\u0301") must still find "Café", and
+  // inner spacing must not matter, the same rules the duplicate check uses.
+  const needle = normalizeNameKey(safeSearch);
   const all = safeCategory === 'all';
   if (!needle && all) return foods.slice();
   return foods.filter((food) => {
-    const matchesSearch = !needle || food.name.toLowerCase().includes(needle);
+    const matchesSearch = !needle || normalizeNameKey(food.name).includes(needle);
     const matchesCategory = all || food.category === safeCategory;
     return matchesSearch && matchesCategory;
   });

@@ -130,9 +130,7 @@ on an item, because this file has lagged behind the code before.
 
 - Compare user-typed names with `normalizeNameKey` (`src/lib/utils.ts`), never a bare
   `trim().toLowerCase()`, and never through `deriveLocalEmailPart`, which collapses every
-  non-Latin name to `user` (v0.5.277). Not yet applied: the Foods tab search
-  (`filterFoods`) still uses a raw `toLowerCase().includes`, so a decomposed query will
-  not find a precomposed name. Low impact; change it only with a test.
+  non-Latin name to `user` (v0.5.277). The Foods tab search uses it too (v0.5.279).
 
 - The welcome screen's bullets are product claims. Since v0.5.268 its test fails on
   "partner", "both parents" or "track together". Do not bring cross-device copy back
