@@ -5,6 +5,20 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.282 — Fix: Progress showed the wrong state when its load failed. (1) After a child
+  switch, the previous child's stats stayed on screen, and this screen never names the
+  child, so they read as the new child's. (2) On a first-load failure the empty stats fell
+  through to "No Progress Yet — Log your first food exposure", which claims the child
+  has no exposures when they only could not be read. The screen now records whose stats
+  it shows and whether the last load failed, the same rule as the v0.5.281 dashboard fix.
+  When there are no stats of this child's to show, it renders "Couldn't Load Progress"
+  with a Try Again action; the early-return states have no pull-to-refresh. A failed
+  reload for the same child keeps that child's stats; on a profile change that means
+  the stats computed under the old profile. +3 tests in `progress.test.tsx` and 2 new
+  assertions on the existing failure test. Mutation-checked: a no-op Try Again fails 1,
+  dropping the guard fails 3, and never recording the loaded child (always hide on
+  failure) fails 1.
+
 - v0.5.281 — Fix: switching child on the dashboard while the database read fails left
   the previous child's numbers under the new child's chip: Today's Exposures, Foods
   Tracked, the stage grid, and Recent Activity cards that name the previous child. The

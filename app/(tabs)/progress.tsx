@@ -40,6 +40,11 @@ export default function ProgressScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const hasLoadedRef = useRef(false);
+  // Whose stats are on screen, and whether the last load failed. This screen
+  // never names the child, so a failed load after a switch would otherwise
+  // pass the previous child's stats off as the new child's.
+  const [loadedChildId, setLoadedChildId] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const loadStats = useCallback(async () => {
     if (!familyId || !selectedChildId) {
@@ -70,7 +75,10 @@ export default function ProgressScreen() {
         ));
 
       setStats(calcProgressStats(allFoods, allExposures, feedingProfile));
+      setLoadedChildId(selectedChildId);
+      setLoadFailed(false);
     } catch (err) {
+      setLoadFailed(true);
       console.error('Failed to load progress stats:', err);
       Alert.alert('Error', 'Failed to load progress data. Please try again.');
     } finally {
@@ -102,6 +110,23 @@ export default function ProgressScreen() {
           description="Pick a child on the dashboard to view their progress."
           actionLabel="Go to Dashboard"
           onAction={() => router.push('/(tabs)' as any)}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  // A failed refresh for the same child keeps its (still correct) stats. With
+  // no stats of this child's to show, say the read failed rather than falling
+  // through to "No Progress Yet", which would claim there are no exposures.
+  if (loadFailed && loadedChildId !== selectedChildId) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <EmptyState
+          icon="⚠️"
+          title="Couldn't Load Progress"
+          description="This child's progress could not be read. Please try again."
+          actionLabel="Try Again"
+          onAction={loadStats}
         />
       </SafeAreaView>
     );

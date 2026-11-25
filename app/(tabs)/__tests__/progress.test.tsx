@@ -22,7 +22,7 @@
  * from `src/test-utils/screen-helpers` (v0.5.151).
  */
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { Alert } from 'react-native';
 import { createMockDb, type MockDb } from '@/src/test-utils/mock-db';
 import { SafeArea, click } from '@/src/test-utils/screen-helpers';
@@ -288,6 +288,56 @@ describe('ProgressScreen', () => {
     // Stats stay at their empty default, so the screen falls through to the
     // zero-exposure empty state rather than showing stale or partial numbers.
     expect(screen.queryByText('Total Exposures')).toBeNull();
+    // ...and not "No Progress Yet": nothing says this child has no exposures,
+    // only that they could not be read.
+    expect(screen.queryByText('No Progress Yet')).toBeNull();
+    expect(screen.getByText("Couldn't Load Progress")).toBeTruthy();
+  });
+
+  // A failed reload for the *same* child keeps its stats: they are still this
+  // child's. A profile change is the reload this harness can drive.
+  it("keeps the shown child's stats when a reload for the same child fails", async () => {
+    queueLoad([food({ id: 'food-1', name: 'Apple' })], exposuresFor('food-1', 3));
+    renderScreen();
+    await waitFor(() => expect(screen.getByText('Total Exposures')).toBeTruthy());
+
+    mockDb.failReads(new Error('db down'));
+    act(() => useSettingsStore.getState().setFeedingProfile('picky'));
+
+    await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+    expect(statValue('Total Exposures')).toBe('3');
+    expect(screen.queryByText("Couldn't Load Progress")).toBeNull();
+  });
+
+  it('retries the load from the failed state', async () => {
+    mockDb.failReads(new Error('db down'));
+    renderScreen();
+    await waitFor(() => expect(screen.getByText("Couldn't Load Progress")).toBeTruthy());
+
+    // The client mock reads through a getter, so a fresh db is a recovered one.
+    mockDb = createMockDb();
+    queueLoad([food({ id: 'food-1', name: 'Apple' })], exposuresFor('food-1', 2));
+    await click('Try Again');
+
+    await waitFor(() => expect(screen.getByText('Total Exposures')).toBeTruthy());
+    expect(statValue('Total Exposures')).toBe('2');
+  });
+
+  // Progress never names the child, so stale stats would pass silently as the
+  // newly selected child's.
+  it("does not show the previous child's stats when the newly selected child's load fails", async () => {
+    queueLoad([food({ id: 'food-1', name: 'Apple' })], exposuresFor('food-1', 3));
+    renderScreen();
+    await waitFor(() => expect(screen.getByText('Total Exposures')).toBeTruthy());
+    expect(statValue('Total Exposures')).toBe('3');
+
+    mockDb.failReads(new Error('db down'));
+    act(() => useChildStore.getState().selectChild('child-2'));
+
+    await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+    expect(screen.queryByText('Total Exposures')).toBeNull();
+    expect(screen.queryByText('Apple')).toBeNull();
+    expect(screen.getByText("Couldn't Load Progress")).toBeTruthy();
   });
 
   // The view a parent may hand to a therapist, and the tab with the most
