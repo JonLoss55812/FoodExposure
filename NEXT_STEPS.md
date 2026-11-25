@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.280. 1264 tests pass across 77 suites. `npx tsc --noEmit` and
+Reviewed at: v0.5.282. 1268 tests pass across 77 suites. `npx tsc --noEmit` and
 `npx tsc --noEmit --noUnusedLocals` are both clean.
 
 This file lists only **open** work. At v0.5.240 it was cut from a 72 KB session log, which
@@ -101,8 +101,6 @@ on an item, because this file has lagged behind the code before.
 6. **Tab focus reloads run every time.** At current data sizes that is fine. If a family
    reaches thousands of exposures, run them only when a store-level "data changed" counter
    has moved.
-7. **The food-detail suite logs about 37 `act(...)` warnings.** They are only noise. Spend
-   about 15 minutes on them only if they start hiding real failures.
 8. **About 13 hand-written fail-once write overrides remain** in the `food/[id]`, `foods`,
    `log` and `settings` tests. Move one to `mockDb.failNextWrite()` only if it really means
    "fail the next write, then retry".
@@ -124,7 +122,17 @@ on an item, because this file has lagged behind the code before.
     `selectedChildId` from the store after the children query, and expo-sqlite runs
     queries in order, so the later load's setters land last. It is benign on that
     reasoning, but nothing tests it. Add a guard only if a device run shows the wrong
-    child's data (v0.5.268).
+    child's data (v0.5.268). Checked again at v0.5.281: a superseded load reads
+    `selectedChildId` from the store *after* its first await, so it loads the new child too.
+14. **The dashboard's same-child failed-refresh path is untested** (v0.5.281). Keeping the
+    shown numbers when a refresh for the same child fails cannot be driven in the harness:
+    re-selecting the same id changes no deps, and RefreshControl is not pressable on web.
+    Progress covers the same rule through a profile change (v0.5.282). If the dashboard ever
+    gains another reload trigger, add the test.
+15. **A first-load failure on the dashboard shows "Add Your First Child"**, because
+    `childrenList` stays empty when the children read throws. It needs a SQLite read to
+    fail on launch; the alert does say "Failed to load". Fix with the v0.5.281
+    `loadFailed` flag if a device run shows it.
 
 ### Caveats for future callers
 
