@@ -5,6 +5,19 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.281 — Fix: switching child on the dashboard while the database read fails left
+  the previous child's numbers under the new child's chip: Today's Exposures, Foods
+  Tracked, the stage grid, and Recent Activity cards that name the previous child. The
+  catch only raised an alert. The screen now records whose data it shows
+  (`loadedChildId`) and whether the last load failed. When both point at a different child,
+  it shows "Couldn't load this child's activity. Pull down to try again." in place of the
+  per-child sections. A failed refresh for the *same* child keeps its numbers, which are
+  still correct. Nothing is hidden while a normal switch is loading, so there is no
+  flicker. +1 test in `index.test.tsx`; it fails on the old code. A test for the same-child
+  case was dropped: the harness cannot drive a same-child reload (re-selecting the same id
+  changes no deps, and RefreshControl is not pressable on web), so it passed without
+  exercising the code.
+
 - v0.5.280 — Fix: a child with a non-Latin name exported as `tonguetutor-child-….csv`.
   `buildExportFilename` replaced everything outside `[a-z0-9]` with a hyphen, so "李" and
   "王" got the same share title, and "Zoë" became `zo`. The slug now keeps letters from any

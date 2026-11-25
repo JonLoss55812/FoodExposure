@@ -256,6 +256,31 @@ describe('DashboardScreen', () => {
     expect(screen.queryByLabelText('Foods Tracked: 0')).toBeNull();
   });
 
+  // The chip says Leo, so Emma's numbers and her named activity cards must not
+  // stay under it when Leo's load fails: the parent would read them as Leo's.
+  it("does not leave the previous child's numbers under a newly selected child whose load fails", async () => {
+    const LEO = { id: 'child-2', familyId: 'fam-1', name: 'Leo', avatarEmoji: '👦' };
+    queueLoad({
+      children: [EMMA, LEO],
+      today: [exposure({ id: 'e1' }), exposure({ id: 'e2' })],
+      recent: [
+        { id: 'e1', foodId: 'food-1', foodName: 'Apple', childName: 'Emma', stage: 'taste', rating: null, notes: null, occurredAt: new Date() },
+      ],
+      all: [exposure({ id: 'e1' })],
+    });
+    renderScreen();
+    await waitFor(() => expect(screen.getByLabelText("Today's Exposures: 2")).toBeTruthy());
+
+    mockDb.failReads(new Error('db down'));
+    await click('Select Leo');
+
+    await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+    expect(screen.queryByLabelText("Today's Exposures: 2")).toBeNull();
+    expect(screen.queryByLabelText('Foods Tracked: 1')).toBeNull();
+    expect(screen.queryByText('Apple')).toBeNull();
+    expect(screen.getByText(/Couldn't load this child's activity/)).toBeTruthy();
+  });
+
   it('redirects to onboarding and renders nothing when not onboarded', async () => {
     useAuthStore.getState().setOnboarded(false);
     renderScreen();

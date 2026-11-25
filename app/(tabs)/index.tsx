@@ -42,6 +42,11 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const hasLoadedRef = useRef(false);
+  // Whose numbers are on screen, and whether the last load failed. A failed
+  // load for a newly selected child would otherwise leave the previous child's
+  // counts and named activity cards under the new child's chip.
+  const [loadedChildId, setLoadedChildId] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!familyId) return;
@@ -103,7 +108,10 @@ export default function DashboardScreen() {
 
       setStageCounts(computeStageCounts(allExposures));
       setFoodsTrackedCount(new Set(allExposures.map((e) => e.foodId)).size);
+      setLoadedChildId(childId);
+      setLoadFailed(false);
     } catch (err) {
+      setLoadFailed(true);
       console.error('Failed to load dashboard data:', err);
       Alert.alert('Error', 'Failed to load dashboard data. Please try again.');
     } finally {
@@ -142,6 +150,9 @@ export default function DashboardScreen() {
   }
 
   const stageDistributionTotal = Object.values(stageCounts).reduce((a, b) => a + b, 0);
+  // A failed refresh for the same child keeps that child's (still correct)
+  // numbers; only numbers belonging to a different child are withheld.
+  const showsOtherChildsData = loadFailed && loadedChildId !== selectedChildId;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -173,6 +184,12 @@ export default function DashboardScreen() {
           actionLabel="Add Child"
           onAction={() => router.push('/child/add')}
         />
+      ) : showsOtherChildsData ? (
+        <View style={styles.section}>
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyText}>Couldn't load this child's activity. Pull down to try again.</Text>
+          </View>
+        </View>
       ) : (
         <>
           {/* Today's Summary */}
