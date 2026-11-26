@@ -60,7 +60,11 @@ export default function DashboardScreen() {
 
       ensureSelection(kids);
       const childId = useChildStore.getState().selectedChildId;
-      if (!childId) return;
+      if (!childId) {
+        // No children, so this read was the whole load, and it succeeded.
+        setLoadFailed(false);
+        return;
+      }
 
       // Load today's exposure count. Route through canonical getStartOfDay
       // helper so the dashboard's "today" boundary stays consistent with the
@@ -176,7 +180,18 @@ export default function DashboardScreen() {
         onSelect={selectChild}
       />
 
-      {childrenList.length === 0 ? (
+      {childrenList.length === 0 && loadFailed ? (
+        // The children read itself failed (with no children there is no later
+        // read to fail), so "Add Your First Child" would be a guess, and one
+        // that invites re-adding a child who already exists.
+        <EmptyState
+          icon="⚠️"
+          title="Couldn't Load Your Family"
+          description="Your children's profiles could not be read. Please try again."
+          actionLabel="Try Again"
+          onAction={loadData}
+        />
+      ) : childrenList.length === 0 ? (
         <EmptyState
           icon="👶"
           title="Add Your First Child"

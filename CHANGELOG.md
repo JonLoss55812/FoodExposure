@@ -5,6 +5,15 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.283 — Fix: a first-load failure on the dashboard rendered "Add Your First Child"
+  (NEXT_STEPS C15). A failed children read leaves the list empty, which is exactly what a
+  childless family looks like, so the screen invited the parent to add a child who may
+  already exist — a duplicate row the next successful load would show. With no children
+  listed and the last load failed, it now renders "Couldn't Load Your Family" with Try
+  Again. The childless early return (`if (!childId) return`) skipped the success path's
+  `setLoadFailed(false)`, so it now clears the flag itself; otherwise a recovered retry for
+  a family with no children stayed on the error. +3 tests in `index.test.tsx`.
+  Mutation-checked: removing the new branch fails 2, removing the early-return clear fails 1.
 - v0.5.282 — Fix: Progress showed the wrong state when its load failed. (1) After a child
   switch, the previous child's stats stayed on screen, and this screen never names the
   child, so they read as the new child's. (2) On a first-load failure the empty stats fell

@@ -256,6 +256,46 @@ describe('DashboardScreen', () => {
     expect(screen.queryByLabelText('Foods Tracked: 0')).toBeNull();
   });
 
+  // A failed children read leaves the list empty, which is also what a family
+  // with no children looks like. Offering "Add Child" there invites a parent
+  // to re-add a child who already exists.
+  it('says the load failed, not "Add Your First Child", when the first load fails', async () => {
+    mockDb.failReads(new Error('db down'));
+    renderScreen();
+
+    await waitFor(() => expect(screen.getByText("Couldn't Load Your Family")).toBeTruthy());
+    expect(screen.queryByText('Add Your First Child')).toBeNull();
+    expect(screen.queryByText('Add Child')).toBeNull();
+  });
+
+  it('retries the first load from the failed state', async () => {
+    mockDb.failReads(new Error('db down'));
+    renderScreen();
+    await waitFor(() => expect(screen.getByText("Couldn't Load Your Family")).toBeTruthy());
+
+    // The client mock reads through a getter, so a fresh db is a recovered one.
+    mockDb = createMockDb();
+    queueLoad({ all: [exposure({ id: 'e1' })] });
+    await click('Try Again');
+
+    await waitFor(() => expect(screen.getByLabelText('Foods Tracked: 1')).toBeTruthy());
+    expect(screen.queryByText("Couldn't Load Your Family")).toBeNull();
+  });
+
+  // A childless family's load returns before the reads that clear the flag,
+  // so a recovered retry must still reach "Add Your First Child".
+  it('shows "Add Your First Child" when a retry succeeds for a family with no children', async () => {
+    mockDb.failReads(new Error('db down'));
+    renderScreen();
+    await waitFor(() => expect(screen.getByText("Couldn't Load Your Family")).toBeTruthy());
+
+    mockDb = createMockDb();
+    mockDb.queueSelect([]);
+    await click('Try Again');
+
+    await waitFor(() => expect(screen.getByText('Add Your First Child')).toBeTruthy());
+  });
+
   // The chip says Leo, so Emma's numbers and her named activity cards must not
   // stay under it when Leo's load fails: the parent would read them as Leo's.
   it("does not leave the previous child's numbers under a newly selected child whose load fails", async () => {
