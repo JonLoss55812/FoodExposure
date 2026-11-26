@@ -40,10 +40,12 @@ npm install
 
 No flags needed. `node_modules/` and `package-lock.json` are gitignored.
 
-`npm audit` reports advisories from 6 root packages (39 advisories on 2026-11-05). None is
-fixable without an Expo SDK change, and all six are in build/test tooling rather than the app
-bundle — see "Known Limitations" in `CLAUDE.md`. Do not run `npm audit fix --force`; its
-"fix" for `esbuild` is a drizzle-kit downgrade.
+`npm audit` reports advisories from 5 root packages (36 advisories on 2026-11-26):
+`decode-uri-component`, `esbuild`, `glob`, `minimatch` and `@expo/cli`'s private zod 3. None
+is fixable without an Expo SDK change. Only `decode-uri-component` is in the app bundle
+(expo-router → query-string, reachable only through a crafted deep link); the rest are
+build/test tooling — see "Known Limitations" in `CLAUDE.md`. Do not run
+`npm audit fix --force`; its "fix" for `esbuild` is a drizzle-kit downgrade.
 
 ## Configure
 
@@ -72,8 +74,10 @@ npm start          # expo start
 headers `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy:
 credentialless` **on the HTML document**. `metro.config.js` sets them, but under `npm run
 web` they reach only Metro's bundle responses: the HTML at `/` is served without them
-(checked with `curl`, 2026-10-15). So the database may not open in the browser. A static build
-from `npx expo export --platform web` needs its host to send both headers.
+(re-checked with `curl` on 2026-11-26). So under `npm run web` the app boots but **the database
+does not open**: `crossOriginIsolated` is false and expo-sqlite's worker throws
+`SharedArrayBuffer is not defined` (seen in headless Chromium, 2026-11-14). A static build from
+`npx expo export --platform web` needs its host to send both headers.
 
 On first launch you land in onboarding: create a family, then add a child. From there the
 five tabs are Dashboard, Log, Foods, Progress and Settings.
