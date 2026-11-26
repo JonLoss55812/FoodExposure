@@ -275,6 +275,66 @@ describe('FoodsScreen', () => {
     expect(screen.queryByText('Apple')).toBeNull();
   });
 
+  // An unread library is not an empty one: "No Foods Yet / Add Food" there
+  // invites re-adding foods the family already has (the v0.5.2 reasoning).
+  it('says the load failed, not "No Foods Yet", when the first load fails', async () => {
+    mockDb.failReads();
+    renderScreen();
+
+    await waitFor(() => expect(screen.getByText("Couldn't Load Foods")).toBeTruthy());
+    expect(screen.queryByText('No Foods Yet')).toBeNull();
+  });
+
+  it('retries the load from the failed state', async () => {
+    mockDb.failReads();
+    renderScreen();
+    await waitFor(() => expect(screen.getByText("Couldn't Load Foods")).toBeTruthy());
+
+    // The client mock reads through a getter, so a fresh db is a recovered one.
+    mockDb = createMockDb();
+    queueLoad([APPLE]);
+    await click('Try Again');
+
+    await waitFor(() => expect(screen.getByText('Apple')).toBeTruthy());
+    expect(screen.queryByText("Couldn't Load Foods")).toBeNull();
+  });
+
+  // The cards' counts are per child and the screen never names the child, so
+  // after a failed switch the previous child's counts would read as this one's.
+  it("does not show the previous child's counts when the newly selected child's load fails", async () => {
+    queueLoad([APPLE], [
+      { id: 'e1', foodId: APPLE.id, childId: CHILD_ID, stage: 'taste' },
+      { id: 'e2', foodId: APPLE.id, childId: CHILD_ID, stage: 'smell' },
+    ]);
+    renderScreen();
+    await waitFor(() => expect(screen.getByText('2/15')).toBeTruthy());
+
+    mockDb.failReads();
+    act(() => useChildStore.getState().selectChild('child-2'));
+
+    await waitFor(() => expect(screen.getByText("Couldn't Load Foods")).toBeTruthy());
+    expect(screen.queryByText('2/15')).toBeNull();
+  });
+
+  // A failed reload for the same child keeps the list: it is still this
+  // child's. The reload after a merge is one this harness can drive.
+  it('keeps the list when a reload for the same child fails', async () => {
+    const APPLE_TWIN = food({ id: 'food-9', name: 'apple', category: 'fruit' });
+    queueLoad([APPLE, APPLE_TWIN, BROCCOLI]);
+    renderScreen();
+    await waitFor(() => expect(screen.getByText('Broccoli')).toBeTruthy());
+
+    // failReads() covers reads only, so the merge's writes succeed and only
+    // the reload that follows them fails.
+    mockDb.failReads();
+    await click('Merge duplicates of Apple');
+    await confirmAlert(alertSpy, 'Merge');
+
+    await waitFor(() => expect(alertSpy.mock.calls.some(([t]) => t === 'Error')).toBe(true));
+    expect(screen.getByText('Broccoli')).toBeTruthy();
+    expect(screen.queryByText("Couldn't Load Foods")).toBeNull();
+  });
+
   /**
    * The duplicate banner (NEXT_STEPS gap #2(a)). v0.5.176 made merging
    * lossless but reachable only from a rename *collision*, so a family with

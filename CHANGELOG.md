@@ -5,6 +5,17 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.284 — Fix: the Foods tab showed the wrong state when its load failed, the
+  v0.5.282 Progress rule applied here. (1) A first-load failure rendered "No Foods Yet —
+  Add Food", inviting a parent to re-add a library that only could not be read (the
+  v0.5.2 duplicate-nudge reasoning). (2) After a child switch, the previous child's
+  per-food counts ("2/15") stayed on cards that never name the child. The screen now
+  records whose counts it shows (`undefined` until a load succeeds, since `null` — no
+  child selected — is a real value) and whether the last load failed; with nothing of this
+  child's to show it renders "Couldn't Load Foods" with Try Again. A failed same-child
+  reload keeps the list; the post-merge reload is the one the harness drives. +4 tests in
+  `foods.test.tsx`. Mutation-checked: no-op Try Again fails 1, dropping the guard fails 3,
+  hiding on every failure fails 1, never recording the loaded child fails 1.
 - v0.5.283 — Fix: a first-load failure on the dashboard rendered "Add Your First Child"
   (NEXT_STEPS C15). A failed children read leaves the list empty, which is exactly what a
   childless family looks like, so the screen invited the parent to add a child who may

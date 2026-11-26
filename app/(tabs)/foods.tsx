@@ -41,6 +41,12 @@ export default function FoodsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const hasLoadedRef = useRef(false);
+  // Whose counts are on screen (`undefined` until a load succeeds; `null` is a
+  // real value, no child selected) and whether the last load failed. The
+  // cards never name the child, so a failed load after a switch would pass
+  // the previous child's counts off as this child's — the v0.5.282 rule.
+  const [loadedChildId, setLoadedChildId] = useState<string | null | undefined>(undefined);
+  const [loadFailed, setLoadFailed] = useState(false);
   const mergeLatch = useRef(createInFlightLatch()).current;
 
   const loadFoods = useCallback(async () => {
@@ -68,7 +74,10 @@ export default function FoodsScreen() {
       }
 
       setFoods(buildFoodsWithStats(allFoods, allExposures));
+      setLoadedChildId(selectedChildId);
+      setLoadFailed(false);
     } catch (err) {
+      setLoadFailed(true);
       console.error('Failed to load foods:', err);
       Alert.alert('Error', 'Failed to load foods. Please try again.');
     } finally {
@@ -261,6 +270,20 @@ export default function FoodsScreen() {
 
       {/* Food List */}
       {(() => {
+        // A failed refresh for the same child keeps its (still correct) list.
+        // With nothing of this child's to show, say the read failed rather
+        // than "No Foods Yet", which would invite re-adding the library.
+        if (loadFailed && loadedChildId !== selectedChildId) {
+          return (
+            <EmptyState
+              icon="⚠️"
+              title="Couldn't Load Foods"
+              description="Your food library could not be read. Please try again."
+              actionLabel="Try Again"
+              onAction={loadFoods}
+            />
+          );
+        }
         const kind = getEmptyStateKind(foods.length, filteredFoods.length);
         if (kind === 'none') {
           return (
