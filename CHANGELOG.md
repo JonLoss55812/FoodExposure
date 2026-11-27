@@ -5,6 +5,16 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.286 — Fix: a failed children read on Settings left the Family card empty and
+  silent (NEXT_STEPS C15's last sibling). An empty card above "Add Child" reads as "no
+  children yet" and invites re-adding one; after a family switch while mounted it kept
+  the previous family's children, with their Rename and Delete actions. The screen now
+  records whose children it lists and, with none of this family's, shows "Your children
+  could not be loaded." with Try Again in place of the rows. A failed same-family refresh
+  keeps the list. +3 tests in `settings.test.tsx`. Mutation-checked: no-op Try Again
+  fails 1, dropping the guard fails 3. Never recording the loaded family (which would
+  hide the list on a same-family failure) is not caught: the harness's focus effect runs
+  once, so there is no same-family reload to drive (the dashboard C14 limitation).
 - v0.5.285 — Fix: food detail showed the wrong state when its load failed (NEXT_STEPS
   C15, the v0.5.282 rule applied to `app/food/[id].tsx`). (1) A failed food read left
   `food` null and rendered "Food Not Found — This food may have been deleted", which is

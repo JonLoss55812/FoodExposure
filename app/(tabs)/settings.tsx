@@ -42,9 +42,17 @@ export default function SettingsScreen() {
   const deleteChildLatch = useRef(createInFlightLatch()).current;
   const renameChildLatch = useRef(createInFlightLatch()).current;
 
+  // Whose children are listed (`undefined` until a read succeeds) and whether
+  // the last read failed. An empty card reads as "no children yet" and invites
+  // re-adding one; after a family switch it would list the previous family's.
+  const [loadedFamilyId, setLoadedFamilyId] = useState<string | null | undefined>(undefined);
+  const [loadFailed, setLoadFailed] = useState(false);
+
   const loadChildren = useCallback(async () => {
     if (!familyId) {
       setChildrenList([]);
+      setLoadedFamilyId(familyId);
+      setLoadFailed(false);
       return;
     }
     try {
@@ -59,7 +67,10 @@ export default function SettingsScreen() {
         .from(schema.children)
         .where(eq(schema.children.familyId, familyId));
       setChildrenList(rows);
+      setLoadedFamilyId(familyId);
+      setLoadFailed(false);
     } catch (err) {
+      setLoadFailed(true);
       console.error('Failed to load children:', err);
     }
   }, [familyId]);
@@ -241,7 +252,21 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Family</Text>
         <View style={styles.card}>
-          {childrenList.map((child) => {
+          {/* A failed refresh for the same family keeps its (still correct) list. */}
+          {loadFailed && loadedFamilyId !== familyId ? (
+            <>
+              <Pressable
+                style={styles.row}
+                onPress={loadChildren}
+                accessibilityRole="button"
+                accessibilityLabel="Try loading children again"
+              >
+                <Text style={[styles.label, styles.retryLabel]}>Your children could not be loaded.</Text>
+                <Text style={styles.retryText}>Try Again</Text>
+              </Pressable>
+              <View style={styles.divider} />
+            </>
+          ) : childrenList.map((child) => {
             const isDeleting = deletingChildId === child.id;
             const isSaving = savingChildId === child.id;
             const isEditing = editingChildId === child.id;
@@ -539,6 +564,14 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.fontSize.sm,
     fontWeight: '600',
     color: theme.colors.error,
+  },
+  retryLabel: {
+    flexShrink: 1,
+  },
+  retryText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.primaryStrong,
   },
   renameChildText: {
     fontSize: theme.fontSize.sm,

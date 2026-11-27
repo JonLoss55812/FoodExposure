@@ -848,3 +848,75 @@ describe('SettingsScreen — theme', () => {
     });
   });
 });
+
+/**
+ * A failed children read (NEXT_STEPS C15, the v0.5.281–v0.5.285 rule). An
+ * empty Family card reads as "no children yet" and invites re-adding a child
+ * the family already has; after a family switch it would show the previous
+ * family's children.
+ */
+describe('SettingsScreen — Family load failure', () => {
+  let errorSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    mockDb = createMockDb();
+    jest.clearAllMocks();
+    jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    useAuthStore.getState().login({
+      userId: 'user-1',
+      familyId: 'fam-1',
+      email: 'anne@tonguetutor.app',
+      displayName: 'Anne',
+    });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    useAuthStore.getState().logout();
+    useChildStore.getState().clear();
+  });
+
+  async function renderFailing() {
+    mockDb.failReads();
+    await act(async () => {
+      render(
+        <SafeArea>
+          <SettingsScreen />
+        </SafeArea>
+      );
+    });
+    await waitFor(() => expect(screen.getByText('Settings')).toBeTruthy());
+  }
+
+  it('says the children could not be loaded when the first read fails', async () => {
+    await renderFailing();
+
+    await waitFor(() => expect(screen.getByText('Your children could not be loaded.')).toBeTruthy());
+    expect(errorSpy).toHaveBeenCalled();
+  });
+
+  it('retries the read from the failed state', async () => {
+    await renderFailing();
+    await waitFor(() => expect(screen.getByText('Your children could not be loaded.')).toBeTruthy());
+
+    // The client mock reads through a getter, so a fresh db is a recovered one.
+    mockDb = createMockDb();
+    mockDb.queueSelect([EMMA]);
+    await click('Try loading children again');
+
+    await waitFor(() => expect(screen.getByLabelText('Delete Emma')).toBeTruthy());
+    expect(screen.queryByText('Your children could not be loaded.')).toBeNull();
+  });
+
+  it("does not show the previous family's children when the new family's read fails", async () => {
+    await renderWithChildren([EMMA]);
+    expect(screen.getByLabelText('Delete Emma')).toBeTruthy();
+
+    mockDb.failReads();
+    act(() => useAuthStore.getState().setFamilyId('fam-2'));
+
+    await waitFor(() => expect(screen.getByText('Your children could not be loaded.')).toBeTruthy());
+    expect(screen.queryByLabelText('Delete Emma')).toBeNull();
+  });
+});
