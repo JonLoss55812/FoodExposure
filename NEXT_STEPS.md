@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.284. 1275 tests pass across 77 suites. `npx tsc --noEmit` and
+Reviewed at: v0.5.286. 1283 tests pass across 77 suites. `npx tsc --noEmit` and
 `npx tsc --noEmit --noUnusedLocals` are both clean.
 
 This file lists only **open** work. At v0.5.240 it was cut from a 72 KB session log, which
@@ -129,13 +129,15 @@ on an item, because this file has lagged behind the code before.
     re-selecting the same id changes no deps, and RefreshControl is not pressable on web.
     Progress covers the same rule through a profile change (v0.5.282). If the dashboard ever
     gains another reload trigger, add the test.
-15. **Food detail has the same load-failure gap** Dashboard, Progress and Foods closed
-    (v0.5.281–v0.5.284). A failed food read leaves `food` null, so `app/food/[id].tsx`
-    renders "Food Not Found — This food may have been deleted", which is wrong when the
-    read only failed. A failed exposures read after a child switch keeps the previous
-    child's history list. Apply the same `loadFailed` / loaded-child rule; the screen's
-    79-test suite queues reads in order, so add tests at the end. Settings' children read
-    has the same shape (an empty Family list on failure) but writes nothing from it.
+15. **Food detail's Progress card keeps the last child's numbers when the selection is
+    cleared.** `loadData` skips the exposures read when `selectedChildId` is null and does
+    not clear `exposuresList`, so Progress (count, stage) still shows the previous child's
+    figures while History says "Select a child". Clearing the list in that branch is a
+    one-liner; it was left out of v0.5.285 to keep that change to load failures. Rare: the
+    tab layout repairs the selection on mount.
+16. **Settings' same-family failed-refresh path is untested** (v0.5.286), for the C14
+    reason: the harness's focus effect runs once, so there is no second same-family read
+    to fail. Mutating the loaded-family record away is not caught.
 
 ### Caveats for future callers
 
