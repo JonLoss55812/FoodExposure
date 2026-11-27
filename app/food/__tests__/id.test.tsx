@@ -2084,4 +2084,101 @@ describe('FoodDetailScreen', () => {
     });
   });
 
+
+  /**
+   * Load failures (NEXT_STEPS C15, the v0.5.281–v0.5.284 rule). A failed read
+   * is not a missing food, and the history list is per child, so a failed
+   * load after a child switch must not pass the previous child's rows off as
+   * this one's.
+   */
+  describe('load failures', () => {
+    const tasteRow = {
+      id: 'exp-taste',
+      stage: 'taste',
+      rating: null,
+      notes: null,
+      occurredAt: new Date(0),
+      createdAt: new Date(0),
+      mealType: null,
+      temperature: null,
+      texture: null,
+      setting: null,
+    };
+
+    /** Let the next `skip` reads through, then fail every read after them. */
+    function failReadsAfter(skip: number) {
+      const db = mockDb.db as { select: (...args: unknown[]) => unknown };
+      const select = db.select;
+      let calls = 0;
+      db.select = (...args: unknown[]) => {
+        calls += 1;
+        if (calls > skip) mockDb.failReads();
+        return select(...args);
+      };
+    }
+
+    it('says the load failed, not "Food Not Found", when the food read fails', async () => {
+      mockDb.failReads();
+      await renderSettled();
+
+      await waitFor(() => expect(screen.getByText("Couldn't Load Food")).toBeTruthy());
+      expect(screen.queryByText('Food Not Found')).toBeNull();
+    });
+
+    it('retries the load from the failed state', async () => {
+      mockDb.failReads();
+      await renderSettled();
+      await waitFor(() => expect(screen.getByText("Couldn't Load Food")).toBeTruthy());
+
+      // The client mock reads through a getter, so a fresh db is a recovered one.
+      mockDb = createMockDb();
+      queueLoad();
+      await click('Try Again');
+
+      await waitFor(() => expect(screen.getByLabelText('Rename Apple')).toBeTruthy());
+      expect(screen.queryByText("Couldn't Load Food")).toBeNull();
+    });
+
+    it('says the history failed to load, not "No exposures yet", when only the exposures read fails', async () => {
+      mockDb.queueSelect([FOOD]);
+      failReadsAfter(1);
+      await renderLoaded();
+
+      await waitFor(() => expect(screen.getByText("This child's exposures could not be loaded.")).toBeTruthy());
+      expect(screen.queryByText('No exposures yet for this food.')).toBeNull();
+      // With no history read there is no stage to bump from.
+      expect(screen.queryByLabelText(/^Bump to/)).toBeNull();
+    });
+
+    it("does not show the previous child's history or bump target when the new child's read fails", async () => {
+      queueLoad(FOOD, [tasteRow]);
+      await renderLoaded();
+      await waitFor(() => expect(screen.getByLabelText('Bump to Eat')).toBeTruthy());
+
+      mockDb.queueSelect([FOOD]);
+      failReadsAfter(1);
+      act(() => useChildStore.getState().selectChild('child-2'));
+
+      await waitFor(() => expect(screen.getByText("This child's exposures could not be loaded.")).toBeTruthy());
+      expect(screen.queryByLabelText('Bump to Eat')).toBeNull();
+      expect(screen.queryByText('Exposure History (1)')).toBeNull();
+    });
+
+    it('keeps the history when a reload for the same child fails', async () => {
+      queueLoad(FOOD, [tasteRow]);
+      await renderLoaded();
+
+      // The bump's own-child check passes, its insert succeeds, and only the
+      // reload after it fails.
+      mockDb.queueSelect([{ id: 'child-1' }]);
+      failReadsAfter(1);
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Bump to Eat'));
+      });
+
+      await waitFor(() => expect(alertSpy.mock.calls.some(([t]) => t === 'Error')).toBe(true));
+      expect(screen.getByText('Exposure History (1)')).toBeTruthy();
+      expect(screen.queryByText("This child's exposures could not be loaded.")).toBeNull();
+    });
+  });
 });

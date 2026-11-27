@@ -5,6 +5,17 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.285 — Fix: food detail showed the wrong state when its load failed (NEXT_STEPS
+  C15, the v0.5.282 rule applied to `app/food/[id].tsx`). (1) A failed food read left
+  `food` null and rendered "Food Not Found — This food may have been deleted", which is
+  false when the read only failed; it now renders "Couldn't Load Food" with Try Again.
+  (2) A failed exposures read after a child switch kept the previous child's history,
+  progress bar and "Bump to X" target, so a bump would have written a stage computed from
+  another child's history. The screen records whose history it shows and, with none of
+  this child's, replaces Progress and the list with an error (plus Try Again) and hides
+  Bump. A failed same-child reload (after a bump) keeps the list. +5 tests at the end of
+  `id.test.tsx`, using a local `failReadsAfter(n)` because `failReads()` cannot spare the
+  food read. Mutation-checked: the pre-fix screen fails 4; hiding on every failure fails 1.
 - v0.5.284 — Fix: the Foods tab showed the wrong state when its load failed, the
   v0.5.282 Progress rule applied here. (1) A first-load failure rendered "No Foods Yet —
   Add Food", inviting a parent to re-add a library that only could not be read (the

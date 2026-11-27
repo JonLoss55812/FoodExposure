@@ -90,6 +90,12 @@ export default function FoodDetailScreen() {
   const [nameDraft, setNameDraft] = useState('');
   const [savingName, setSavingName] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Whose history is on screen (`undefined` until a load succeeds; `null` is a
+  // real value, no child selected) and whether the last load failed. A failed
+  // read is not a missing food, and after a child switch the list would pass
+  // the previous child's rows off as this one's — the v0.5.282 rule.
+  const [loadedChildId, setLoadedChildId] = useState<string | null | undefined>(undefined);
+  const [loadFailed, setLoadFailed] = useState(false);
   // `bumping`/`deleting` lag a render behind the tap; the latches are synchronous.
   const bumpLatch = useRef(createInFlightLatch()).current;
   const deleteLatch = useRef(createInFlightLatch()).current;
@@ -144,7 +150,10 @@ export default function FoodDetailScreen() {
 
         setExposuresList(exps);
       }
+      setLoadedChildId(selectedChildId);
+      setLoadFailed(false);
     } catch (err) {
+      setLoadFailed(true);
       console.error('Failed to load food detail:', err);
       Alert.alert('Error', 'Failed to load food details. Please try again.');
     } finally {
@@ -715,6 +724,11 @@ export default function FoodDetailScreen() {
    * on the same list and one would clobber the other with no on-screen cue.
    */
   const rowBusy = deletingExposureId !== null || saving !== null;
+  // A failed refresh for the same child keeps its (still correct) history.
+  // With none of this child's to show, the progress, the bump target and the
+  // list would all be another child's (or a blank read as "no exposures").
+  const historyUnavailable = loadFailed && loadedChildId !== selectedChildId;
+  const canBump = !!selectedChildId && !historyUnavailable && canBumpStage(highestStage);
 
   if (loading) {
     return (
@@ -737,13 +751,23 @@ export default function FoodDetailScreen() {
             <Text style={styles.back}>Back</Text>
           </Pressable>
         </View>
-        <EmptyState
-          icon="🤔"
-          title="Food Not Found"
-          description="This food may have been deleted. Try going back to the foods list."
-          actionLabel="Go to Foods"
-          onAction={() => router.replace('/(tabs)/foods' as any)}
-        />
+        {loadFailed ? (
+          <EmptyState
+            icon="⚠️"
+            title="Couldn't Load Food"
+            description="This food could not be read. Please try again."
+            actionLabel="Try Again"
+            onAction={loadData}
+          />
+        ) : (
+          <EmptyState
+            icon="🤔"
+            title="Food Not Found"
+            description="This food may have been deleted. Try going back to the foods list."
+            actionLabel="Go to Foods"
+            onAction={() => router.replace('/(tabs)/foods' as any)}
+          />
+        )}
       </View>
     );
   }
@@ -891,20 +915,26 @@ export default function FoodDetailScreen() {
       {/* Progress */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Progress</Text>
-        <View style={styles.progressCard}>
-          <StageIndicator currentStage={highestStage ?? undefined} size="md" />
-          <ProgressBar
-            current={exposuresList.length}
-            target={getThresholdForProfile(feedingProfile)}
-            color={highestStage ? STAGE_CONFIG[highestStage].color : undefined}
-            accessibilityLabel={`${food.name} exposures progress`}
-          />
-        </View>
+        {historyUnavailable ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyText}>Progress is unavailable until the history loads.</Text>
+          </View>
+        ) : (
+          <View style={styles.progressCard}>
+            <StageIndicator currentStage={highestStage ?? undefined} size="md" />
+            <ProgressBar
+              current={exposuresList.length}
+              target={getThresholdForProfile(feedingProfile)}
+              color={highestStage ? STAGE_CONFIG[highestStage].color : undefined}
+              accessibilityLabel={`${food.name} exposures progress`}
+            />
+          </View>
+        )}
       </View>
 
       {/* Quick Log */}
       <View style={styles.section}>
-        {selectedChildId && canBumpStage(highestStage) && (
+        {canBump && (
           <Button
             label={`Bump to ${STAGE_CONFIG[getNextStage(highestStage)!].label}`}
             onPress={handleBumpStage}
@@ -917,7 +947,7 @@ export default function FoodDetailScreen() {
           label="Log Detailed Exposure"
           onPress={() => router.push('/(tabs)/log')}
           fullWidth
-          variant={selectedChildId && canBumpStage(highestStage) ? 'secondary' : 'primary'}
+          variant={canBump ? 'secondary' : 'primary'}
           icon="➕"
         />
         <Pressable
@@ -943,8 +973,15 @@ export default function FoodDetailScreen() {
 
       {/* Exposure History */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Exposure History ({exposuresList.length})</Text>
-        {!selectedChildId ? (
+        <Text style={styles.sectionTitle}>
+          {historyUnavailable ? 'Exposure History' : `Exposure History (${exposuresList.length})`}
+        </Text>
+        {historyUnavailable ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyText}>This child's exposures could not be loaded.</Text>
+            <Button label="Try Again" onPress={loadData} variant="secondary" />
+          </View>
+        ) : !selectedChildId ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyText}>
               Select a child on the dashboard to see exposure history.
@@ -1393,6 +1430,7 @@ const styles = StyleSheet.create((theme) => ({
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.lg,
+    gap: theme.spacing.sm,
     alignItems: 'center',
   },
   emptyText: {
