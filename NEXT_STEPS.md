@@ -1,6 +1,6 @@
 # NEXT_STEPS.md
 
-Reviewed at: v0.5.286. 1283 tests pass across 77 suites. `npx tsc --noEmit` and
+Reviewed at: v0.5.288. 1286 tests pass across 77 suites. `npx tsc --noEmit` and
 `npx tsc --noEmit --noUnusedLocals` are both clean.
 
 This file lists only **open** work. At v0.5.240 it was cut from a 72 KB session log, which
@@ -124,22 +124,11 @@ on an item, because this file has lagged behind the code before.
     reasoning, but nothing tests it. Add a guard only if a device run shows the wrong
     child's data (v0.5.268). Checked again at v0.5.281: a superseded load reads
     `selectedChildId` from the store *after* its first await, so it loads the new child too.
-14. **The dashboard's same-child failed-refresh path is untested** (v0.5.281). Keeping the
-    shown numbers when a refresh for the same child fails cannot be driven in the harness:
-    re-selecting the same id changes no deps, and RefreshControl is not pressable on web.
-    Progress covers the same rule through a profile change (v0.5.282). If the dashboard ever
-    gains another reload trigger, add the test.
-15. **Food detail's Progress card keeps the last child's numbers when the selection is
-    cleared.** `loadData` skips the exposures read when `selectedChildId` is null and does
-    not clear `exposuresList`, so Progress (count, stage) still shows the previous child's
-    figures while History says "Select a child". Clearing the list in that branch is a
-    one-liner; it was left out of v0.5.285 to keep that change to load failures. Rare: the
-    tab layout repairs the selection on mount.
-16. **Settings' same-family failed-refresh path is untested** (v0.5.286), for the C14
-    reason: the harness's focus effect runs once, so there is no second same-family read
-    to fail. Mutating the loaded-family record away is not caught.
-
 ### Caveats for future callers
+
+- To test a second tab focus, use the `mockFocus.callback` seam in `index.test.tsx` and
+  `settings.test.tsx` (v0.5.288). `foods`, `progress` and `log` tests still mock
+  `useFocusEffect` as a run-once effect; copy the seam there if a test needs a refocus.
 
 - Compare user-typed names with `normalizeNameKey` (`src/lib/utils.ts`), never a bare
   `trim().toLowerCase()`, and never through `deriveLocalEmailPart`, which collapses every
