@@ -28,12 +28,15 @@ const mockRouter = { replace: jest.fn(), back: jest.fn(), push: jest.fn() };
 jest.mock('expo-router', () => ({
   useRouter: () => mockRouter,
   // The real hook re-runs the callback on navigation focus; under the
-  // harness the screen mounts once, so a plain effect is equivalent.
+  // harness the screen mounts once, so a plain effect is equivalent. The
+  // latest callback is kept so a test can stand in for a second focus.
   useFocusEffect: (cb: () => void) => {
     const { useEffect } = jest.requireActual('react');
+    mockFocus.callback = cb;
     useEffect(cb, [cb]);
   },
 }));
+const mockFocus: { callback: (() => void) | null } = { callback: null };
 
 let mockDb: MockDb;
 jest.mock('@/src/db/client', () => ({
@@ -906,6 +909,21 @@ describe('SettingsScreen — Family load failure', () => {
     await click('Try loading children again');
 
     await waitFor(() => expect(screen.getByLabelText('Delete Emma')).toBeTruthy());
+    expect(screen.queryByText('Your children could not be loaded.')).toBeNull();
+  });
+
+  it('keeps the children when a refresh for the same family fails', async () => {
+    await renderWithChildren([EMMA]);
+    expect(screen.getByLabelText('Delete Emma')).toBeTruthy();
+
+    // Returning to the tab re-runs the focus callback; this read fails.
+    mockDb.failReads();
+    await act(async () => {
+      mockFocus.callback?.();
+    });
+
+    await waitFor(() => expect(errorSpy).toHaveBeenCalled());
+    expect(screen.getByLabelText('Delete Emma')).toBeTruthy();
     expect(screen.queryByText('Your children could not be loaded.')).toBeNull();
   });
 

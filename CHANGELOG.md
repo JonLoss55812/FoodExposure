@@ -5,6 +5,15 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.288 — Test: the same-identity failed-refresh paths on the dashboard and Settings
+  are now covered (NEXT_STEPS C14, C16). Both suites mocked `useFocusEffect` as a plain
+  effect that ran once, so there was no second load for the same child/family to fail.
+  The mock now keeps the latest focus callback (`mockFocus.callback`), and a test calls
+  it to stand in for returning to the tab. +1 test in `index.test.tsx`, +1 in
+  `settings.test.tsx`: a failed refresh keeps the numbers/children on screen and shows
+  no error card. Mutation-checked on each screen: never recording the loaded
+  child/family fails 1 (v0.5.286 recorded that one as uncaught), and hiding the data on
+  every failure fails 1. No app code changed.
 - v0.5.287 — Fix: food detail's Progress card kept the previous child's count and stage
   when the child selection was cleared (NEXT_STEPS C15). `loadData` skipped the exposures
   read with no selected child but left `exposuresList` as it was, so Progress showed e.g.

@@ -23,7 +23,7 @@
  * `src/test-utils/screen-helpers` (v0.5.151).
  */
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import { Alert } from 'react-native';
 import { createMockDb, type MockDb } from '@/src/test-utils/mock-db';
 import { SafeArea, click } from '@/src/test-utils/screen-helpers';
@@ -31,11 +31,14 @@ import { SafeArea, click } from '@/src/test-utils/screen-helpers';
 const mockRouter = { replace: jest.fn(), back: jest.fn(), push: jest.fn() };
 jest.mock('expo-router', () => ({
   useRouter: () => mockRouter,
+  // The latest callback is kept so a test can stand in for a second focus.
   useFocusEffect: (cb: () => void) => {
     const { useEffect } = jest.requireActual('react');
+    mockFocus.callback = cb;
     useEffect(cb, [cb]);
   },
 }));
+const mockFocus: { callback: (() => void) | null } = { callback: null };
 
 let mockDb: MockDb;
 jest.mock('@/src/db/client', () => ({
@@ -319,6 +322,24 @@ describe('DashboardScreen', () => {
     expect(screen.queryByLabelText('Foods Tracked: 1')).toBeNull();
     expect(screen.queryByText('Apple')).toBeNull();
     expect(screen.getByText(/Couldn't load this child's activity/)).toBeTruthy();
+  });
+
+  // A failed refresh for the same child keeps that child's (still correct)
+  // numbers rather than replacing them with an error card (NEXT_STEPS C14).
+  it("keeps the child's numbers when a refresh for the same child fails", async () => {
+    queueLoad({ today: [exposure({ id: 'e1' }), exposure({ id: 'e2' })] });
+    renderScreen();
+    await waitFor(() => expect(screen.getByLabelText("Today's Exposures: 2")).toBeTruthy());
+
+    // Returning to the tab re-runs the focus callback; this load fails.
+    mockDb.failReads(new Error('db down'));
+    await act(async () => {
+      mockFocus.callback?.();
+    });
+
+    await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+    expect(screen.getByLabelText("Today's Exposures: 2")).toBeTruthy();
+    expect(screen.queryByText(/Couldn't load this child's activity/)).toBeNull();
   });
 
   it('redirects to onboarding and renders nothing when not onboarded', async () => {
