@@ -5,6 +5,12 @@ at ~450 KB it was loaded into every agent session (critique-2026-10-23 #3). Entr
 record *why* a change was made and which mutations its tests catch — read the entry for
 a file before reworking non-obvious code in it (`grep -n "v0.5.NNN" CHANGELOG.md`).
 
+- v0.5.287 — Fix: food detail's Progress card kept the previous child's count and stage
+  when the child selection was cleared (NEXT_STEPS C15). `loadData` skipped the exposures
+  read with no selected child but left `exposuresList` as it was, so Progress showed e.g.
+  `1/15` at "Taste" while History said "Select a child". The no-child branch now clears
+  the list. +1 test in `id.test.tsx` ("load failures"). Mutation-checked: without the
+  `else` branch it fails on the stale `1/15`.
 - v0.5.286 — Fix: a failed children read on Settings left the Family card empty and
   silent (NEXT_STEPS C15's last sibling). An empty card above "Add Child" reads as "no
   children yet" and invites re-adding one; after a family switch while mounted it kept

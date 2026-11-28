@@ -149,6 +149,10 @@ export default function FoodDetailScreen() {
           .orderBy(...EXPOSURES_NEWEST_FIRST);
 
         setExposuresList(exps);
+      } else {
+        // With no child there is no history to read; keeping the last list
+        // would leave Progress showing the previous child's count and stage.
+        setExposuresList([]);
       }
       setLoadedChildId(selectedChildId);
       setLoadFailed(false);

@@ -2164,6 +2164,24 @@ describe('FoodDetailScreen', () => {
       expect(screen.queryByText('Exposure History (1)')).toBeNull();
     });
 
+    it("drops the previous child's progress when the selection is cleared", async () => {
+      queueLoad(FOOD, [tasteRow]);
+      await renderLoaded();
+      expect(screen.getByText(/^1\/\d+$/)).toBeTruthy();
+
+      // Cleared selection: the reload reads the food only, no exposures.
+      mockDb.queueSelect([FOOD]);
+      await act(async () => {
+        useChildStore.getState().clear();
+      });
+
+      await waitFor(() =>
+        expect(screen.getByText('Select a child on the dashboard to see exposure history.')).toBeTruthy()
+      );
+      expect(screen.queryByText(/^1\/\d+$/)).toBeNull();
+      expect(screen.getByText(/^0\/\d+$/)).toBeTruthy();
+    });
+
     it('keeps the history when a reload for the same child fails', async () => {
       queueLoad(FOOD, [tasteRow]);
       await renderLoaded();
