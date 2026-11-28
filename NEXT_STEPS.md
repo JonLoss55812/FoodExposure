@@ -124,6 +124,7 @@ on an item, because this file has lagged behind the code before.
     reasoning, but nothing tests it. Add a guard only if a device run shows the wrong
     child's data (v0.5.268). Checked again at v0.5.281: a superseded load reads
     `selectedChildId` from the store *after* its first await, so it loads the new child too.
+
 ### Caveats for future callers
 
 - To test a second tab focus, use the `mockFocus.callback` seam in `index.test.tsx` and
